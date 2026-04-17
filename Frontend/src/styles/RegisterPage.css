@@ -1,0 +1,43 @@
+.register-form {
+  display: grid;
+  gap: 12px;
+}
+
+.register-form label {
+  color: #e2e8f0;
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.register-form input {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #f8fafc;
+  padding: 12px 14px;
+}
+
+.register-form input::placeholder {
+  color: #64748b;
+}
+
+.register-form input:focus-visible {
+  outline: 3px solid rgba(125, 211, 252, 0.5);
+  outline-offset: 2px;
+}
+
+.register-submit {
+  margin-top: 6px;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #04111f;
+  background: linear-gradient(135deg, #7dd3fc, #34d399);
+}
+
+.register-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

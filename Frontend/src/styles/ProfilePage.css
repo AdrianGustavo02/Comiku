@@ -1,0 +1,142 @@
+.profile-card {
+  width: min(980px, 100%);
+}
+
+.profile-hero {
+  margin-bottom: 20px;
+}
+
+.profile-actions {
+  align-items: start;
+}
+
+.profile-back-button {
+  margin-top: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.profile-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.profile-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.profile-list li {
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.35);
+  display: grid;
+  gap: 4px;
+}
+
+.profile-list span {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.profile-list strong {
+  color: #f8fafc;
+  word-break: break-word;
+}
+
+.danger-zone {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.16);
+}
+
+.delete-account-button {
+  margin-top: 18px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #fee2e2;
+  background: rgba(220, 38, 38, 0.28);
+}
+
+.delete-account-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.74);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.confirm-modal {
+  width: min(560px, 100%);
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(20, 25, 42, 0.98), rgba(10, 14, 27, 0.98));
+  box-shadow: 0 20px 60px rgba(2, 6, 23, 0.65);
+  padding: 24px;
+}
+
+.confirm-modal-eyebrow {
+  margin: 0;
+  color: #fca5a5;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.confirm-modal h2 {
+  margin: 8px 0 12px;
+  color: #f8fafc;
+  font-size: 1.45rem;
+}
+
+.confirm-modal-text {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.confirm-modal-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-modal {
+    padding: 18px;
+  }
+
+  .confirm-modal h2 {
+    font-size: 1.22rem;
+  }
+
+  .confirm-modal-text {
+    font-size: 1rem;
+  }
+}
