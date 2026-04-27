@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { loginWithEmail } from '../firebase/auth'
 import '../styles/LoginPage.css'
 
-function LoginPage({ isFirebaseConfigured, onAuthenticated, onError }) {
+function LoginPage({ onAuthenticated, onError }) {
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
@@ -50,7 +50,7 @@ function LoginPage({ isFirebaseConfigured, onAuthenticated, onError }) {
           }))
         }
         placeholder="tu-correo@ejemplo.com"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="login-password">Contraseña</label>
@@ -67,13 +67,13 @@ function LoginPage({ isFirebaseConfigured, onAuthenticated, onError }) {
           }))
         }
         placeholder="Tu contraseña"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <button
         className="login-submit"
         type="submit"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       >
         {isSubmitting ? 'Ingresando...' : 'Iniciar sesion'}
       </button>

@@ -17,7 +17,7 @@ function getReferenceFields() {
   const configuredFields = process.env.USER_REFERENCE_FIELDS;
 
   if (!configuredFields) {
-    return ['UID', 'uid', 'userId', 'ownerUid'];
+    return ['UID', 'uid', 'userId'];
   }
 
   return configuredFields
@@ -142,14 +142,6 @@ app.delete('/api/users/me', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({
-    ok: true,
-    message: 'Backend funcionando correctamente',
-    timestamp: new Date().toISOString(),
-  });
-});
-
 app.listen(PORT, () => {
-  console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
+  console.log(`Servidor backend en http://localhost:${PORT}`);
 });

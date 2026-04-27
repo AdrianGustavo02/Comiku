@@ -1,0 +1,102 @@
+.navbar-shell {
+  width: min(1040px, 100%);
+  margin: 0 auto 14px;
+  padding: 0 4px;
+}
+
+.navbar-content {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.65);
+  padding: 12px;
+}
+
+.navbar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.navbar-link-button {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.45);
+  cursor: pointer;
+}
+
+.navbar-link-button.active {
+  border-color: rgba(125, 211, 252, 0.55);
+  color: #082f49;
+  background: linear-gradient(135deg, #7dd3fc, #34d399);
+}
+
+.search-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.search-input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #f8fafc;
+  padding: 12px 14px;
+}
+
+.search-input:focus-visible {
+  outline: 3px solid rgba(125, 211, 252, 0.5);
+  outline-offset: 2px;
+}
+
+.search-suggestion-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.95);
+  max-height: 280px;
+  overflow: auto;
+}
+
+.search-suggestion-button {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: transparent;
+  color: #e2e8f0;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.search-suggestion-button:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.search-suggestion-button span {
+  color: #94a3b8;
+  font-size: 0.86rem;
+}
+
+.search-empty-state {
+  margin: 8px 0 0;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.95);
+  color: #94a3b8;
+  padding: 11px 12px;
+  font-size: 0.92rem;
+}

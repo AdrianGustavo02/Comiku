@@ -34,12 +34,7 @@ function getAgeFromDateString(dateString) {
   return age
 }
 
-function RegisterPage({
-  isFirebaseConfigured,
-  onAuthenticated,
-  onError,
-  onNotice,
-}) {
+function RegisterPage({ onAuthenticated, onError, onNotice }) {
   const [registerForm, setRegisterForm] = useState({
     nombre: '',
     apellido: '',
@@ -178,7 +173,7 @@ function RegisterPage({
           }))
         }
         placeholder="Tu nombre"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-apellido">Apellido (opcional)</label>
@@ -195,7 +190,7 @@ function RegisterPage({
           }))
         }
         placeholder="Tu apellido"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-nick">Nick</label>
@@ -212,7 +207,7 @@ function RegisterPage({
           }))
         }
         placeholder="Tu nick"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-email">Correo electronico</label>
@@ -229,7 +224,7 @@ function RegisterPage({
           }))
         }
         placeholder="tu-correo@ejemplo.com"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-fecha-cumpleanos">Fecha de cumpleaños</label>
@@ -244,7 +239,7 @@ function RegisterPage({
             fechaCumpleanos: event.target.value,
           }))
         }
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-foto-perfil">Foto de perfil (opcional)</label>
@@ -261,7 +256,7 @@ function RegisterPage({
           }))
         }
         placeholder="URL de la foto de perfil"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-password">Contraseña</label>
@@ -278,7 +273,7 @@ function RegisterPage({
           }))
         }
         placeholder="Minimo 6 caracteres y 1 numero"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <label htmlFor="register-confirm-password">Confirmar contraseña</label>
@@ -295,13 +290,13 @@ function RegisterPage({
           }))
         }
         placeholder="Repite la contraseña"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       />
 
       <button
         className="register-submit"
         type="submit"
-        disabled={isSubmitting || !isFirebaseConfigured}
+        disabled={isSubmitting}
       >
         {isSubmitting ? 'Registrando...' : 'Registrarse'}
       </button>

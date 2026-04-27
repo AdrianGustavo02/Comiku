@@ -1,0 +1,40 @@
+.volume-cover-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.45);
+  color: #e2e8f0;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.volume-cover-card img,
+.volume-cover-placeholder {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.volume-cover-card img {
+  object-fit: cover;
+}
+
+.volume-cover-placeholder {
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.volume-cover-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.volume-cover-meta span {
+  color: #94a3b8;
+  font-size: 0.86rem;
+}

@@ -1,0 +1,35 @@
+.comic-detail-card {
+  display: grid;
+  gap: 18px;
+}
+
+.comic-detail-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  color: #f8fafc;
+}
+
+.comic-detail-metadata {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.44);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.comic-detail-metadata p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.comic-detail-volumes h2 {
+  margin: 0 0 12px;
+  color: #f8fafc;
+}
+
+.volume-cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
