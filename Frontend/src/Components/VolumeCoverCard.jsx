@@ -8,7 +8,7 @@ function formatVolumeTitle(volume) {
   return 'Tomo único'
 }
 
-function VolumeCoverCard({ volume, onOpen }) {
+function VolumeCoverCard({ volume, onOpen, comicName }) {
   return (
     <button
       type="button"
@@ -25,6 +25,7 @@ function VolumeCoverCard({ volume, onOpen }) {
       )}
 
       <div className="volume-cover-meta">
+        {comicName && <span className="volume-cover-comic-name">{comicName}</span>}
         <strong>{formatVolumeTitle(volume)}</strong>
         <span>ISBN: {volume.isbn || 'No definido'}</span>
       </div>

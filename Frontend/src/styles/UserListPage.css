@@ -23,6 +23,35 @@
   padding: 10px 12px;
 }
 
+.user-list-search {
+  display: grid;
+  gap: 6px;
+  max-width: 400px;
+}
+
+.user-list-search label {
+  color: #dbeafe;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.user-list-search input {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.user-list-search input:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(2, 6, 23, 0.7);
+}
+
 .user-comic-list {
   display: grid;
   gap: 12px;
@@ -43,7 +72,9 @@
   text-align: left;
   padding: 14px;
   display: grid;
-  gap: 4px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
   cursor: pointer;
 }
 
@@ -51,41 +82,47 @@
   background: rgba(30, 64, 175, 0.18);
 }
 
+.user-comic-toggle:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.95);
+  outline-offset: -2px;
+}
+
+.user-comic-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.user-comic-cover img,
+.user-comic-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-comic-placeholder {
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+.user-comic-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 .user-comic-toggle strong {
-  font-size: 1.03rem;
+  font-size: 1.04rem;
 }
 
 .user-comic-toggle span {
   color: #94a3b8;
   font-size: 0.88rem;
-}
-
-.user-volume-list {
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
-}
-
-.user-volume-item {
-  display: grid;
-  gap: 8px;
-}
-
-.user-volume-meta {
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 12px;
-  background: rgba(2, 6, 23, 0.4);
-  padding: 10px;
-  display: grid;
-  gap: 4px;
-  color: #cbd5e1;
-  font-size: 0.86rem;
-}
-
-.user-volume-meta p {
-  margin: 0;
 }
 
 .user-empty-state {
@@ -94,4 +131,76 @@
   background: rgba(2, 6, 23, 0.45);
   color: #94a3b8;
   padding: 14px;
+}
+
+@media (max-width: 640px) {
+  .user-comic-toggle {
+    grid-template-columns: 1fr;
+  }
+
+  .user-comic-cover {
+    max-width: 160px;
+  }
+}
+
+.wishlist-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.wishlist-filter-group {
+  display: grid;
+  gap: 6px;
+}
+
+.wishlist-filter-group label {
+  color: #dbeafe;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.wishlist-filter-group select,
+.wishlist-filter-group input {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.wishlist-filter-group input {
+  font-family: inherit;
+}
+
+.wishlist-filter-group select:focus,
+.wishlist-filter-group input:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(2, 6, 23, 0.7);
+}
+
+.wishlist-volumes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .wishlist-volumes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .wishlist-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .wishlist-volumes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
 }

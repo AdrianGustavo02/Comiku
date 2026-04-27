@@ -1,21 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import { getUserWishlistItems } from '../firebase/volumeLists'
 import '../styles/UserListPage.css'
 
-function formatDate(value) {
-  if (!(value instanceof Date)) {
-    return 'Sin registro'
-  }
-
-  return value.toLocaleDateString('es-AR')
-}
-
 function WishlistPage({ authUser, onOpenVolume }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [items, setItems] = useState([])
-  const [expandedComicIds, setExpandedComicIds] = useState({})
+  const [allVolumes, setAllVolumes] = useState([])
+  const [sortBy, setSortBy] = useState('recent')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -23,7 +16,7 @@ function WishlistPage({ authUser, onOpenVolume }) {
     async function loadWishlistItems() {
       if (!authUser?.uid) {
         if (!cancelled) {
-          setItems([])
+          setAllVolumes([])
           setLoading(false)
         }
         return
@@ -35,8 +28,18 @@ function WishlistPage({ authUser, onOpenVolume }) {
 
         const nextItems = await getUserWishlistItems({ uid: authUser.uid })
 
+        const flatVolumes = nextItems.flatMap((item) =>
+          item.volumes.map((volume) => ({
+            ...volume,
+            comicId: item.comicId,
+            comicNombre: item.comic.nombre,
+            comicEditorial: item.comic.editorial,
+            comicAutores: item.comic.autores,
+          })),
+        )
+
         if (!cancelled) {
-          setItems(nextItems)
+          setAllVolumes(flatVolumes)
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -60,12 +63,31 @@ function WishlistPage({ authUser, onOpenVolume }) {
     }
   }, [authUser?.uid])
 
-  const toggleComicCard = (comicId) => {
-    setExpandedComicIds((current) => ({
-      ...current,
-      [comicId]: !current[comicId],
-    }))
-  }
+  const filteredAndSortedVolumes = useMemo(() => {
+    let result = [...allVolumes]
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(
+        (volume) =>
+          volume.comicNombre.toLowerCase().includes(query) ||
+          volume.comicEditorial?.toLowerCase().includes(query) ||
+          volume.comicAutores?.some((autor) => autor.toLowerCase().includes(query)),
+      )
+    }
+
+    if (sortBy === 'recent') {
+      result.sort((a, b) => {
+        const dateA = a.fechaAgregado instanceof Date ? a.fechaAgregado : new Date(0)
+        const dateB = b.fechaAgregado instanceof Date ? b.fechaAgregado : new Date(0)
+        return dateB.getTime() - dateA.getTime()
+      })
+    } else if (sortBy === 'alphabetical') {
+      result.sort((a, b) => a.comicNombre.localeCompare(b.comicNombre, 'es'))
+    }
+
+    return result
+  }, [allVolumes, sortBy, searchQuery])
 
   if (loading) {
     return (
@@ -83,56 +105,57 @@ function WishlistPage({ authUser, onOpenVolume }) {
         <header>
           <p className="eyebrow">Comiku / Lista de deseados</p>
           <h1>Tu lista de deseados</h1>
-          <p className="lead">Selecciona un comic para ver sus tomos guardados.</p>
+          <p className="lead">Explora los tomos que deseas agregar a tu colección.</p>
         </header>
 
         {error ? <p className="form-message error">{error}</p> : null}
 
-        {items.length === 0 ? (
-          <p className="user-empty-state">No hay tomos en tu lista de deseados.</p>
+        <div className="wishlist-controls">
+          <div className="wishlist-filter-group">
+            <label htmlFor="wishlist-sort">Ordenar por</label>
+            <select
+              id="wishlist-sort"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value)}
+            >
+              <option value="recent">Mostrar añadido más reciente</option>
+              <option value="alphabetical">Alfabético</option>
+            </select>
+          </div>
+
+          <div className="wishlist-filter-group">
+            <label htmlFor="wishlist-search">Buscar por nombre o autor</label>
+            <input
+              id="wishlist-search"
+              type="text"
+              placeholder="Escribe el nombre del comic, autor o editorial"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
+        </div>
+
+        {filteredAndSortedVolumes.length === 0 ? (
+          <p className="user-empty-state">
+            {allVolumes.length === 0
+              ? 'No hay tomos en tu lista de deseados.'
+              : 'No hay tomos que coincidan con tu búsqueda.'}
+          </p>
         ) : (
-          <div className="user-comic-list">
-            {items.map((item) => {
-              const isExpanded = Boolean(expandedComicIds[item.comicId])
-
-              return (
-                <article key={item.comicId} className="user-comic-card">
-                  <button
-                    type="button"
-                    className="user-comic-toggle"
-                    onClick={() => toggleComicCard(item.comicId)}
-                  >
-                    <strong>{item.comic.nombre}</strong>
-                    <span>{item.comic.editorial || 'Sin editorial'}</span>
-                    <span>Tomos guardados: {item.volumes.length}</span>
-                  </button>
-
-                  {isExpanded ? (
-                    <div className="user-volume-list">
-                      {item.volumes.map((volume) => (
-                        <div className="user-volume-item" key={volume.id}>
-                          <VolumeCoverCard
-                            volume={volume}
-                            onOpen={() =>
-                              onOpenVolume({
-                                comicId: item.comicId,
-                                volumeId: volume.id,
-                              })
-                            }
-                          />
-                          <div className="user-volume-meta">
-                            <p>
-                              <strong>Fecha de agregado:</strong>{' '}
-                              {formatDate(volume.fechaAgregado)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </article>
-              )
-            })}
+          <div className="wishlist-volumes-grid">
+            {filteredAndSortedVolumes.map((volume) => (
+              <VolumeCoverCard
+                key={volume.id}
+                volume={volume}
+                onOpen={() =>
+                  onOpenVolume({
+                    comicId: volume.comicId,
+                    volumeId: volume.id,
+                  })
+                }
+                comicName={volume.comicNombre}
+              />
+            ))}
           </div>
         )}
       </section>

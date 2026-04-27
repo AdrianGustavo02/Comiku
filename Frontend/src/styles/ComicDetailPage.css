@@ -28,8 +28,72 @@
   color: #f8fafc;
 }
 
-.volume-cover-grid {
+.comic-detail-volumes > div:not(:last-child) {
+  margin-bottom: 28px;
+}
+
+.volume-carousel {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.volume-cover-grid {
+  display: flex;
   gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.volume-cover-grid > .volume-cover-card {
+  flex: 0 0 180px;
+  scroll-snap-align: start;
+}
+
+.volume-scroll-button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.45);
+  color: #dbeafe;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.volume-scroll-button:hover {
+  background: rgba(30, 64, 175, 0.18);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.volume-scroll-button:active {
+  background: rgba(30, 64, 175, 0.28);
+}
+
+@media (max-width: 768px) {
+  .volume-scroll-button {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .volume-carousel {
+    gap: 8px;
+  }
+
+  .volume-scroll-button {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
 }

@@ -332,6 +332,7 @@ function Home() {
       <>
         {renderNavbar()}
         <ComicDetailPage
+          authUser={authUser}
           comicId={activeComicId}
           onOpenVolume={(volume) => {
             goToVolumeDetail({ comicId: activeComicId, volumeId: volume.id })
@@ -360,8 +361,8 @@ function Home() {
         {renderNavbar()}
         <LibraryPage
           authUser={authUser}
-          onOpenVolume={({ comicId, volumeId }) => {
-            goToVolumeDetail({ comicId, volumeId })
+          onOpenComic={(comicId) => {
+            goToComicDetail(comicId)
           }}
         />
       </>

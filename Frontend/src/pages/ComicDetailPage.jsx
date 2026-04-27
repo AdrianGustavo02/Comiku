@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import { getComicById, getComicVolumes } from '../firebase/comics'
+import { getUserLibraryItems } from '../firebase/volumeLists'
 import '../styles/ComicDetailPage.css'
 
-function ComicDetailPage({ comicId, onOpenVolume }) {
+function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [comic, setComic] = useState(null)
   const [volumes, setVolumes] = useState([])
+  const [userLibraryVolumes, setUserLibraryVolumes] = useState([])
+  const volumeGridRef = useRef(null)
+  const volumeGridLeftRef = useRef(null)
+  const volumeGridRightRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -36,11 +41,24 @@ function ComicDetailPage({ comicId, onOpenVolume }) {
           setError('El comic solicitado no existe o fue eliminado.')
           setComic(null)
           setVolumes([])
+          setUserLibraryVolumes([])
           return
         }
 
         setComic(comicData)
         setVolumes(volumeData)
+
+        if (authUser?.uid) {
+          try {
+            const libraryItems = await getUserLibraryItems({ uid: authUser.uid })
+            const comicInLibrary = libraryItems.find((item) => item.comicId === comicId)
+            setUserLibraryVolumes(comicInLibrary?.volumes ?? [])
+          } catch {
+            setUserLibraryVolumes([])
+          }
+        } else {
+          setUserLibraryVolumes([])
+        }
       } catch (requestError) {
         if (!cancelled) {
           setError(
@@ -61,7 +79,23 @@ function ComicDetailPage({ comicId, onOpenVolume }) {
     return () => {
       cancelled = true
     }
-  }, [comicId])
+  }, [comicId, authUser?.uid])
+
+  const scrollVolumes = (direction, ref) => {
+    if (!ref?.current) return
+
+    const scrollAmount = 220
+    ref.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    })
+  }
+
+  const hasComicInLibrary = userLibraryVolumes.length > 0
+
+  const libraryVolumeIds = new Set(userLibraryVolumes.map((v) => v.id))
+  const missingVolumes = volumes.filter((volume) => !libraryVolumeIds.has(volume.id))
+  const ownedVolumes = volumes.filter((volume) => libraryVolumeIds.has(volume.id))
 
   if (loading) {
     return (
@@ -110,19 +144,116 @@ function ComicDetailPage({ comicId, onOpenVolume }) {
             </section>
 
             <section className="comic-detail-volumes">
-              <h2>Tomos y portadas</h2>
               {volumes.length === 0 ? (
-                <p className="helper-text">Este comic todavía no tiene tomos cargados.</p>
+                <>
+                  <h2>Tomos y portadas</h2>
+                  <p className="helper-text">Este comic todavía no tiene tomos cargados.</p>
+                </>
+              ) : hasComicInLibrary ? (
+                <>
+                  {missingVolumes.length > 0 && (
+                    <div>
+                      <h2>Me faltan</h2>
+                      <div className="volume-carousel">
+                        <button
+                          type="button"
+                          className="volume-scroll-button volume-scroll-left"
+                          onClick={() => scrollVolumes('left', volumeGridLeftRef)}
+                          aria-label="Desplazar tomos hacia la izquierda"
+                        >
+                          ←
+                        </button>
+
+                        <div className="volume-cover-grid" ref={volumeGridLeftRef}>
+                          {missingVolumes.map((volume) => (
+                            <VolumeCoverCard
+                              key={volume.id}
+                              volume={volume}
+                              onOpen={onOpenVolume}
+                            />
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="volume-scroll-button volume-scroll-right"
+                          onClick={() => scrollVolumes('right', volumeGridLeftRef)}
+                          aria-label="Desplazar tomos hacia la derecha"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {ownedVolumes.length > 0 && (
+                    <div>
+                      <h2>Tengo</h2>
+                      <div className="volume-carousel">
+                        <button
+                          type="button"
+                          className="volume-scroll-button volume-scroll-left"
+                          onClick={() => scrollVolumes('left', volumeGridRightRef)}
+                          aria-label="Desplazar tomos hacia la izquierda"
+                        >
+                          ←
+                        </button>
+
+                        <div className="volume-cover-grid" ref={volumeGridRightRef}>
+                          {ownedVolumes.map((volume) => (
+                            <VolumeCoverCard
+                              key={volume.id}
+                              volume={volume}
+                              onOpen={onOpenVolume}
+                            />
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="volume-scroll-button volume-scroll-right"
+                          onClick={() => scrollVolumes('right', volumeGridRightRef)}
+                          aria-label="Desplazar tomos hacia la derecha"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="volume-cover-grid">
-                  {volumes.map((volume) => (
-                    <VolumeCoverCard
-                      key={volume.id}
-                      volume={volume}
-                      onOpen={onOpenVolume}
-                    />
-                  ))}
-                </div>
+                <>
+                  <h2>Tomos y portadas</h2>
+                  <div className="volume-carousel">
+                    <button
+                      type="button"
+                      className="volume-scroll-button volume-scroll-left"
+                      onClick={() => scrollVolumes('left', volumeGridRef)}
+                      aria-label="Desplazar tomos hacia la izquierda"
+                    >
+                      ←
+                    </button>
+
+                    <div className="volume-cover-grid" ref={volumeGridRef}>
+                      {volumes.map((volume) => (
+                        <VolumeCoverCard
+                          key={volume.id}
+                          volume={volume}
+                          onOpen={onOpenVolume}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="volume-scroll-button volume-scroll-right"
+                      onClick={() => scrollVolumes('right', volumeGridRef)}
+                      aria-label="Desplazar tomos hacia la derecha"
+                    >
+                      →
+                    </button>
+                  </div>
+                </>
               )}
             </section>
           </>
