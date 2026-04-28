@@ -45,6 +45,16 @@ function normalizeDate(value) {
     return null
   }
 
+  if (typeof value === 'object' && value !== null) {
+    if (value.date) {
+      return normalizeDate(value.date)
+    }
+
+    if (value.fecha) {
+      return normalizeDate(value.fecha)
+    }
+  }
+
   if (typeof value?.toDate === 'function') {
     return value.toDate()
   }
@@ -54,6 +64,39 @@ function normalizeDate(value) {
   }
 
   return null
+}
+
+function normalizeReadingEntries(values) {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return values
+    .map((value, index) => {
+      const date = normalizeDate(value)
+
+      if (!date) {
+        return null
+      }
+
+      return {
+        storageIndex: index,
+        id:
+          value && typeof value === 'object' && 'id' in value
+            ? String(value.id)
+            : `${date.getTime()}-${index}`,
+        date,
+        raw: value,
+      }
+    })
+    .filter(Boolean)
+}
+
+function createReadingEntry(readingDate) {
+  return {
+    id: `${readingDate.getTime()}-${Math.random().toString(16).slice(2)}`,
+    date: Timestamp.fromDate(readingDate),
+  }
 }
 
 async function getVolumeStatus({ uid, listCollection, comicId, volumeId }) {
@@ -94,6 +137,42 @@ export async function getVolumeMembership({ uid, comicId, volumeId }) {
   return {
     inLibrary,
     inWishlist,
+  }
+}
+
+export async function getLibraryVolumeData({ uid, comicId, volumeId }) {
+  ensureFirestoreReady()
+
+  if (!uid || !comicId || !volumeId) {
+    throw new Error('No se pudo obtener la información de lectura: datos inválidos.')
+  }
+
+  const volumeReference = getVolumeReference({
+    uid,
+    listCollection: LIBRARY_COLLECTION,
+    comicId,
+    volumeId,
+  })
+
+  const snapshot = await getDoc(volumeReference)
+
+  if (!snapshot.exists()) {
+    return {
+      inLibrary: false,
+      leido: false,
+      fechaLectura: [],
+    }
+  }
+
+  const data = snapshot.data()
+  const readingEntries = normalizeReadingEntries(data.FechaLectura)
+  const fechaLectura = readingEntries.map((entry) => entry.date)
+
+  return {
+    inLibrary: true,
+    leido: Boolean(data.Leido) || readingEntries.length > 0,
+    fechaLectura,
+    readingEntries,
   }
 }
 
@@ -213,6 +292,110 @@ export async function toggleVolumeInWishlist({ uid, comicId, volumeId }) {
     volumeId,
     targetList: WISHLIST_COLLECTION,
   })
+}
+
+export async function addVolumeReading({ uid, comicId, volumeId, readingDate }) {
+  ensureFirestoreReady()
+
+  if (!uid || !comicId || !volumeId || !(readingDate instanceof Date)) {
+    throw new Error('No se pudo agregar la lectura: datos inválidos.')
+  }
+
+  const comicReference = getComicReference({
+    uid,
+    listCollection: LIBRARY_COLLECTION,
+    comicId,
+  })
+  const volumeReference = getVolumeReference({
+    uid,
+    listCollection: LIBRARY_COLLECTION,
+    comicId,
+    volumeId,
+  })
+
+  const volumeSnapshot = await getDoc(volumeReference)
+
+  if (!volumeSnapshot.exists()) {
+    throw new Error('Solo puedes agregar lecturas a tomos que estén en tu biblioteca.')
+  }
+
+  const currentData = volumeSnapshot.data()
+  const currentReadings = normalizeReadingEntries(currentData.FechaLectura)
+  const nextReadingEntry = createReadingEntry(readingDate)
+  const nextReadingEntries = [
+    ...currentReadings.map((entry) => entry.raw),
+    nextReadingEntry,
+  ]
+
+  const batch = writeBatch(db)
+
+  batch.set(
+    comicReference,
+    {
+      FechaAgregado: Timestamp.now(),
+    },
+    { merge: true },
+  )
+
+  batch.set(
+    volumeReference,
+    {
+      FechaLectura: nextReadingEntries,
+      Leido: true,
+    },
+    { merge: true },
+  )
+
+  await batch.commit()
+
+  return getLibraryVolumeData({ uid, comicId, volumeId })
+}
+
+export async function deleteVolumeReading({ uid, comicId, volumeId, storageIndex }) {
+  ensureFirestoreReady()
+
+  if (!uid || !comicId || !volumeId || !Number.isInteger(storageIndex) || storageIndex < 0) {
+    throw new Error('No se pudo eliminar la lectura: datos inválidos.')
+  }
+
+  const volumeReference = getVolumeReference({
+    uid,
+    listCollection: LIBRARY_COLLECTION,
+    comicId,
+    volumeId,
+  })
+
+  const snapshot = await getDoc(volumeReference)
+
+  if (!snapshot.exists()) {
+    throw new Error('Solo puedes eliminar lecturas de tomos que estén en tu biblioteca.')
+  }
+
+  const currentData = snapshot.data()
+  const currentReadings = normalizeReadingEntries(currentData.FechaLectura)
+
+  if (storageIndex >= currentReadings.length) {
+    throw new Error('No se encontró la lectura solicitada.')
+  }
+
+  const nextReadingEntries = currentReadings
+    .filter((entry) => entry.storageIndex !== storageIndex)
+    .map((entry) => entry.raw)
+
+  const batch = writeBatch(db)
+
+  batch.set(
+    volumeReference,
+    {
+      FechaLectura: nextReadingEntries,
+      Leido: nextReadingEntries.length > 0,
+    },
+    { merge: true },
+  )
+
+  await batch.commit()
+
+  return getLibraryVolumeData({ uid, comicId, volumeId })
 }
 
 async function getUserListItems({ uid, listCollection }) {

@@ -35,6 +35,192 @@
   gap: 10px;
 }
 
+.volume-reading-panel {
+  margin-top: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.36);
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.volume-reading-panel h2,
+.volume-reading-history h3 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.volume-reading-form {
+  display: grid;
+  gap: 6px;
+}
+
+.volume-reading-form label {
+  color: #dbeafe;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.volume-reading-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.volume-reading-form input {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.volume-reading-form input:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(2, 6, 23, 0.7);
+}
+
+.volume-reading-button {
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  color: #dbeafe;
+  background: rgba(2, 132, 199, 0.22);
+  cursor: pointer;
+}
+
+.volume-reading-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.volume-reading-history {
+  display: grid;
+  gap: 10px;
+}
+
+.volume-reading-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  color: #cbd5e1;
+}
+
+.volume-reading-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(2, 6, 23, 0.34);
+  padding: 10px 12px;
+}
+
+.volume-reading-delete-button {
+  border: 1px solid rgba(248, 113, 113, 0.32);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.2);
+  color: #fecaca;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.volume-reading-delete-button:hover {
+  background: rgba(127, 29, 29, 0.32);
+}
+
+.volume-reading-delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reading-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 40;
+  backdrop-filter: blur(8px);
+}
+
+.reading-modal {
+  width: min(100%, 460px);
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+}
+
+.reading-modal h2 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.reading-modal-text {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.reading-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.reading-modal-button {
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.reading-modal-button.secondary {
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+.reading-modal-button.destructive {
+  background: rgba(127, 29, 29, 0.34);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.reading-modal-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reading-modal-button.secondary:hover {
+  background: rgba(30, 41, 59, 0.85);
+}
+
+.reading-modal-button.destructive:hover {
+  background: rgba(153, 27, 27, 0.45);
+}
+
+.volume-reading-helper {
+  margin-top: 18px;
+}
+
 .volume-list-button {
   border: 1px solid rgba(125, 211, 252, 0.4);
   border-radius: 12px;
@@ -94,5 +280,30 @@
 
   .volume-list-actions {
     flex-direction: column;
+  }
+
+  .volume-reading-form-row {
+    flex-direction: column;
+  }
+
+  .volume-reading-button {
+    width: 100%;
+  }
+
+  .volume-reading-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .volume-reading-delete-button {
+    width: 100%;
+  }
+
+  .reading-modal-actions {
+    flex-direction: column;
+  }
+
+  .reading-modal-button {
+    width: 100%;
   }
 }

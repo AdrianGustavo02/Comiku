@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import {
+  addVolumeReading,
+  deleteVolumeReading,
+  getLibraryVolumeData,
   getVolumeMembership,
   toggleVolumeInLibrary,
   toggleVolumeInWishlist,
@@ -16,6 +19,14 @@ function formatPublicationDate(publicationDate) {
   return `${month}/${year}`
 }
 
+function formatReadingDate(readingDate) {
+  if (!(readingDate instanceof Date)) {
+    return 'Fecha no definida'
+  }
+
+  return readingDate.toLocaleDateString('es-AR')
+}
+
 function VolumeDetailPage({ comicId, volumeId, authUser }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -26,10 +37,25 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
   const [listLoading, setListLoading] = useState(true)
   const [isUpdatingLibrary, setIsUpdatingLibrary] = useState(false)
   const [isUpdatingWishlist, setIsUpdatingWishlist] = useState(false)
+  const [isAddingReading, setIsAddingReading] = useState(false)
+  const [readingDate, setReadingDate] = useState('')
+  const [readingToDelete, setReadingToDelete] = useState(null)
   const [membership, setMembership] = useState({
     inLibrary: false,
     inWishlist: false,
   })
+  const [libraryData, setLibraryData] = useState({
+    inLibrary: false,
+    leido: false,
+    fechaLectura: [],
+    readingEntries: [],
+  })
+
+  const sortedReadings = useMemo(
+    () =>
+      [...libraryData.readingEntries].sort((a, b) => b.date.getTime() - a.date.getTime()),
+    [libraryData.readingEntries],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -92,6 +118,12 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
       if (!authUser?.uid || !comicId || !volumeId) {
         if (!cancelled) {
           setMembership({ inLibrary: false, inWishlist: false })
+          setLibraryData({
+            inLibrary: false,
+            leido: false,
+            fechaLectura: [],
+            readingEntries: [],
+          })
           setListLoading(false)
         }
         return
@@ -100,14 +132,23 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
       try {
         setListLoading(true)
         setListError('')
-        const nextMembership = await getVolumeMembership({
-          uid: authUser.uid,
-          comicId,
-          volumeId,
-        })
+
+        const [nextMembership, nextLibraryData] = await Promise.all([
+          getVolumeMembership({
+            uid: authUser.uid,
+            comicId,
+            volumeId,
+          }),
+          getLibraryVolumeData({
+            uid: authUser.uid,
+            comicId,
+            volumeId,
+          }),
+        ])
 
         if (!cancelled) {
           setMembership(nextMembership)
+          setLibraryData(nextLibraryData)
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -149,6 +190,15 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
       })
 
       setMembership(nextMembership)
+
+      if (!nextMembership.inLibrary) {
+        setLibraryData({
+          inLibrary: false,
+          leido: false,
+          fechaLectura: [],
+          readingEntries: [],
+        })
+      }
 
       setListNotice(
         nextMembership.inLibrary
@@ -201,7 +251,100 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
     }
   }
 
-  const isMutatingList = isUpdatingLibrary || isUpdatingWishlist || listLoading
+  const handleAddReading = async (event) => {
+    event.preventDefault()
+
+    if (!authUser?.uid || !comicId || !volumeId) {
+      setListError('No hay sesión activa o faltan datos del tomo.')
+      return
+    }
+
+    if (!membership.inLibrary) {
+      setListError('Primero debes agregar el tomo a tu biblioteca.')
+      return
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(readingDate)) {
+      setListError('Debes seleccionar una fecha válida.')
+      return
+    }
+
+    const [year, month, day] = readingDate.split('-').map(Number)
+    const readingDateValue = new Date(year, month - 1, day)
+
+    try {
+      setIsAddingReading(true)
+      setListError('')
+      setListNotice('')
+
+      const nextLibraryData = await addVolumeReading({
+        uid: authUser.uid,
+        comicId,
+        volumeId,
+        readingDate: readingDateValue,
+      })
+
+      setLibraryData(nextLibraryData)
+      setMembership((current) => ({
+        ...current,
+        inLibrary: true,
+      }))
+      setReadingDate('')
+      setListNotice('La lectura fue guardada correctamente.')
+    } catch (requestError) {
+      setListError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No fue posible guardar la lectura.',
+      )
+    } finally {
+      setIsAddingReading(false)
+    }
+  }
+
+  const handleDeleteReading = async (readingEntry) => {
+    if (!authUser?.uid || !comicId || !volumeId) {
+      setListError('No hay sesión activa o faltan datos del tomo.')
+      return
+    }
+
+    setReadingToDelete(readingEntry)
+  }
+
+  const confirmDeleteReading = async () => {
+    if (!readingToDelete || !authUser?.uid || !comicId || !volumeId) {
+      setReadingToDelete(null)
+      return
+    }
+
+    try {
+      setIsAddingReading(true)
+      setListError('')
+      setListNotice('')
+
+      const nextLibraryData = await deleteVolumeReading({
+        uid: authUser.uid,
+        comicId,
+        volumeId,
+        storageIndex: readingToDelete.storageIndex,
+      })
+
+      setLibraryData(nextLibraryData)
+      setListNotice('La lectura fue eliminada correctamente.')
+    } catch (requestError) {
+      setListError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No fue posible eliminar la lectura.',
+      )
+    } finally {
+      setIsAddingReading(false)
+      setReadingToDelete(null)
+    }
+  }
+
+  const isMutatingList =
+    isUpdatingLibrary || isUpdatingWishlist || isAddingReading || listLoading
 
   if (loading) {
     return (
@@ -240,8 +383,10 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
                   {formatPublicationDate(volume.fechaPublicacion)}
                 </p>
                 <p>
-                  <strong>Tipo:</strong>{' '}
-                  {volume.tomoUnico ? 'Tomo único' : 'Numerado'}
+                  <strong>Tipo:</strong> {volume.tomoUnico ? 'Tomo único' : 'Numerado'}
+                </p>
+                <p>
+                  <strong>Leído:</strong> {libraryData.leido ? 'Sí' : 'No'}
                 </p>
               </div>
 
@@ -252,9 +397,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
                   onClick={handleToggleLibrary}
                   disabled={isMutatingList}
                 >
-                  {membership.inLibrary
-                    ? 'En biblioteca ✓'
-                    : '+ Agregar a biblioteca'}
+                  {membership.inLibrary ? 'En biblioteca ✓' : '+ Agregar a biblioteca'}
                 </button>
 
                 <button
@@ -263,11 +406,64 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
                   onClick={handleToggleWishlist}
                   disabled={isMutatingList}
                 >
-                  {membership.inWishlist
-                    ? 'En deseados ✓'
-                    : '+ Agregar a deseados'}
+                  {membership.inWishlist ? 'En deseados ✓' : '+ Agregar a deseados'}
                 </button>
               </div>
+
+              {membership.inLibrary ? (
+                <section className="volume-reading-panel">
+                  <h2>Agregar lectura</h2>
+                  <form className="volume-reading-form" onSubmit={handleAddReading}>
+                    <label htmlFor="reading-date">Fecha de lectura</label>
+                    <div className="volume-reading-form-row">
+                      <input
+                        id="reading-date"
+                        type="date"
+                        value={readingDate}
+                        onChange={(event) => setReadingDate(event.target.value)}
+                        disabled={isMutatingList}
+                      />
+                      <button
+                        className="volume-reading-button"
+                        type="submit"
+                        disabled={isMutatingList || !readingDate}
+                      >
+                        Guardar lectura
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="volume-reading-history">
+                    <h3>Lecturas guardadas</h3>
+                    {sortedReadings.length === 0 ? (
+                      <p className="helper-text">
+                        Todavía no registraste lecturas para este tomo.
+                      </p>
+                    ) : (
+                      <ul className="volume-reading-list">
+                        {sortedReadings.map((item) => (
+                          <li key={item.id} className="volume-reading-item">
+                            <span>{formatReadingDate(item.date)}</span>
+                            <button
+                              type="button"
+                              className="volume-reading-delete-button"
+                              onClick={() => handleDeleteReading(item)}
+                              disabled={isMutatingList}
+                              aria-label={`Eliminar lectura del ${formatReadingDate(item.date)}`}
+                            >
+                              Eliminar lectura
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                <p className="helper-text volume-reading-helper">
+                  Agrega este tomo a tu biblioteca para registrar lecturas.
+                </p>
+              )}
             </section>
 
             <section className="volume-detail-cover-area">
@@ -283,6 +479,44 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
             </section>
           </div>
         )}
+
+        {readingToDelete ? (
+          <div className="reading-modal-backdrop" role="presentation">
+            <div
+              className="reading-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reading-modal-title"
+            >
+              <p className="eyebrow">Confirmar eliminación</p>
+              <h2 id="reading-modal-title">Eliminar lectura</h2>
+              <p className="reading-modal-text">
+                Vas a borrar la lectura del {formatReadingDate(readingToDelete.date)}.
+                Esta acción no se puede deshacer.
+              </p>
+
+              <div className="reading-modal-actions">
+                <button
+                  type="button"
+                  className="reading-modal-button secondary"
+                  onClick={() => setReadingToDelete(null)}
+                  disabled={isMutatingList}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  className="reading-modal-button destructive"
+                  onClick={confirmDeleteReading}
+                  disabled={isMutatingList}
+                >
+                  Eliminar lectura
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </main>
   )
