@@ -29,6 +29,7 @@ function Navbar({
   onOpenHome,
   onOpenLibrary,
   onOpenWishlist,
+  onOpenThematicLists,
   activePage,
 }) {
   const [query, setQuery] = useState('')
@@ -103,6 +104,13 @@ function Navbar({
             onClick={onOpenWishlist}
           >
             Lista de deseados
+          </button>
+          <button
+            type="button"
+            className={`navbar-link-button ${activePage === 'thematic-lists' ? 'active' : ''}`}
+            onClick={onOpenThematicLists}
+          >
+            Listas temáticas
           </button>
         </div>
 

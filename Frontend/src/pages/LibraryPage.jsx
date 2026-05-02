@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { COMIC_GENRES } from '../constants/comicGenres'
 import { getUserLibraryItems } from '../firebase/volumeLists'
-import '../styles/UserListPage.css'
+import '../styles/LibraryPage.css'
 
 function getFeaturedLibraryVolume(volumes) {
   if (!Array.isArray(volumes) || volumes.length === 0) {

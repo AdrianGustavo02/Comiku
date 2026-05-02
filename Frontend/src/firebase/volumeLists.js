@@ -161,6 +161,7 @@ export async function getLibraryVolumeData({ uid, comicId, volumeId }) {
       inLibrary: false,
       leido: false,
       fechaLectura: [],
+      readingEntries: [],
     }
   }
 

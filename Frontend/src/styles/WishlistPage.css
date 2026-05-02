@@ -1,0 +1,61 @@
+.wishlist-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.wishlist-filter-group {
+  display: grid;
+  gap: 6px;
+}
+
+.wishlist-filter-group label {
+  color: #dbeafe;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.wishlist-filter-group select,
+.wishlist-filter-group input {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.wishlist-filter-group input {
+  font-family: inherit;
+}
+
+.wishlist-filter-group select:focus,
+.wishlist-filter-group input:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(2, 6, 23, 0.7);
+}
+
+.wishlist-volumes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .wishlist-volumes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .wishlist-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .wishlist-volumes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
+}

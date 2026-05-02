@@ -97,3 +97,139 @@
     font-size: 0.9rem;
   }
 }
+
+/* Reseñas */
+.comic-detail-reviews {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.36);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.comic-rating-summary p {
+  margin: 0;
+  color: #e2e8f0;
+}
+
+.my-review {
+  background: rgba(2,6,23,0.25);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.review-form {
+  display: grid;
+  gap: 8px;
+}
+
+.star-input {
+  display: flex;
+  gap: 6px;
+}
+
+.star-button {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #f8fafc;
+  width: 40px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: inline-grid;
+  place-items: center;
+}
+
+.star-button.selected {
+  background: rgba(250, 204, 21, 0.12);
+  border-color: rgba(250, 204, 21, 0.5);
+  color: #facc15;
+}
+
+.review-form textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+  background: rgba(2,6,23,0.12);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.review-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.other-reviews .reviews-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.review-item {
+  background: rgba(2,6,23,0.14);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.review-user {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.review-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.review-stars {
+  color: #facc15;
+  font-weight: 700;
+}
+
+.review-text {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.reviews-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.reviews-more button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .star-button {
+    width: 36px;
+    height: 34px;
+  }
+}

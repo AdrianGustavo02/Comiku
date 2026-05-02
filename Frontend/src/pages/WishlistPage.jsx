@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import { getUserWishlistItems } from '../firebase/volumeLists'
-import '../styles/UserListPage.css'
+import '../styles/WishlistPage.css'
 
 function WishlistPage({ authUser, onOpenVolume }) {
   const [loading, setLoading] = useState(true)

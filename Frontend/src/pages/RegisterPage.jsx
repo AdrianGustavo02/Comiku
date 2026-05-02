@@ -1,18 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { isEmailRegistered, registerWithEmail, validatePassword } from '../firebase/auth'
 import { createUserProfile } from '../firebase/user'
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_PROFILE_PICTURE_SIZE_BYTES,
+  readFileAsDataUrl,
+} from '../constants/imageUpload'
+import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 import '../styles/RegisterPage.css'
 
 const MINIMUM_AGE = 18
-
-function isValidHttpUrl(value) {
-  try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
 
 function getAgeFromDateString(dateString) {
   const birthDate = new Date(`${dateString}T00:00:00`)
@@ -41,11 +38,39 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     nick: '',
     email: '',
     fechaCumpleanos: '',
-    fotoPerfil: '',
     password: '',
     confirmPassword: '',
   })
+  const [fotoPerfil, setFotoPerfil] = useState(null)
+  const [fotoPerfilFileName, setFotoPerfilFileName] = useState('')
+  const [fotoPerfilPreviewUrl, setFotoPerfilPreviewUrl] = useState('')
+  const [defaultPreviewUrl, setDefaultPreviewUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    // Cargar la preview de la foto por defecto
+    const loadDefaultPreview = async () => {
+      try {
+        const response = await fetch(defaultProfilePicture)
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        setDefaultPreviewUrl(url)
+      } catch (error) {
+        console.error('Error loading default profile picture:', error)
+      }
+    }
+
+    loadDefaultPreview()
+
+    return () => {
+      if (fotoPerfilPreviewUrl) {
+        URL.revokeObjectURL(fotoPerfilPreviewUrl)
+      }
+      if (defaultPreviewUrl) {
+        URL.revokeObjectURL(defaultPreviewUrl)
+      }
+    }
+  }, [fotoPerfilPreviewUrl, defaultPreviewUrl])
 
   const showErrorAndScrollTop = (message) => {
     onError(message)
@@ -55,24 +80,28 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     }
   }
 
+  const handleFotoPerfilChange = (event) => {
+    const file = event.target.files?.[0] || null
+    const newPreviewUrl = file ? URL.createObjectURL(file) : ''
+
+    if (fotoPerfilPreviewUrl) {
+      URL.revokeObjectURL(fotoPerfilPreviewUrl)
+    }
+
+    setFotoPerfil(file)
+    setFotoPerfilFileName(file ? file.name : '')
+    setFotoPerfilPreviewUrl(newPreviewUrl)
+  }
+
   const handleRegisterSubmit = async (event) => {
     event.preventDefault()
     onError('')
     onNotice('')
 
-    const {
-      nombre,
-      apellido,
-      nick,
-      email,
-      fechaCumpleanos,
-      fotoPerfil,
-      password,
-      confirmPassword,
-    } = registerForm
+    const { nombre, apellido, nick, email, fechaCumpleanos, password, confirmPassword } =
+      registerForm
     const trimmedNick = nick.trim()
     const trimmedEmail = email.trim()
-    const trimmedFotoPerfil = fotoPerfil.trim()
 
     if (!trimmedNick || !trimmedEmail || !fechaCumpleanos || !password || !confirmPassword) {
       showErrorAndScrollTop(
@@ -93,11 +122,16 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       return
     }
 
-    if (trimmedFotoPerfil && !isValidHttpUrl(trimmedFotoPerfil)) {
-      showErrorAndScrollTop(
-        'La foto de perfil debe ser una URL válida que comience con http o https.',
-      )
-      return
+    if (fotoPerfil) {
+      if (!ALLOWED_IMAGE_TYPES.includes(fotoPerfil.type)) {
+        showErrorAndScrollTop('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
+        return
+      }
+
+      if (fotoPerfil.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
+        showErrorAndScrollTop('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
+        return
+      }
     }
 
     const emailAlreadyRegistered = await isEmailRegistered(trimmedEmail)
@@ -121,6 +155,32 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
 
     try {
       setIsSubmitting(true)
+
+      let fotoPefilDataUrl = null
+      let fotoPefilObject = null
+
+      if (fotoPerfil) {
+        // Usuario subió una foto personalizada
+        fotoPefilDataUrl = await readFileAsDataUrl(fotoPerfil)
+        fotoPefilObject = {
+          dataUrl: fotoPefilDataUrl,
+          fileName: fotoPerfil.name,
+          contentType: fotoPerfil.type,
+          sizeBytes: fotoPerfil.size,
+        }
+      } else {
+        // Usuario no seleccionó foto, usar la imagen por defecto
+        const response = await fetch(defaultProfilePicture)
+        const blob = await response.blob()
+        fotoPefilDataUrl = await readFileAsDataUrl(blob)
+        fotoPefilObject = {
+          dataUrl: fotoPefilDataUrl,
+          fileName: 'defaultProfilePicture.png',
+          contentType: 'image/png',
+          sizeBytes: blob.size,
+        }
+      }
+
       const user = await registerWithEmail({ email: trimmedEmail, password })
 
       await createUserProfile({
@@ -130,7 +190,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         nick: trimmedNick,
         email: trimmedEmail,
         fechaCumpleanos,
-        fotoPerfil: trimmedFotoPerfil,
+        fotoPerfil: fotoPefilObject,
       })
 
       setRegisterForm({
@@ -139,10 +199,13 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         nick: '',
         email: '',
         fechaCumpleanos: '',
-        fotoPerfil: '',
         password: '',
         confirmPassword: '',
       })
+      setFotoPerfil(null)
+      setFotoPerfilFileName('')
+      setFotoPerfilPreviewUrl('')
+      
       onAuthenticated({
         user,
         notice:
@@ -246,18 +309,24 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       <input
         id="register-foto-perfil"
         name="fotoPerfil"
-        type="text"
-        autoComplete="photo"
-        value={registerForm.fotoPerfil}
-        onChange={(event) =>
-          setRegisterForm((current) => ({
-            ...current,
-            fotoPerfil: event.target.value,
-          }))
-        }
-        placeholder="URL de la foto de perfil"
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp"
+        onChange={handleFotoPerfilChange}
         disabled={isSubmitting}
       />
+      {fotoPerfilFileName && (
+        <p className="helper-text">Archivo seleccionado: {fotoPerfilFileName}</p>
+      )}
+      <div className="cover-preview-card">
+        <p className="helper-text">
+          {fotoPerfilFileName ? 'Tu foto de perfil' : 'Foto de perfil por defecto'}
+        </p>
+        <img
+          className="cover-preview-image"
+          src={fotoPerfilPreviewUrl || defaultPreviewUrl}
+          alt="Foto de perfil"
+        />
+      </div>
 
       <label htmlFor="register-password">Contraseña</label>
       <input

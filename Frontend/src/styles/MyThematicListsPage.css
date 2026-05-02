@@ -1,0 +1,88 @@
+/* My Thematic Lists Page Styles */
+
+.my-thematic-lists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.my-thematic-list-card {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.my-thematic-list-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.my-thematic-list-cover {
+  cursor: pointer;
+  height: 200px;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.my-thematic-list-info {
+  padding: 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.my-thematic-list-info strong {
+  display: block;
+  font-size: 1.125rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+  line-height: 1.3;
+}
+
+.my-thematic-list-info p {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.my-thematic-list-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+  margin-top: auto;
+}
+
+.my-thematic-list-actions button {
+  flex: 1;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 900px) {
+  .my-thematic-lists-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .my-thematic-lists-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-thematic-list-cover {
+    height: 150px;
+  }
+}

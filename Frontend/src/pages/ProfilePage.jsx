@@ -145,11 +145,17 @@ function ProfilePage({
                   <span>Cumpleaños:</span>
                   <strong>{profileData?.fechaCumpleanos || 'No definido'}</strong>
                 </li>
-                <li>
-                  <span>Foto:</span>
-                  <strong>{profileData?.fotoPerfil || 'No definida'}</strong>
-                </li>
               </ul>
+              {profileData?.fotoPerfil && (
+                <div className="profile-picture-section">
+                  <p className="profile-picture-label">Foto de perfil:</p>
+                  <img
+                    className="profile-picture"
+                    src={profileData.fotoPerfil}
+                    alt="Foto de perfil del usuario"
+                  />
+                </div>
+              )}
             </section>
 
             <section className="info-card danger-zone">

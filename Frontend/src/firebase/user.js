@@ -67,6 +67,11 @@ export async function getUserProfile(uid) {
     ? data.FechaCumpleanos.toDate().toISOString().slice(0, 10)
     : ''
 
+  const fotoPerfil =
+    data.FotoPerfil && typeof data.FotoPerfil === 'object' && data.FotoPerfil.dataUrl
+      ? data.FotoPerfil.dataUrl
+      : defaultProfilePicture
+
   return {
     uid: data.UID || uid,
     nombre: data.Nombre || '',
@@ -75,7 +80,7 @@ export async function getUserProfile(uid) {
     email: data.Email || '',
     rol: data.Rol || '',
     fechaCumpleanos: birthdayValue,
-    fotoPerfil: data.FotoPerfil || '',
+    fotoPerfil,
   }
 }
 

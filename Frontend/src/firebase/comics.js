@@ -1,8 +1,23 @@
-import { addDoc, collection, doc, getDoc, getDocs } from 'firebase/firestore'
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+} from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
 
 const COMICS_COLLECTION = 'comics'
 const VOLUMES_SUBCOLLECTION = 'tomos'
+const REVIEWS_SUBCOLLECTION = 'Reseñas'
 
 function ensureFirestoreReady() {
   if (!isFirebaseConfigured || !db) {
@@ -83,6 +98,14 @@ function mapComicSnapshot(snapshot) {
     generos: Array.isArray(data.Genero) ? data.Genero : [],
     descripcion: data.Descripcion || '',
     formato: data.Formato || '',
+    promedioCalificacion:
+      data.PromedioCalificacion === undefined || data.PromedioCalificacion === null
+        ? null
+        : data.PromedioCalificacion,
+    cantidadCalificaciones:
+      data.CantidadCalificaciones === undefined || data.CantidadCalificaciones === null
+        ? 0
+        : data.CantidadCalificaciones,
   }
 }
 
@@ -170,6 +193,187 @@ export async function getComicVolumeById({ comicId, volumeId }) {
   }
 
   return mapVolumeSnapshot(snapshot)
+}
+
+function mapReviewSnapshot(snapshot) {
+  const data = snapshot.data()
+
+  return {
+    id: snapshot.id,
+    usuarioId: data.UsuarioId || '',
+    descripcion: data.Descripcion || '',
+    calificacion: data.Calificacion ?? null,
+    fecha: data.Fecha && data.Fecha.toDate ? data.Fecha.toDate() : null,
+  }
+}
+
+export async function getUserReview(comicId, usuarioId) {
+  ensureFirestoreReady()
+
+  if (!comicId || !usuarioId) return null
+
+  const q = query(
+    collection(db, COMICS_COLLECTION, comicId, REVIEWS_SUBCOLLECTION),
+    where('UsuarioId', '==', usuarioId),
+    limit(1),
+  )
+
+  const snapshots = await getDocs(q)
+
+  if (snapshots.empty) return null
+
+  return mapReviewSnapshot(snapshots.docs[0])
+}
+
+export async function getComicReviews(comicId, pageSize = 10, startAfterId = null) {
+  ensureFirestoreReady()
+
+  if (!comicId) {
+    throw new Error('No se pudieron obtener las reseñas: comic inválido.')
+  }
+
+  const reviewsCollection = collection(db, COMICS_COLLECTION, comicId, REVIEWS_SUBCOLLECTION)
+
+  let q
+
+  if (startAfterId) {
+    const lastDoc = await getDoc(doc(reviewsCollection, startAfterId))
+    if (!lastDoc.exists()) {
+      q = query(reviewsCollection, orderBy('Fecha', 'desc'), limit(pageSize))
+    } else {
+      q = query(
+        reviewsCollection,
+        orderBy('Fecha', 'desc'),
+        startAfter(lastDoc),
+        limit(pageSize),
+      )
+    }
+  } else {
+    q = query(reviewsCollection, orderBy('Fecha', 'desc'), limit(pageSize))
+  }
+
+  const snapshots = await getDocs(q)
+
+  const reviews = snapshots.docs.map(mapReviewSnapshot)
+
+  const last = snapshots.docs.length > 0 ? snapshots.docs[snapshots.docs.length - 1].id : null
+
+  const hasMore = snapshots.docs.length === pageSize
+
+  return { reviews, lastId: last, hasMore }
+}
+
+export async function addReview({ comicId, usuarioId, descripcion, calificacion }) {
+  ensureFirestoreReady()
+
+  if (!comicId || !usuarioId) {
+    throw new Error('No se pudo guardar la reseña: datos inválidos.')
+  }
+
+  const payload = {
+    UsuarioId: usuarioId,
+    Descripcion: descripcion,
+    Calificacion: calificacion,
+    Fecha: serverTimestamp(),
+  }
+
+  const reviewRef = await addDoc(
+    collection(db, COMICS_COLLECTION, comicId, REVIEWS_SUBCOLLECTION),
+    payload,
+  )
+
+  // actualizar agregados en el documento del comic
+  const comicRef = doc(db, COMICS_COLLECTION, comicId)
+  const comicSnap = await getDoc(comicRef)
+  const data = comicSnap.exists() ? comicSnap.data() : {}
+
+  const currentCount = data.CantidadCalificaciones ?? 0
+  const currentAvg = data.PromedioCalificacion ?? null
+
+  const newCount = (currentCount || 0) + 1
+  const newAvg = currentAvg === null || currentAvg === undefined
+    ? calificacion
+    : (currentAvg * currentCount + calificacion) / newCount
+
+  await updateDoc(comicRef, {
+    CantidadCalificaciones: newCount,
+    PromedioCalificacion: newAvg,
+  })
+
+  return reviewRef.id
+}
+
+export async function updateReview({ comicId, reviewId, descripcion, calificacion }) {
+  ensureFirestoreReady()
+
+  if (!comicId || !reviewId) {
+    throw new Error('No se pudo actualizar la reseña: datos inválidos.')
+  }
+
+  const reviewRef = doc(db, COMICS_COLLECTION, comicId, REVIEWS_SUBCOLLECTION, reviewId)
+  const reviewSnap = await getDoc(reviewRef)
+
+  if (!reviewSnap.exists()) {
+    throw new Error('Reseña no encontrada.')
+  }
+
+  const oldData = reviewSnap.data()
+  const oldCal = oldData.Calificacion ?? 0
+
+  await updateDoc(reviewRef, {
+    Descripcion: descripcion,
+    Calificacion: calificacion,
+    Fecha: serverTimestamp(),
+  })
+
+  // actualizar promedio en comic
+  const comicRef = doc(db, COMICS_COLLECTION, comicId)
+  const comicSnap = await getDoc(comicRef)
+  const comicData = comicSnap.exists() ? comicSnap.data() : {}
+
+  const count = comicData.CantidadCalificaciones ?? 0
+  const avg = comicData.PromedioCalificacion ?? null
+
+  if (count > 0 && avg !== null) {
+    const newAvg = (avg * count - oldCal + calificacion) / count
+    await updateDoc(comicRef, { PromedioCalificacion: newAvg })
+  }
+}
+
+export async function deleteReview({ comicId, reviewId }) {
+  ensureFirestoreReady()
+
+  if (!comicId || !reviewId) {
+    throw new Error('No se pudo eliminar la reseña: datos inválidos.')
+  }
+
+  const reviewRef = doc(db, COMICS_COLLECTION, comicId, REVIEWS_SUBCOLLECTION, reviewId)
+  const reviewSnap = await getDoc(reviewRef)
+
+  if (!reviewSnap.exists()) {
+    throw new Error('Reseña no encontrada.')
+  }
+
+  const oldCal = reviewSnap.data().Calificacion ?? 0
+
+  await deleteDoc(reviewRef)
+
+  // actualizar promedio en comic
+  const comicRef = doc(db, COMICS_COLLECTION, comicId)
+  const comicSnap = await getDoc(comicRef)
+  const comicData = comicSnap.exists() ? comicSnap.data() : {}
+
+  const count = comicData.CantidadCalificaciones ?? 0
+  const avg = comicData.PromedioCalificacion ?? null
+
+  const newCount = count > 0 ? count - 1 : 0
+
+  if (newCount === 0) {
+    await updateDoc(comicRef, { CantidadCalificaciones: null, PromedioCalificacion: null })
+  } else if (avg !== null) {
+    const newAvg = (avg * count - oldCal) / newCount
+    await updateDoc(comicRef, { CantidadCalificaciones: newCount, PromedioCalificacion: newAvg })
+  }
 }
 
 export async function isbnExists(isbn) {

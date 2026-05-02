@@ -4,31 +4,12 @@ import {
   createComic,
   isbnExists,
 } from '../firebase/comics'
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_COVER_SIZE_BYTES,
+  readFileAsDataUrl,
+} from '../constants/imageUpload'
 import '../styles/ComicForm.css'
-
-const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_COVER_SIZE_BYTES = 500 * 1024
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') {
-        reject(new Error('No se pudo leer la portada seleccionada.'))
-        return
-      }
-
-      resolve(reader.result)
-    }
-
-    reader.onerror = () => {
-      reject(new Error('No se pudo leer la portada seleccionada.'))
-    }
-
-    reader.readAsDataURL(file)
-  })
-}
 
 function isFormEmpty({ numeroTomo, isbn, fechaPublicacion, coverFile }) {
   return !numeroTomo && !isbn && !fechaPublicacion && !coverFile
@@ -118,7 +99,7 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
       return 'Portada es obligatoria.'
     }
 
-    if (!ALLOWED_COVER_TYPES.includes(coverFile.type)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(coverFile.type)) {
       return 'Portada debe ser .jpg, .jpeg, .png o .webp.'
     }
 

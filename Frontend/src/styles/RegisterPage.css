@@ -41,3 +41,25 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.helper-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.cover-preview-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.cover-preview-image {
+  width: min(260px, 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  object-fit: cover;
+}

@@ -166,6 +166,51 @@
   gap: 20px;
 }
 
+.home-dashboard-card {
+  display: grid;
+  gap: 24px;
+}
+
+.home-highlights {
+  display: grid;
+  gap: 18px;
+}
+
+.home-highlight-section {
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.58);
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.home-section-header h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.home-section-lead {
+  margin: 10px 0 0;
+  color: #cbd5e1;
+}
+
+.home-empty-state {
+  margin: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(2, 6, 23, 0.45);
+  color: #cbd5e1;
+  padding: 16px;
+}
+
+.home-recommendation-card {
+  cursor: pointer;
+  text-align: left;
+}
+
 .info-card {
   border-radius: 22px;
   border: 1px solid rgba(148, 163, 184, 0.16);
@@ -204,5 +249,15 @@
 
   .hero-actions {
     justify-items: start;
+  }
+
+  .home-highlight-section {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-highlight-section {
+    padding: 16px;
   }
 }

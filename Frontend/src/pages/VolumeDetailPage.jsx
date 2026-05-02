@@ -51,10 +51,14 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
     readingEntries: [],
   })
 
+  const safeReadingEntries = Array.isArray(libraryData.readingEntries)
+    ? libraryData.readingEntries
+    : []
+
   const sortedReadings = useMemo(
     () =>
-      [...libraryData.readingEntries].sort((a, b) => b.date.getTime() - a.date.getTime()),
-    [libraryData.readingEntries],
+      [...safeReadingEntries].sort((a, b) => b.date.getTime() - a.date.getTime()),
+    [safeReadingEntries],
   )
 
   useEffect(() => {

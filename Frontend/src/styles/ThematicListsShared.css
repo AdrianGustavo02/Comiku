@@ -1,0 +1,144 @@
+/* Shared thematic list styles */
+
+.thematic-list-covers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr;
+  width: 100%;
+  height: 100%;
+  gap: 0;
+}
+
+.thematic-list-covers-grid img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.thematic-list-placeholder {
+  color: #999;
+  font-size: 0.875rem;
+}
+
+.thematic-list-info {
+  padding: 1rem;
+  flex: 1;
+}
+
+.thematic-list-info strong {
+  display: block;
+  font-size: 1.125rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+  line-height: 1.3;
+}
+
+.thematic-list-info p {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.thematic-list-meta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.section-divider {
+  border-top: 1px solid #ddd;
+  margin: 1rem 0;
+}
+
+.selected-volumes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.selected-volume-card {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.selected-volume-card:hover {
+  border-color: #e74c3c;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.15);
+}
+
+.selected-volume-card strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: #333;
+  word-break: break-word;
+}
+
+.selected-volume-card small {
+  display: block;
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.user-empty-state {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+  font-size: 0.95rem;
+}
+
+.search-empty-state {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+  font-size: 0.95rem;
+}
+
+.helper-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.back-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.back-button:hover {
+  background-color: #e8e8e8;
+}
+
+@media (max-width: 900px) {
+  .selected-volumes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .selected-volumes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

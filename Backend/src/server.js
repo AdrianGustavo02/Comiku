@@ -17,7 +17,7 @@ function getReferenceFields() {
   const configuredFields = process.env.USER_REFERENCE_FIELDS;
 
   if (!configuredFields) {
-    return ['UID', 'uid', 'userId'];
+    return ['UID', 'uid', 'userId', 'UserId', 'usuarioId', 'UsuarioId'];
   }
 
   return configuredFields
@@ -61,37 +61,56 @@ function getAdminServices() {
 
 async function deleteUserDataAcrossCollections(adminDb, uid) {
   const referenceFields = getReferenceFields();
-  const deletedDocPaths = new Set();
+  const deletedDocPaths = [];
+  const deletionSummary = {};
 
+  // 1. Eliminar el documento del usuario en la colección raíz 'usuario'
   const userProfileRef = adminDb.collection('usuario').doc(uid);
   const userProfileSnapshot = await userProfileRef.get();
 
   if (userProfileSnapshot.exists) {
     await adminDb.recursiveDelete(userProfileRef);
-    deletedDocPaths.add(userProfileRef.path);
+    deletedDocPaths.push(userProfileRef.path);
+    deletionSummary['usuario'] = 1;
   }
 
+  // 2. Buscar y eliminar documentos en TODAS las colecciones raíz que referencien al usuario
   const rootCollections = await adminDb.listCollections();
 
   for (const collectionRef of rootCollections) {
+    const collectionName = collectionRef.id;
+    let deletedInCollection = 0;
+
+    // Buscar en cada campo de referencia configurado
     for (const fieldName of referenceFields) {
-      const matchingDocs = await collectionRef.where(fieldName, '==', uid).get();
+      try {
+        const matchingDocs = await collectionRef.where(fieldName, '==', uid).get();
 
-      for (const documentSnapshot of matchingDocs.docs) {
-        const path = documentSnapshot.ref.path;
+        for (const documentSnapshot of matchingDocs.docs) {
+          const path = documentSnapshot.ref.path;
 
-        if (deletedDocPaths.has(path)) {
-          continue;
+          // Evitar duplicados si el documento ya fue eliminado
+          if (!deletedDocPaths.includes(path)) {
+            await adminDb.recursiveDelete(documentSnapshot.ref);
+            deletedDocPaths.push(path);
+            deletedInCollection++;
+          }
         }
-
-        await adminDb.recursiveDelete(documentSnapshot.ref);
-        deletedDocPaths.add(path);
+      } catch (error) {
+        // El campo puede no existir en esta colección, ignorar error
+        continue;
       }
+    }
+
+    if (deletedInCollection > 0) {
+      deletionSummary[collectionName] = deletedInCollection;
     }
   }
 
   return {
-    deletedDocuments: deletedDocPaths.size,
+    deletedDocuments: deletedDocPaths.length,
+    deletedPaths: deletedDocPaths,
+    deletionSummary,
     referenceFields,
   };
 }
