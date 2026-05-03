@@ -166,3 +166,51 @@
     font-size: 1rem;
   }
 }
+
+/* Estilos para el formulario de edición del perfil */
+.profile-edit-form label {
+  display: block;
+  margin-top: 12px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.profile-edit-form input[type="text"],
+.profile-edit-form input[type="date"],
+.profile-edit-form input[type="file"] {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(2, 6, 23, 0.45);
+  color: #f8fafc;
+}
+
+.profile-edit-form .cover-preview-card {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.profile-edit-form .cover-preview-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.profile-edit-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.profile-edit-actions .profile-back-button,
+.profile-edit-actions .delete-account-button {
+  padding: 8px 14px;
+  font-size: 0.95rem;
+}

@@ -22,6 +22,36 @@
   align-items: center;
 }
 
+.thematic-search-bar {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.thematic-search-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.thematic-search-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d6d6d6;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #333;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.thematic-search-input:focus {
+  outline: none;
+  border-color: #1f2937;
+  box-shadow: 0 0 0 3px rgba(31, 41, 55, 0.12);
+}
+
 .thematic-filter-label {
   font-weight: 600;
   color: #333;
@@ -64,6 +94,13 @@
 .thematic-list-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.thematic-results-footer {
+  margin-top: 1.25rem;
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
 }
 
 .thematic-list-cover {

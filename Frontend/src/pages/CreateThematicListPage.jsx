@@ -12,6 +12,7 @@ import {
   updateListPhotos,
   updateThematicList,
 } from '../firebase/thematicLists'
+import { createThumbnailFromDataUrl } from '../constants/imageUpload'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import '../styles/ComicForm.css'
 import '../styles/Navbar.css'
@@ -79,6 +80,25 @@ function parseComicSearchQuery(query) {
     comicQuery: volumeMatch[1].trim(),
     volumeNumber: Number.parseInt(volumeMatch[2], 10),
   }
+}
+
+async function buildListCoverPhotos(volumes) {
+  const coverSources = volumes
+    .slice(0, 3)
+    .map((volume) => volume.volumenData?.portada?.dataUrl)
+    .filter(Boolean)
+
+  const compressedPhotos = await Promise.all(
+    coverSources.map((dataUrl) =>
+      createThumbnailFromDataUrl(dataUrl, {
+        maxWidth: 220,
+        maxHeight: 330,
+        quality: 0.7,
+      }),
+    ),
+  )
+
+  return compressedPhotos.filter(Boolean)
 }
 
 function CreateThematicListPage({
@@ -453,10 +473,7 @@ function CreateThematicListPage({
         }
 
         // Actualizar fotos de portadas con los primeros 3 tomos
-        const photos = selectedVolumes
-          .slice(0, 3)
-          .map((v) => v.volumenData?.portada?.dataUrl)
-          .filter(Boolean)
+        const photos = await buildListCoverPhotos(selectedVolumes)
 
         await updateListPhotos({
           listId,
@@ -492,10 +509,7 @@ function CreateThematicListPage({
         }
 
         // Actualizar fotos de portadas con los primeros 3 tomos
-        const photos = selectedVolumes
-          .slice(0, 3)
-          .map((v) => v.volumenData?.portada?.dataUrl)
-          .filter(Boolean)
+        const photos = await buildListCoverPhotos(selectedVolumes)
 
         await updateListPhotos({
           listId: newListId,

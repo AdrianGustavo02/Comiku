@@ -16,6 +16,9 @@ import ThematicListsPage from './ThematicListsPage'
 import ThematicListDetailPage from './ThematicListDetailPage'
 import VolumeDetailPage from './VolumeDetailPage'
 import WishlistPage from './WishlistPage'
+import ChatsPage from './ChatsPage'
+import FriendsPage from './FriendsPage'
+import BlockedUsersPage from './BlockedUsersPage'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import '../styles/ComicDetailPage.css'
 import '../styles/Home.css'
@@ -46,6 +49,12 @@ function parseRoute(pathname) {
     return { page: 'profile', comicId: '', volumeId: '' }
   }
 
+  const profileMatch = pathname.match(/^\/perfil\/([^/]+)$/)
+
+  if (profileMatch) {
+    return { page: 'profile', comicId: decodeURIComponent(profileMatch[1]), volumeId: '' }
+  }
+
   if (pathname === '/crear-comic') {
     return { page: 'create-comic', comicId: '', volumeId: '' }
   }
@@ -64,6 +73,14 @@ function parseRoute(pathname) {
 
   if (pathname === '/listas-tematicas') {
     return { page: 'thematic-lists', comicId: '', volumeId: '' }
+  }
+
+  if (pathname === '/amigos') {
+    return { page: 'friends', comicId: '', volumeId: '' }
+  }
+
+  if (pathname === '/usuarios-bloqueados') {
+    return { page: 'blocked-users', comicId: '', volumeId: '' }
   }
 
   if (pathname === '/listas-tematicas/crear') {
@@ -267,6 +284,24 @@ function Home() {
   const goToProfile = () => {
     window.history.pushState({}, '', '/perfil')
     setActivePage('profile')
+  }
+
+  const goToProfileByUid = (uid) => {
+    window.history.pushState({}, '', `/perfil/${encodeURIComponent(uid)}`)
+    setActivePage('profile')
+    setActiveComicId(uid)
+  }
+
+  const goToFriends = () => {
+    window.history.pushState({}, '', '/amigos')
+    setActivePage('friends')
+    setActiveComicId('')
+  }
+
+  const goToBlockedUsers = () => {
+    window.history.pushState({}, '', '/usuarios-bloqueados')
+    setActivePage('blocked-users')
+    setActiveComicId('')
   }
 
   const goToCreateComic = () => {
@@ -630,6 +665,11 @@ function Home() {
       onOpenLibrary={goToLibrary}
       onOpenWishlist={goToWishlist}
       onOpenThematicLists={goToThematicLists}
+      onOpenChats={() => {
+        window.history.pushState({}, '', '/chats')
+        setActivePage('chats')
+        setActiveComicId('')
+      }}
       activePage={activePage}
     />
   )
@@ -676,9 +716,56 @@ function Home() {
             setActivePage('home')
             goToHome()
           }}
+          profileUid={activeComicId || undefined}
           onDeleteAccount={handleDeleteAccount}
           isDeletingAccount={deletingAccount}
           globalError={authError}
+          onGoToBlockedUsers={goToBlockedUsers}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'chats') {
+    return (
+      <>
+        {renderNavbar()}
+        <ChatsPage
+          authUser={authUser}
+          onOpenProfile={(uid) => goToProfileByUid(uid)}
+          onOpenFriends={goToFriends}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'friends') {
+    return (
+      <>
+        {renderNavbar()}
+        <FriendsPage
+          authUser={authUser}
+          onOpenProfile={(uid) => goToProfileByUid(uid)}
+          onBack={() => {
+            setActivePage('chats')
+            window.history.pushState({}, '', '/chats')
+          }}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'blocked-users') {
+    return (
+      <>
+        {renderNavbar()}
+        <BlockedUsersPage
+          authUser={authUser}
+          onBack={() => {
+            setActivePage('profile')
+            setActiveComicId('')
+            goToProfile()
+          }}
         />
       </>
     )

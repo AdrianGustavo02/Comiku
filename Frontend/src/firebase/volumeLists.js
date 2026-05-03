@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   writeBatch,
+  increment,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
 import { getComicById, getComicVolumeById } from './comics'
@@ -214,10 +215,46 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
     getDoc(sourceVolumeReference),
   ])
 
+  // Obtener conteo de tomos por cómic en cada lista (antes de la operación)
+  const [targetVolumesSnapshot, sourceVolumesSnapshot] = await Promise.all([
+    getDocs(collection(targetComicReference, VOLUMES_SUBCOLLECTION)),
+    getDocs(collection(sourceComicReference, VOLUMES_SUBCOLLECTION)),
+  ])
+
   const shouldRemoveFromTarget = targetVolumeSnapshot.exists()
   const shouldRemoveFromSource = sourceVolumeSnapshot.exists()
 
   const batch = writeBatch(db)
+
+  // Preparar actualización denormalizada de conteos en el documento de usuario
+  const userRef = doc(db, USER_COLLECTION, uid)
+  let userTotalComicsDelta = 0
+  let userTotalTomosDelta = 0
+
+  const willAddToLibrary =
+    targetList === LIBRARY_COLLECTION && !targetVolumeSnapshot.exists()
+
+  const willRemoveFromLibrary =
+    (targetList === LIBRARY_COLLECTION && targetVolumeSnapshot.exists()) ||
+    (targetList !== LIBRARY_COLLECTION && sourceVolumeSnapshot.exists())
+
+  if (willAddToLibrary) {
+    // volumesBefore en la lista de destino
+    const volumesBefore = targetVolumesSnapshot.size
+    userTotalTomosDelta += 1
+    if (volumesBefore === 0) {
+      userTotalComicsDelta += 1
+    }
+  }
+
+  if (willRemoveFromLibrary) {
+    // si se remueve del destino library (borrado directo) o se mueve desde library a wishlist
+    const volumesBefore = targetList === LIBRARY_COLLECTION ? targetVolumesSnapshot.size : sourceVolumesSnapshot.size
+    userTotalTomosDelta -= 1
+    if (volumesBefore === 1) {
+      userTotalComicsDelta -= 1
+    }
+  }
 
   if (shouldRemoveFromTarget) {
     batch.delete(targetVolumeReference)
@@ -252,6 +289,14 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
 
   if (!shouldRemoveFromTarget && shouldRemoveFromSource) {
     batch.delete(sourceVolumeReference)
+  }
+
+  // Aplicar delta al documento del usuario si corresponde
+  if (userTotalComicsDelta !== 0 || userTotalTomosDelta !== 0) {
+    const updatePayload = {}
+    if (userTotalTomosDelta !== 0) updatePayload.totalTomos = increment(userTotalTomosDelta)
+    if (userTotalComicsDelta !== 0) updatePayload.totalComics = increment(userTotalComicsDelta)
+    batch.update(userRef, updatePayload)
   }
 
   await batch.commit()

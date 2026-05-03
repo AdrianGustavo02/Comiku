@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAllThematicLists } from '../firebase/thematicLists'
+import { getUsersWhoBlockedUser } from '../firebase/user'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListsPage.css'
 
@@ -60,6 +61,9 @@ function ThematicListsPage({
   const [error, setError] = useState('')
   const [lists, setLists] = useState([])
   const [activeFilter, setActiveFilter] = useState('popular')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [visibleCount, setVisibleCount] = useState(15)
+  const [blockedByUsers, setBlockedByUsers] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -69,10 +73,14 @@ function ThematicListsPage({
         setLoading(true)
         setError('')
 
-        const nextLists = await getAllThematicLists()
+        const [nextLists, blockedCreators] = await Promise.all([
+          getAllThematicLists(),
+          authUser?.uid ? getUsersWhoBlockedUser(authUser.uid) : Promise.resolve([]),
+        ])
 
         if (!cancelled) {
           setLists(nextLists)
+          setBlockedByUsers(blockedCreators)
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -94,10 +102,19 @@ function ThematicListsPage({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [authUser?.uid])
 
   const visibleLists = useMemo(() => {
-    const nextLists = [...lists]
+    if (!blockedByUsers.length) {
+      return lists
+    }
+
+    const blockedSet = new Set(blockedByUsers)
+    return lists.filter((list) => !blockedSet.has(list.userId))
+  }, [lists, blockedByUsers])
+
+  const sortedLists = useMemo(() => {
+    const nextLists = [...visibleLists]
 
     if (activeFilter === 'recent') {
       return nextLists.sort((a, b) => getListDateValue(b) - getListDateValue(a))
@@ -132,7 +149,30 @@ function ThematicListsPage({
 
       return a.nombre.localeCompare(b.nombre, 'es')
     })
-  }, [activeFilter, lists])
+  }, [activeFilter, visibleLists])
+
+  const filteredLists = useMemo(() => {
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+
+    if (!normalizedSearchTerm) {
+      return sortedLists
+    }
+
+    return sortedLists.filter((list) =>
+      String(list.nombre || '').toLowerCase().includes(normalizedSearchTerm),
+    )
+  }, [searchTerm, sortedLists])
+
+  const pagedLists = useMemo(
+    () => filteredLists.slice(0, visibleCount),
+    [filteredLists, visibleCount],
+  )
+
+  const hasMoreResults = filteredLists.length > visibleCount
+
+  useEffect(() => {
+    setVisibleCount(15)
+  }, [searchTerm, activeFilter])
 
   if (loading) {
     return (
@@ -177,6 +217,20 @@ function ThematicListsPage({
           )}
         </div>
 
+        <div className="thematic-search-bar">
+          <label className="thematic-search-label" htmlFor="thematic-list-search">
+            Buscar por nombre
+          </label>
+          <input
+            id="thematic-list-search"
+            className="thematic-search-input"
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Escribe parte del nombre de la lista"
+          />
+        </div>
+
         <div className="thematic-filter-menu">
           <label className="thematic-filter-label" htmlFor="thematic-list-filter">
             Ordenar por
@@ -195,54 +249,72 @@ function ThematicListsPage({
           </select>
         </div>
 
-        {visibleLists.length === 0 ? (
+        {filteredLists.length === 0 ? (
           <p className="user-empty-state">
-            {activeFilter === 'reading-guide'
-              ? 'No hay guias de lectura disponibles por ahora.'
-              : 'No hay listas tematicas disponibles por ahora.'}
+            {searchTerm.trim()
+              ? 'No se encontraron coincidencias con ese nombre.'
+              : activeFilter === 'reading-guide'
+                ? 'No hay guias de lectura disponibles por ahora.'
+                : 'No hay listas tematicas disponibles por ahora.'}
           </p>
         ) : (
-          <div className="thematic-lists-grid">
-            {visibleLists.map((list) => (
-              <article
-                key={list.id}
-                className="thematic-list-card"
-                onClick={() => onOpenList(list.id)}
-              >
-                <div className="thematic-list-cover">
-                  {list.fotosDePortadas && list.fotosDePortadas.length > 0 ? (
-                    <div className="thematic-list-covers-grid">
-                      {list.fotosDePortadas.slice(0, 3).map((url, idx) => (
-                        <img
-                          key={idx}
-                          src={url}
-                          alt={`Portada ${idx + 1}`}
-                          className="thematic-list-cover-img"
-                          onError={(e) => {
-                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"%3E%3Crect fill="%23ddd" width="100" height="150"/%3E%3C/svg%3E'
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="thematic-list-placeholder">Sin portadas</div>
-                  )}
-                </div>
-
-                <div className="thematic-list-info">
-                  <strong>{list.nombre}</strong>
-                  <p>{list.descripcion || 'Sin descripción'}</p>
-                  <div className="thematic-list-meta">
-                    <span>
-                      {list.esGuiaDeLectura ? '📖 Guía de lectura' : '⭐ Destacados'}
-                    </span>
-                    <span>{list.cantidadLikes} me gusta</span>
-                    <span>{list.cantidadComentarios} comentarios</span>
+          <>
+            <div className="thematic-lists-grid">
+              {pagedLists.map((list) => (
+                <article
+                  key={list.id}
+                  className="thematic-list-card"
+                  onClick={() => onOpenList(list.id)}
+                >
+                  <div className="thematic-list-cover">
+                    {list.fotosDePortadas && list.fotosDePortadas.length > 0 ? (
+                      <div className="thematic-list-covers-grid">
+                        {list.fotosDePortadas.slice(0, 3).map((url, idx) => (
+                          <img
+                            key={idx}
+                            src={url}
+                            alt={`Portada ${idx + 1}`}
+                            className="thematic-list-cover-img"
+                            onError={(e) => {
+                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"%3E%3Crect fill="%23ddd" width="100" height="150"/%3E%3C/svg%3E'
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="thematic-list-placeholder">Sin portadas</div>
+                    )}
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
+
+                  <div className="thematic-list-info">
+                    <strong>{list.nombre}</strong>
+                    <p>{list.descripcion || 'Sin descripción'}</p>
+                    <div className="thematic-list-meta">
+                      <span>
+                        {list.esGuiaDeLectura ? '📖 Guía de lectura' : '⭐ Destacados'}
+                      </span>
+                      <span>{list.cantidadLikes} me gusta</span>
+                      <span>{list.cantidadComentarios} comentarios</span>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="thematic-results-footer">
+              {hasMoreResults ? (
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setVisibleCount((current) => current + 15)}
+                >
+                  Mostrar 15 más
+                </button>
+              ) : (
+                <p className="search-empty-state">No hay más listas para mostrar.</p>
+              )}
+            </div>
+          </>
         )}
       </section>
     </main>

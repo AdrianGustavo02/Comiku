@@ -12,7 +12,7 @@ import {
   toggleSaveListForUser,
 } from '../firebase/thematicLists'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
-import { getUserProfile } from '../firebase/user'
+import { getUserProfile, isUserBlocked } from '../firebase/user'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListDetailPage.css'
 
@@ -67,6 +67,19 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
         if (!data) {
           if (!cancelled) setError('Lista no encontrada.')
           return
+        }
+
+        if (authUser?.uid && data.userId) {
+          const hasBlockedCurrentUser = await isUserBlocked(authUser.uid, data.userId)
+
+          if (hasBlockedCurrentUser) {
+            if (!cancelled) {
+              setList(null)
+              setError('No puedes ver esta lista porque su autor te bloqueó.')
+            }
+
+            return
+          }
         }
 
         if (!cancelled) setList(data)

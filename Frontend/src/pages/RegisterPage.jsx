@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { deleteUser } from 'firebase/auth'
 import { isEmailRegistered, registerWithEmail, validatePassword } from '../firebase/auth'
-import { createUserProfile } from '../firebase/user'
+import { auth } from '../firebase/firebase'
+import { createUserProfile, isNickRegistered } from '../firebase/user'
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_PROFILE_PICTURE_SIZE_BYTES,
@@ -141,6 +143,13 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       return
     }
 
+    const nickAlreadyRegistered = await isNickRegistered(trimmedNick)
+
+    if (nickAlreadyRegistered) {
+      showErrorAndScrollTop('Ese nick ya está registrado. Elige otro.')
+      return
+    }
+
     if (password !== confirmPassword) {
       showErrorAndScrollTop('La confirmacion de contraseña no coincide.')
       return
@@ -152,6 +161,8 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       showErrorAndScrollTop(passwordValidation.message)
       return
     }
+
+    let createdAuthUser = null
 
     try {
       setIsSubmitting(true)
@@ -182,6 +193,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       }
 
       const user = await registerWithEmail({ email: trimmedEmail, password })
+      createdAuthUser = user
 
       await createUserProfile({
         uid: user.uid,
@@ -212,6 +224,10 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
           'Registro exitoso. Tu perfil fue guardado en Firestore y enviamos un correo de verificación.',
       })
     } catch (error) {
+      if (createdAuthUser && auth?.currentUser?.uid === createdAuthUser.uid) {
+        await deleteUser(createdAuthUser).catch(() => {})
+      }
+
       showErrorAndScrollTop(
         error instanceof Error ? error.message : 'No fue posible completar el registro.',
       )
