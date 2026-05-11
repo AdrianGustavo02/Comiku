@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_COVER_SIZE_BYTES,
+  readFileAsDataUrl,
+} from '../constants/imageUpload'
+import {
+  createReport,
+  hasPendingObjectReport,
+  REPORT_REASON_OPTIONS_FOR_CONTENT,
+} from '../firebase/reports'
+import {
   getComicById,
   getComicVolumes,
   getComicReviews,
@@ -8,13 +18,14 @@ import {
   updateReview,
   deleteReview,
   getUserReview,
+  deleteComicByAdmin,
 } from '../firebase/comics'
 import { getUserProfile } from '../firebase/user'
 import { getUserLibraryItems } from '../firebase/volumeLists'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 import '../styles/ComicDetailPage.css'
 
-function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
+function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDeleteComic }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [comic, setComic] = useState(null)
@@ -30,9 +41,30 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
   const [userRating, setUserRating] = useState(0)
   const [userComment, setUserComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_CONTENT[0])
+  const [reportDescription, setReportDescription] = useState('')
+  const [reportScreenshotFile, setReportScreenshotFile] = useState(null)
+  const [reportScreenshotPreview, setReportScreenshotPreview] = useState('')
+  const [reportError, setReportError] = useState('')
+  const [reportNotice, setReportNotice] = useState('')
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const [hasPendingComicReport, setHasPendingComicReport] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deletingComic, setDeletingComic] = useState(false)
   const volumeGridRef = useRef(null)
   const volumeGridLeftRef = useRef(null)
   const volumeGridRightRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (reportScreenshotPreview) {
+        URL.revokeObjectURL(reportScreenshotPreview)
+      }
+    }
+  }, [reportScreenshotPreview])
 
   useEffect(() => {
     let cancelled = false
@@ -70,6 +102,35 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
 
         if (authUser?.uid) {
           try {
+            const currentProfile = await getUserProfile(authUser.uid)
+
+            if (!cancelled) {
+              setCurrentUserRole(currentProfile?.rol || '')
+            }
+          } catch {
+            if (!cancelled) {
+              setCurrentUserRole('')
+            }
+          }
+
+          try {
+            const hasPendingReport = await hasPendingObjectReport({
+              usuarioIdReporta: authUser.uid,
+              objetoReportadoId: comicId,
+              nombreObjetoReportado: 'comic',
+              comicId,
+            })
+
+            if (!cancelled) {
+              setHasPendingComicReport(hasPendingReport)
+            }
+          } catch {
+            if (!cancelled) {
+              setHasPendingComicReport(false)
+            }
+          }
+
+          try {
             const libraryItems = await getUserLibraryItems({ uid: authUser.uid })
             const comicInLibrary = libraryItems.find((item) => item.comicId === comicId)
             setUserLibraryVolumes(comicInLibrary?.volumes ?? [])
@@ -87,12 +148,16 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
               setUserRating(0)
               setUserComment('')
             }
-          } catch {}
+          } catch (error) {
+            void error
+          }
         } else {
           setUserLibraryVolumes([])
           setUserReview(null)
           setUserRating(0)
           setUserComment('')
+          setCurrentUserRole('')
+          setHasPendingComicReport(false)
         }
         // load first page of reviews
         try {
@@ -152,12 +217,59 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
     })
   }
 
+  const canDeleteComic = currentUserRole === 'admin'
+
+  const openDeleteComicModal = () => {
+    setDeleteError('')
+    setDeleteModalOpen(true)
+  }
+
+  const closeDeleteComicModal = () => {
+    if (deletingComic) {
+      return
+    }
+
+    setDeleteModalOpen(false)
+  }
+
+  const handleDeleteComic = async () => {
+    if (!authUser?.getIdToken || !comicId) {
+      setDeleteError('No fue posible iniciar la eliminación.')
+      return
+    }
+
+    try {
+      setDeletingComic(true)
+      setDeleteError('')
+      const idToken = await authUser.getIdToken()
+      await deleteComicByAdmin({ idToken, comicId })
+
+      setDeleteModalOpen(false)
+
+      if (onDeleteComic) {
+        onDeleteComic(comicId)
+        return
+      }
+
+      setError('Comic eliminado correctamente.')
+      setComic(null)
+      setVolumes([])
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'No fue posible eliminar el comic.')
+    } finally {
+      setDeletingComic(false)
+    }
+  }
+
   // ---- reseñas helpers y manejadores ----
   const [userProfiles, setUserProfiles] = useState({})
 
   function sanitizeInput(text) {
     if (!text) return ''
-    return String(text).replace(/[@#\$\^&\*\{\}\[\]<>]/g, '')
+    return String(text)
+      .split('')
+      .filter((character) => !'@#$^&*{}[]<>'.includes(character))
+      .join('')
   }
 
   async function ensureUserProfile(uid) {
@@ -269,6 +381,133 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
   }
   // ---- fin reseñas ----
 
+  const canReportComic = Boolean(authUser?.uid) && currentUserRole === 'usuario'
+
+  function resetReportForm() {
+    if (reportScreenshotPreview) {
+      URL.revokeObjectURL(reportScreenshotPreview)
+    }
+
+    setReportReason(REPORT_REASON_OPTIONS_FOR_CONTENT[0])
+    setReportDescription('')
+    setReportScreenshotFile(null)
+    setReportScreenshotPreview('')
+    setReportError('')
+  }
+
+  function openReportModal() {
+    resetReportForm()
+    setIsReportModalOpen(true)
+  }
+
+  function closeReportModal(forceClose = false) {
+    if (isSubmittingReport && !forceClose) {
+      return
+    }
+
+    resetReportForm()
+    setIsReportModalOpen(false)
+  }
+
+  function handleReportScreenshotChange(event) {
+    const selectedFile = event.target.files?.[0]
+
+    if (!selectedFile) {
+      if (reportScreenshotPreview) {
+        URL.revokeObjectURL(reportScreenshotPreview)
+      }
+
+      setReportScreenshotFile(null)
+      setReportScreenshotPreview('')
+      setReportError('')
+      return
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+      setReportError('La captura debe ser .jpg, .jpeg, .png o .webp.')
+      return
+    }
+
+    if (selectedFile.size > MAX_COVER_SIZE_BYTES) {
+      setReportError('La captura es demasiado pesada. Usa una imagen menor a 500 KB.')
+      return
+    }
+
+    if (reportScreenshotPreview) {
+      URL.revokeObjectURL(reportScreenshotPreview)
+    }
+
+    setReportError('')
+    setReportScreenshotFile(selectedFile)
+    setReportScreenshotPreview(URL.createObjectURL(selectedFile))
+  }
+
+  async function handleSubmitComicReport(event) {
+    event.preventDefault()
+
+    if (!authUser?.uid || !comicId) {
+      setReportError('No hay sesión activa o faltan datos del comic.')
+      return
+    }
+
+    if (hasPendingComicReport) {
+      setReportError('Ya tienes un reporte pendiente para este comic.')
+      return
+    }
+
+    const sanitizedDescription = sanitizeInput(reportDescription)
+
+    if (!reportReason) {
+      setReportError('Debes seleccionar un motivo.')
+      return
+    }
+
+    if (!sanitizedDescription) {
+      setReportError('La descripción del reporte es obligatoria.')
+      return
+    }
+
+    try {
+      setIsSubmittingReport(true)
+      setReportError('')
+
+      let screenshotPayload = null
+
+      if (reportScreenshotFile) {
+        const screenshotDataUrl = await readFileAsDataUrl(reportScreenshotFile)
+        screenshotPayload = {
+          dataUrl: screenshotDataUrl,
+          fileName: reportScreenshotFile.name,
+          contentType: reportScreenshotFile.type,
+          sizeBytes: reportScreenshotFile.size,
+          source: 'firestore-inline',
+        }
+      }
+
+      await createReport({
+        usuarioIdReporta: authUser.uid,
+        objetoReportadoId: comicId,
+        comicId,
+        nombreObjetoReportado: 'comic',
+        motivo: reportReason,
+        descripcion: sanitizedDescription,
+        capturaPantalla: screenshotPayload,
+      })
+
+      setHasPendingComicReport(true)
+      setReportNotice('Reporte enviado correctamente. Gracias por ayudarnos a mejorar Comiku.')
+      closeReportModal(true)
+    } catch (error) {
+      setReportError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible enviar el reporte.',
+      )
+    } finally {
+      setIsSubmittingReport(false)
+    }
+  }
+
   const hasComicInLibrary = userLibraryVolumes.length > 0
 
   const libraryVolumeIds = new Set(userLibraryVolumes.map((v) => v.id))
@@ -289,6 +528,7 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
     <main className="app-shell">
       <section className="app-card comic-detail-card">
         {error ? <p className="form-message error">{error}</p> : null}
+        {reportNotice ? <p className="form-message success">{reportNotice}</p> : null}
 
         {!comic ? null : (
           <>
@@ -296,6 +536,26 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
               <p className="eyebrow">Comiku / Detalle comic</p>
               <h1>{comic.nombre}</h1>
               <p className="lead">{comic.descripcion || 'Sin descripción.'}</p>
+              {canDeleteComic ? (
+                <div className="hero-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      if (onEditComic) onEditComic(comic.id)
+                    }}
+                  >
+                    Modificar comic
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={openDeleteComicModal}
+                  >
+                    Eliminar comic
+                  </button>
+                </div>
+              ) : null}
             </header>
 
             <section className="comic-detail-metadata">
@@ -320,6 +580,25 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
                 <strong>Formato:</strong> {comic.formato || 'No definido'}
               </p>
             </section>
+
+            {canReportComic ? (
+              <section className="report-content-panel">
+                <h2>Reportes</h2>
+                {hasPendingComicReport ? (
+                  <p className="helper-text">
+                    Ya tienes un reporte pendiente para este comic. Podrás volver a reportarlo cuando se resuelva.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    className="report-content-button"
+                    onClick={openReportModal}
+                  >
+                    Reportar comic
+                  </button>
+                )}
+              </section>
+            ) : null}
 
             <section className="comic-detail-volumes">
               {volumes.length === 0 ? (
@@ -494,6 +773,8 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
               <div className="other-reviews">
                 <h3>Opiniones</h3>
 
+                {reviewsError ? <p className="form-message error">{reviewsError}</p> : null}
+
                 {reviewsLoading ? (
                   <p>Cargando opiniones...</p>
                 ) : reviews.length === 0 ? (
@@ -539,6 +820,137 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume }) {
             </section>
           </>
         )}
+
+        {deleteModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+            }}
+            role="presentation"
+            onClick={closeDeleteComicModal}
+          >
+            <section
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 24,
+                maxWidth: 520,
+                width: 'calc(100% - 32px)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.24)',
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-comic-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="eyebrow">ATENCION</p>
+              <h2 id="delete-comic-modal-title">Eliminar comic</h2>
+              <p className="confirm-modal-text">
+                Esta acción eliminará el comic, todos sus tomos y sus referencias asociadas.
+              </p>
+              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
+
+              <div className="confirm-modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={closeDeleteComicModal}
+                  disabled={deletingComic}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={handleDeleteComic}
+                  disabled={deletingComic}
+                >
+                  {deletingComic ? 'Eliminando...' : 'Eliminar comic'}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {isReportModalOpen ? (
+          <div className="report-modal-backdrop" role="presentation">
+            <div className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-comic-modal-title">
+              <p className="eyebrow">Comiku / Reportar comic</p>
+              <h2 id="report-comic-modal-title">Reportar comic</h2>
+
+              {reportError ? <p className="form-message error">{reportError}</p> : null}
+
+              <form className="report-form" onSubmit={handleSubmitComicReport}>
+                <label htmlFor="comic-report-reason">Motivo</label>
+                <select
+                  id="comic-report-reason"
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  disabled={isSubmittingReport}
+                >
+                  {REPORT_REASON_OPTIONS_FOR_CONTENT.map((reasonOption) => (
+                    <option key={reasonOption} value={reasonOption}>
+                      {reasonOption}
+                    </option>
+                  ))}
+                </select>
+
+                <label htmlFor="comic-report-description">Descripción</label>
+                <textarea
+                  id="comic-report-description"
+                  value={reportDescription}
+                  onChange={(event) => setReportDescription(event.target.value)}
+                  rows={4}
+                  placeholder="Describe brevemente el problema."
+                  disabled={isSubmittingReport}
+                />
+
+                <label htmlFor="comic-report-screenshot">Captura de pantalla (opcional)</label>
+                <input
+                  id="comic-report-screenshot"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleReportScreenshotChange}
+                  disabled={isSubmittingReport}
+                />
+
+                {reportScreenshotPreview ? (
+                  <div className="report-screenshot-preview-card">
+                    <img
+                      src={reportScreenshotPreview}
+                      alt="Vista previa de la captura para el reporte"
+                      className="report-screenshot-preview-image"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="report-modal-actions">
+                  <button
+                    type="button"
+                    className="report-modal-button secondary"
+                    onClick={closeReportModal}
+                    disabled={isSubmittingReport}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="report-modal-button"
+                    disabled={isSubmittingReport}
+                  >
+                    {isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
       </section>
     </main>
   )

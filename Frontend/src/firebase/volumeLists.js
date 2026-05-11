@@ -10,6 +10,8 @@ import {
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
 import { getComicById, getComicVolumeById } from './comics'
+import { getUserProfile } from './user'
+import { appendVolumeActivityForToday } from './activities'
 
 const USER_COLLECTION = 'usuario'
 const LIBRARY_COLLECTION = 'biblioteca'
@@ -310,9 +312,55 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
   }
 
   if (targetList === LIBRARY_COLLECTION) {
+    if (!shouldRemoveFromTarget) {
+      try {
+        const [profile, volumeData] = await Promise.all([
+          getUserProfile(uid),
+          getComicVolumeById({ comicId, volumeId }),
+        ])
+
+        await appendVolumeActivityForToday({
+          actorUid: uid,
+          actorNick: profile?.nick || '',
+          actorFotoPerfil: profile?.fotoPerfil || null,
+          type: 'library_add',
+          volume: {
+            comicId,
+            volumeId,
+            portada: volumeData?.portada || null,
+          },
+        })
+      } catch (error) {
+        void error
+      }
+    }
+
     return {
       inLibrary: !shouldRemoveFromTarget,
       inWishlist: shouldRemoveFromTarget ? shouldRemoveFromSource : false,
+    }
+  }
+
+  if (!shouldRemoveFromTarget) {
+    try {
+      const [profile, volumeData] = await Promise.all([
+        getUserProfile(uid),
+        getComicVolumeById({ comicId, volumeId }),
+      ])
+
+      await appendVolumeActivityForToday({
+        actorUid: uid,
+        actorNick: profile?.nick || '',
+        actorFotoPerfil: profile?.fotoPerfil || null,
+        type: 'wishlist_add',
+        volume: {
+          comicId,
+          volumeId,
+          portada: volumeData?.portada || null,
+        },
+      })
+    } catch (error) {
+      void error
     }
   }
 

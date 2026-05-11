@@ -9,7 +9,10 @@ import {
   blockUser,
   unblockUser,
   isUserBlocked,
+  setUserRole,
+  deleteUserAccountByAdmin,
 } from '../firebase/user'
+import { createReport, hasPendingObjectReport, REPORT_REASON_OPTIONS_FOR_USER } from '../firebase/reports'
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_PROFILE_PICTURE_SIZE_BYTES,
@@ -21,13 +24,22 @@ const MINIMUM_AGE = 18
 
 function sanitizeText(input) {
   if (!input) return ''
-  return String(input).replace(/[@#\$\^&\*\{\}\[\]<>]/g, '').trim()
+  return String(input)
+    .split('')
+    .filter((character) => !'@#$^&*{}[]<>'.includes(character))
+    .join('')
+    .trim()
+}
+
+function isAdminRole(role) {
+  return String(role || '').toLowerCase().includes('admin')
 }
 
 function ProfilePage({
   authUser,
   onBack,
   onDeleteAccount,
+  onAccountDeleted,
   isDeletingAccount,
   globalError,
   profileUid,
@@ -38,6 +50,10 @@ function ProfilePage({
   const [profileData, setProfileData] = useState(null)
   const [localDeleteError, setLocalDeleteError] = useState('')
   const [deleteModalStep, setDeleteModalStep] = useState(null)
+  const [deleteTargetUid, setDeleteTargetUid] = useState('')
+  const [deleteTargetNick, setDeleteTargetNick] = useState('')
+  const [deleteConfirmNick, setDeleteConfirmNick] = useState('')
+  const [processingDeleteAccount, setProcessingDeleteAccount] = useState(false)
   const [friendshipStatus, setFriendshipStatus] = useState('none') // 'none', 'friends', 'pending', 'requested'
   const [processingFriendship, setProcessingFriendship] = useState(false)
   const [isBlockedByProfileUser, setIsBlockedByProfileUser] = useState(false)
@@ -64,6 +80,16 @@ function ProfilePage({
 
         if (!cancelled) {
           setProfileData(data)
+        }
+
+        if (authUser?.uid && profileUid && profileUid !== authUser.uid) {
+          const blocked = await isUserBlocked(authUser.uid, profileUid)
+
+          if (!cancelled) {
+            setIsBlockedByProfileUser(blocked)
+          }
+        } else if (!cancelled) {
+          setIsBlockedByProfileUser(false)
         }
       } catch (error) {
         if (!cancelled) {
@@ -116,6 +142,7 @@ function ProfilePage({
           }
         }
       } catch (error) {
+        void error
         if (!cancelled) {
           setFriendshipStatus('none')
         }
@@ -198,11 +225,14 @@ function ProfilePage({
 
   const handleDeleteClick = async () => {
     setLocalDeleteError('')
+    setDeleteConfirmNick('')
+    setDeleteTargetUid(profileUid || authUser?.uid || '')
+    setDeleteTargetNick(profileData?.nick || '')
     setDeleteModalStep(1)
   }
 
   const handleCloseDeleteModal = () => {
-    if (isDeletingAccount) {
+    if (isDeletingAccount || processingDeleteAccount) {
       return
     }
 
@@ -210,6 +240,7 @@ function ProfilePage({
   }
 
   const handleDeleteModalContinue = () => {
+    setDeleteConfirmNick('')
     setDeleteModalStep(2)
   }
 
@@ -217,7 +248,38 @@ function ProfilePage({
     setLocalDeleteError('')
 
     try {
-      await onDeleteAccount()
+      setProcessingDeleteAccount(true)
+      if (deleteTargetNick && deleteConfirmNick.trim() !== deleteTargetNick) {
+        throw new Error('El nick ingresado no coincide.')
+      }
+
+      if (deleteTargetUid && deleteTargetUid !== authUser?.uid) {
+        const idToken = await authUser?.getIdToken?.()
+        if (!idToken) {
+          throw new Error('No se pudo obtener el token de autenticación.')
+        }
+
+        await deleteUserAccountByAdmin({ idToken, uid: deleteTargetUid })
+
+        const deletedNick = deleteTargetNick || 'usuario'
+        setDeleteModalStep(null)
+        setProfileNotice(`La cuenta de ${deletedNick} fue eliminada correctamente.`)
+
+        if (typeof onAccountDeleted === 'function') {
+          onAccountDeleted({
+            uid: deleteTargetUid,
+            nick: deleteTargetNick,
+            message: `La cuenta de ${deletedNick} fue eliminada correctamente.`,
+          })
+        } else {
+          onBack?.()
+        }
+
+        return
+      } else {
+        await onDeleteAccount()
+      }
+
       setDeleteModalStep(null)
     } catch (error) {
       setLocalDeleteError(
@@ -225,6 +287,8 @@ function ProfilePage({
           ? error.message
           : 'No fue posible eliminar tu cuenta.',
       )
+    } finally {
+      setProcessingDeleteAccount(false)
     }
   }
 
@@ -239,9 +303,23 @@ function ProfilePage({
     nick: '',
     fechaCumpleanos: '',
   })
+  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [roleModalOpen, setRoleModalOpen] = useState(false)
+  const [roleModalStep, setRoleModalStep] = useState(null)
+  const [roleConfirmInput, setRoleConfirmInput] = useState('')
+  const [profileNotice, setProfileNotice] = useState('')
   const [editFotoFile, setEditFotoFile] = useState(null)
   const [editFotoPreview, setEditFotoPreview] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+
+  // Report user state
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_USER[0])
+  const [reportDescription, setReportDescription] = useState('')
+  const [reportScreenshotFile, setReportScreenshotFile] = useState(null)
+  const [reportScreenshotPreview, setReportScreenshotPreview] = useState('')
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const [reportError, setReportError] = useState('')
 
   useEffect(() => {
     if (profileData) {
@@ -253,8 +331,24 @@ function ProfilePage({
       })
       setEditFotoPreview(profileData.fotoPerfil || '')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileData])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadCurrentRole() {
+      try {
+        if (!authUser?.uid) return
+        const myProfile = await getUserProfile(authUser.uid)
+        if (!cancelled) setCurrentUserRole(myProfile?.rol || '')
+      } catch {
+        if (!cancelled) setCurrentUserRole('')
+      }
+    }
+
+    loadCurrentRole()
+
+    return () => { cancelled = true }
+  }, [authUser?.uid])
 
   const handleStartEdit = () => setIsEditing(true)
   const handleCancelEdit = () => {
@@ -269,7 +363,9 @@ function ProfilePage({
     if (editFotoPreview) {
       try {
         URL.revokeObjectURL(editFotoPreview)
-      } catch {}
+      } catch (error) {
+        void error
+      }
     }
 
     if (file) {
@@ -343,8 +439,131 @@ function ProfilePage({
       const refreshed = await getUserProfile(authUser.uid)
       setProfileData(refreshed)
       setIsEditing(false)
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'No fue posible actualizar el perfil.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const openReportModal = async () => {
+    setReportError('')
+    setReportDescription('')
+    setReportScreenshotFile(null)
+    setReportScreenshotPreview('')
+    setReportReason(REPORT_REASON_OPTIONS_FOR_USER[0])
+
+    // verificar si ya hay un reporte pendiente
+    try {
+      if (!authUser?.uid || !profileUid) {
+        setReportError('No es posible reportar: usuario inválido.')
+        return
+      }
+
+      const hasPending = await hasPendingObjectReport({ usuarioIdReporta: authUser.uid, objetoReportadoId: profileUid, nombreObjetoReportado: 'usuario' })
+
+      if (hasPending) {
+        setReportError('Ya tienes un reporte pendiente para este usuario. Podrás volver a reportarlo cuando se resuelva.')
+        setIsReportModalOpen(true)
+        return
+      }
+
+      setIsReportModalOpen(true)
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'No fue posible actualizar el perfil.')
+      setReportError(err instanceof Error ? err.message : 'No fue posible inicializar el reporte.')
+      setIsReportModalOpen(true)
+    }
+  }
+
+  const closeReportModal = () => {
+    if (isSubmittingReport) return
+    setIsReportModalOpen(false)
+  }
+
+  const handleReportScreenshotChange = (e) => {
+    const file = e.target.files?.[0] || null
+
+    if (reportScreenshotPreview) {
+      try { URL.revokeObjectURL(reportScreenshotPreview) } catch { void 0 }
+    }
+
+    if (file) {
+      setReportScreenshotFile(file)
+      setReportScreenshotPreview(URL.createObjectURL(file))
+    } else {
+      setReportScreenshotFile(null)
+      setReportScreenshotPreview('')
+    }
+  }
+
+  const handleSubmitUserReport = async (ev) => {
+    ev.preventDefault()
+    setReportError('')
+
+    try {
+      if (!authUser?.uid) throw new Error('Debes iniciar sesión para enviar un reporte.')
+      if (!profileUid) throw new Error('Usuario a reportar inválido.')
+      if (!reportDescription || !reportDescription.trim()) throw new Error('La descripcion del reporte es obligatoria.')
+
+      setIsSubmittingReport(true)
+
+      let captura = null
+      if (reportScreenshotFile) {
+        const dataUrl = await readFileAsDataUrl(reportScreenshotFile)
+        captura = {
+          dataUrl,
+          fileName: reportScreenshotFile.name,
+          contentType: reportScreenshotFile.type,
+          sizeBytes: reportScreenshotFile.size,
+        }
+      }
+
+      await createReport({
+        usuarioIdReporta: authUser.uid,
+        objetoReportadoId: profileUid,
+        nombreObjetoReportado: 'usuario',
+        motivo: reportReason,
+        descripcion: reportDescription,
+        capturaPantalla: captura,
+      })
+
+      setProfileNotice('Reporte enviado correctamente.')
+      setIsReportModalOpen(false)
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'No fue posible enviar el reporte.')
+    } finally {
+      setIsSubmittingReport(false)
+    }
+  }
+
+  const handleConfirmChangeRole = () => {
+    // advance to final confirmation step
+    setRoleModalStep(2)
+    setRoleConfirmInput('')
+  }
+
+  const handleCancelChangeRole = () => {
+    setRoleModalOpen(false)
+    setRoleModalStep(null)
+    setRoleConfirmInput('')
+  }
+
+  const handlePerformChangeRole = async () => {
+    if (!profileUid) return
+
+    try {
+      setIsSaving(true)
+      setProfileError('')
+      setProfileNotice('')
+      // call firebase
+      await setUserRole(profileUid, 'admin')
+      const refreshed = await getUserProfile(profileUid)
+      setProfileData(refreshed)
+      setProfileNotice('Rol actualizado a admin correctamente.')
+      setRoleModalOpen(false)
+      setRoleModalStep(null)
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'No fue posible cambiar el rol.')
     } finally {
       setIsSaving(false)
     }
@@ -364,6 +583,24 @@ function ProfilePage({
             <button className="profile-back-button" onClick={onBack} type="button">
               Volver al inicio
             </button>
+                {profileUid &&
+                profileUid !== authUser?.uid &&
+                isAdminRole(currentUserRole) &&
+                !isAdminRole(profileData?.rol) ? (
+                  <button
+                    className="profile-back-button"
+                    onClick={() => {
+                      setProfileError('')
+                      setProfileNotice('')
+                      setRoleConfirmInput('')
+                      setRoleModalStep(1)
+                      setRoleModalOpen(true)
+                    }}
+                    type="button"
+                  >
+                    Cambiar rol
+                  </button>
+                ) : null}
 
             {profileUid && profileUid !== authUser?.uid ? (
               <>
@@ -394,6 +631,24 @@ function ProfilePage({
                       ? 'Desbloquear usuario'
                       : 'Bloquear usuario'}
                 </button>
+                {isAdminRole(currentUserRole) ? (
+                  <button
+                    className="delete-account-button"
+                    onClick={handleDeleteClick}
+                    type="button"
+                    disabled={isBlockingProfileUser}
+                  >
+                    Eliminar cuenta
+                  </button>
+                ) : null}
+                <button
+                  className="profile-back-button"
+                  onClick={openReportModal}
+                  type="button"
+                  disabled={isBlockingProfileUser}
+                >
+                  Reportar usuario
+                </button>
               </>
             ) : (
               <>
@@ -423,6 +678,7 @@ function ProfilePage({
         {globalError ? <p className="form-message error">{globalError}</p> : null}
         {localDeleteError ? <p className="form-message error">{localDeleteError}</p> : null}
         {profileError ? <p className="form-message error">{profileError}</p> : null}
+        {profileNotice ? <p className="form-message success">{profileNotice}</p> : null}
 
         {profileLoading ? (
           <section className="info-card">
@@ -583,14 +839,23 @@ function ProfilePage({
             onClick={(event) => event.stopPropagation()}
           >
             <p className="confirm-modal-eyebrow">ATENCION</p>
-            <h2 id="delete-account-modal-title">Estas a punto de eliminar tu cuenta</h2>
+            <h2 id="delete-account-modal-title">Estas a punto de eliminar una cuenta</h2>
 
             {deleteModalStep === 1 ? (
               <p className="confirm-modal-text">¿Seguro que deseas continuar?</p>
             ) : (
-              <p className="confirm-modal-text">
-                Esta acción es permanente y eliminará tus datos. ¿Deseas continuar?
-              </p>
+              <>
+                <p className="confirm-modal-text">
+                  Esta acción es permanente y eliminará todos los datos del usuario <strong>{deleteTargetNick}</strong>. Para confirmar, escribe el nick exacto.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmNick}
+                  onChange={(event) => setDeleteConfirmNick(event.target.value)}
+                  placeholder={`Escribe ${deleteTargetNick || 'el nick'} para confirmar`}
+                  style={{ width: '100%', padding: '8px', marginTop: 12 }}
+                />
+              </>
             )}
 
             <div className="confirm-modal-actions">
@@ -598,7 +863,7 @@ function ProfilePage({
                 className="profile-back-button"
                 type="button"
                 onClick={handleCloseDeleteModal}
-                disabled={isDeletingAccount}
+                disabled={isDeletingAccount || processingDeleteAccount}
               >
                 Cancelar
               </button>
@@ -608,7 +873,7 @@ function ProfilePage({
                   className="delete-account-button"
                   type="button"
                   onClick={handleDeleteModalContinue}
-                  disabled={isDeletingAccount}
+                  disabled={isDeletingAccount || processingDeleteAccount}
                 >
                   Continuar
                 </button>
@@ -617,13 +882,77 @@ function ProfilePage({
                   className="delete-account-button"
                   type="button"
                   onClick={handleDeleteModalConfirm}
-                  disabled={isDeletingAccount}
+                  disabled={isDeletingAccount || processingDeleteAccount || deleteConfirmNick.trim() !== (deleteTargetNick || '')}
                 >
-                  {isDeletingAccount ? 'Eliminando cuenta...' : 'Sí, eliminar cuenta'}
+                  {isDeletingAccount || processingDeleteAccount ? 'Eliminando cuenta...' : 'Sí, eliminar cuenta'}
                 </button>
               )}
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {isReportModalOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          role="presentation"
+          onClick={closeReportModal}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '20px',
+              maxWidth: '580px',
+              width: '100%',
+              boxShadow: '0 6px 18px rgba(0,0,0,0.18)'
+            }}
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="eyebrow">Comiku / Reportar usuario</p>
+            <h2>Reportar usuario</h2>
+
+            {reportError ? <p className="form-message error">{reportError}</p> : null}
+
+            <form className="report-form" onSubmit={handleSubmitUserReport}>
+              <label>Motivo</label>
+              <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} disabled={isSubmittingReport}>
+                {REPORT_REASON_OPTIONS_FOR_USER.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+
+              <label>Descripción</label>
+              <textarea value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
+
+              <label>Captura de pantalla (opcional)</label>
+              <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleReportScreenshotChange} disabled={isSubmittingReport} />
+
+              {reportScreenshotPreview ? (
+                <div className="report-screenshot-preview-card">
+                  <img src={reportScreenshotPreview} alt="Vista previa de la captura" className="report-screenshot-preview-image" />
+                </div>
+              ) : null}
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
+                <button type="button" className="profile-back-button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</button>
+                <button type="submit" className="delete-account-button" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</button>
+              </div>
+            </form>
+          </div>
         </div>
       ) : null}
 
@@ -678,6 +1007,86 @@ function ProfilePage({
                 {processingBlock ? 'Bloqueando...' : 'Bloquear'}
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {roleModalOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          role="presentation"
+          onClick={handleCancelChangeRole}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '520px',
+              width: '100%',
+              boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+            }}
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="confirm-modal-eyebrow">ATENCIÓN — Cambio de rol</p>
+            <h2>Vas a otorgar permisos de administrador</h2>
+            {roleModalStep === 1 ? (
+              <>
+                <p className="confirm-modal-text">
+                  Estás a punto de convertir a <strong>{profileData?.nick}</strong> en administrador.
+                  Esta acción le dará acceso a funciones sensibles.
+                </p>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                  <button className="profile-back-button" type="button" onClick={handleCancelChangeRole}>
+                    Cancelar
+                  </button>
+                  <button className="delete-account-button" type="button" onClick={handleConfirmChangeRole}>
+                    Continuar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="confirm-modal-text">
+                  Confirma por favor escribiendo el nick del usuario (<strong>{profileData?.nick}</strong>)
+                  en el campo de abajo y presiona "Confirmar cambio".
+                </p>
+                <input
+                  type="text"
+                  value={roleConfirmInput}
+                  onChange={(e) => setRoleConfirmInput(e.target.value)}
+                  placeholder={`Escribe ${profileData?.nick} para confirmar`}
+                  style={{ width: '100%', padding: '8px', marginTop: 12 }}
+                />
+
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                  <button className="profile-back-button" type="button" onClick={handleCancelChangeRole} disabled={isSaving}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="delete-account-button"
+                    type="button"
+                    onClick={handlePerformChangeRole}
+                    disabled={isSaving || roleConfirmInput !== (profileData?.nick || '')}
+                  >
+                    {isSaving ? 'Guardando...' : 'Confirmar cambio'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}

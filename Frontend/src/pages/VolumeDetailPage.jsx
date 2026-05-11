@@ -1,5 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
+import { deleteVolumeByAdmin } from '../firebase/comics'
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_COVER_SIZE_BYTES,
+  readFileAsDataUrl,
+} from '../constants/imageUpload'
+import {
+  createReport,
+  hasPendingObjectReport,
+  REPORT_REASON_OPTIONS_FOR_CONTENT,
+} from '../firebase/reports'
+import { getUserProfile } from '../firebase/user'
 import {
   addVolumeReading,
   deleteVolumeReading,
@@ -27,7 +39,7 @@ function formatReadingDate(readingDate) {
   return readingDate.toLocaleDateString('es-AR')
 }
 
-function VolumeDetailPage({ comicId, volumeId, authUser }) {
+function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteVolume }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [comic, setComic] = useState(null)
@@ -40,6 +52,9 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
   const [isAddingReading, setIsAddingReading] = useState(false)
   const [readingDate, setReadingDate] = useState('')
   const [readingToDelete, setReadingToDelete] = useState(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deletingVolume, setDeletingVolume] = useState(false)
   const [membership, setMembership] = useState({
     inLibrary: false,
     inWishlist: false,
@@ -50,16 +65,27 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
     fechaLectura: [],
     readingEntries: [],
   })
+  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [hasPendingVolumeReport, setHasPendingVolumeReport] = useState(false)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_CONTENT[0])
+  const [reportDescription, setReportDescription] = useState('')
+  const [reportScreenshotFile, setReportScreenshotFile] = useState(null)
+  const [reportScreenshotPreview, setReportScreenshotPreview] = useState('')
+  const [reportError, setReportError] = useState('')
+  const [reportNotice, setReportNotice] = useState('')
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
 
-  const safeReadingEntries = Array.isArray(libraryData.readingEntries)
-    ? libraryData.readingEntries
-    : []
+  const sortedReadings = [...(Array.isArray(libraryData.readingEntries) ? libraryData.readingEntries : [])]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
 
-  const sortedReadings = useMemo(
-    () =>
-      [...safeReadingEntries].sort((a, b) => b.date.getTime() - a.date.getTime()),
-    [safeReadingEntries],
-  )
+  useEffect(() => {
+    return () => {
+      if (reportScreenshotPreview) {
+        URL.revokeObjectURL(reportScreenshotPreview)
+      }
+    }
+  }, [reportScreenshotPreview])
 
   useEffect(() => {
     let cancelled = false
@@ -175,6 +201,231 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
       cancelled = true
     }
   }, [authUser?.uid, comicId, volumeId])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadReportState() {
+      if (!authUser?.uid || !volumeId) {
+        if (!cancelled) {
+          setCurrentUserRole('')
+          setHasPendingVolumeReport(false)
+        }
+        return
+      }
+
+      try {
+        const profile = await getUserProfile(authUser.uid)
+        if (!cancelled) {
+          setCurrentUserRole(profile?.rol || '')
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUserRole('')
+        }
+      }
+
+      try {
+        const hasPendingReport = await hasPendingObjectReport({
+          usuarioIdReporta: authUser.uid,
+          objetoReportadoId: volumeId,
+          nombreObjetoReportado: 'tomo',
+          comicId,
+        })
+
+        if (!cancelled) {
+          setHasPendingVolumeReport(hasPendingReport)
+        }
+      } catch {
+        if (!cancelled) {
+          setHasPendingVolumeReport(false)
+        }
+      }
+    }
+
+    loadReportState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authUser?.uid, comicId, volumeId])
+
+  function sanitizeInput(text) {
+    if (!text) return ''
+    return String(text)
+      .split('')
+      .filter((character) => !'@#$^&*{}[]<>'.includes(character))
+      .join('')
+  }
+
+  const canReportVolume = Boolean(authUser?.uid) && currentUserRole === 'usuario'
+  const canDeleteVolume = currentUserRole === 'admin'
+
+  function resetReportForm() {
+    if (reportScreenshotPreview) {
+      URL.revokeObjectURL(reportScreenshotPreview)
+    }
+
+    setReportReason(REPORT_REASON_OPTIONS_FOR_CONTENT[0])
+    setReportDescription('')
+    setReportScreenshotFile(null)
+    setReportScreenshotPreview('')
+    setReportError('')
+  }
+
+  function openReportModal() {
+    resetReportForm()
+    setIsReportModalOpen(true)
+  }
+
+  function closeReportModal(forceClose = false) {
+    if (isSubmittingReport && !forceClose) {
+      return
+    }
+
+    resetReportForm()
+    setIsReportModalOpen(false)
+  }
+
+  function handleReportScreenshotChange(event) {
+    const selectedFile = event.target.files?.[0]
+
+    if (!selectedFile) {
+      if (reportScreenshotPreview) {
+        URL.revokeObjectURL(reportScreenshotPreview)
+      }
+
+      setReportScreenshotFile(null)
+      setReportScreenshotPreview('')
+      setReportError('')
+      return
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+      setReportError('La captura debe ser .jpg, .jpeg, .png o .webp.')
+      return
+    }
+
+    if (selectedFile.size > MAX_COVER_SIZE_BYTES) {
+      setReportError('La captura es demasiado pesada. Usa una imagen menor a 500 KB.')
+      return
+    }
+
+    if (reportScreenshotPreview) {
+      URL.revokeObjectURL(reportScreenshotPreview)
+    }
+
+    setReportError('')
+    setReportScreenshotFile(selectedFile)
+    setReportScreenshotPreview(URL.createObjectURL(selectedFile))
+  }
+
+  async function handleSubmitVolumeReport(event) {
+    event.preventDefault()
+
+    if (!authUser?.uid || !volumeId) {
+      setReportError('No hay sesión activa o faltan datos del tomo.')
+      return
+    }
+
+    if (hasPendingVolumeReport) {
+      setReportError('Ya tienes un reporte pendiente para este tomo.')
+      return
+    }
+
+    const sanitizedDescription = sanitizeInput(reportDescription)
+
+    if (!reportReason) {
+      setReportError('Debes seleccionar un motivo.')
+      return
+    }
+
+    if (!sanitizedDescription) {
+      setReportError('La descripción del reporte es obligatoria.')
+      return
+    }
+
+    try {
+      setIsSubmittingReport(true)
+      setReportError('')
+
+      let screenshotPayload = null
+
+      if (reportScreenshotFile) {
+        const screenshotDataUrl = await readFileAsDataUrl(reportScreenshotFile)
+        screenshotPayload = {
+          dataUrl: screenshotDataUrl,
+          fileName: reportScreenshotFile.name,
+          contentType: reportScreenshotFile.type,
+          sizeBytes: reportScreenshotFile.size,
+          source: 'firestore-inline',
+        }
+      }
+
+      await createReport({
+        usuarioIdReporta: authUser.uid,
+        objetoReportadoId: volumeId,
+        comicId,
+        nombreObjetoReportado: 'tomo',
+        motivo: reportReason,
+        descripcion: sanitizedDescription,
+        capturaPantalla: screenshotPayload,
+      })
+
+      setHasPendingVolumeReport(true)
+      setReportNotice('Reporte enviado correctamente. Gracias por ayudarnos a mejorar Comiku.')
+      closeReportModal(true)
+    } catch (error) {
+      setReportError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible enviar el reporte.',
+      )
+    } finally {
+      setIsSubmittingReport(false)
+    }
+  }
+
+  const openDeleteVolumeModal = () => {
+    setDeleteError('')
+    setDeleteModalOpen(true)
+  }
+
+  const closeDeleteVolumeModal = () => {
+    if (deletingVolume) {
+      return
+    }
+
+    setDeleteModalOpen(false)
+  }
+
+  const handleDeleteVolume = async () => {
+    if (!authUser?.getIdToken || !comicId || !volumeId) {
+      setDeleteError('No fue posible iniciar la eliminación.')
+      return
+    }
+
+    try {
+      setDeletingVolume(true)
+      setDeleteError('')
+      const idToken = await authUser.getIdToken()
+      await deleteVolumeByAdmin({ idToken, comicId, volumeId })
+
+      setDeleteModalOpen(false)
+
+      if (onDeleteVolume) {
+        onDeleteVolume({ comicId, volumeId })
+        return
+      }
+
+      setError('Tomo eliminado correctamente.')
+      setVolume(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'No fue posible eliminar el tomo.')
+    } finally {
+      setDeletingVolume(false)
+    }
+  }
 
   const handleToggleLibrary = async () => {
     if (!authUser?.uid || !comicId || !volumeId) {
@@ -366,6 +617,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
         {error ? <p className="form-message error">{error}</p> : null}
         {listError ? <p className="form-message error">{listError}</p> : null}
         {listNotice ? <p className="form-message success">{listNotice}</p> : null}
+        {reportNotice ? <p className="form-message success">{reportNotice}</p> : null}
 
         {!volume || !comic ? null : (
           <div className="volume-detail-grid">
@@ -394,6 +646,27 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
                 </p>
               </div>
 
+              {canDeleteVolume ? (
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      if (onEditVolume) onEditVolume({ comicId, volumeId })
+                    }}
+                  >
+                    Modificar tomo
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={openDeleteVolumeModal}
+                    style={{ marginLeft: 8 }}
+                  >
+                    Eliminar tomo
+                  </button>
+                </div>
+              ) : null}
               <div className="volume-list-actions">
                 <button
                   className={`volume-list-button ${membership.inLibrary ? 'active-library' : ''}`}
@@ -413,6 +686,25 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
                   {membership.inWishlist ? 'En deseados ✓' : '+ Agregar a deseados'}
                 </button>
               </div>
+
+              {canReportVolume ? (
+                <section className="report-content-panel">
+                  <h2>Reportes</h2>
+                  {hasPendingVolumeReport ? (
+                    <p className="helper-text">
+                      Ya tienes un reporte pendiente para este tomo. Podrás volver a reportarlo cuando se resuelva.
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="report-content-button"
+                      onClick={openReportModal}
+                    >
+                      Reportar tomo
+                    </button>
+                  )}
+                </section>
+              ) : null}
 
               {membership.inLibrary ? (
                 <section className="volume-reading-panel">
@@ -483,6 +775,137 @@ function VolumeDetailPage({ comicId, volumeId, authUser }) {
             </section>
           </div>
         )}
+
+        {deleteModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+            }}
+            role="presentation"
+            onClick={closeDeleteVolumeModal}
+          >
+            <section
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 24,
+                maxWidth: 520,
+                width: 'calc(100% - 32px)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.24)',
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-volume-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="eyebrow">ATENCION</p>
+              <h2 id="delete-volume-modal-title">Eliminar tomo</h2>
+              <p className="confirm-modal-text">
+                Esta acción eliminará el tomo y todas sus referencias asociadas.
+              </p>
+              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
+
+              <div className="confirm-modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={closeDeleteVolumeModal}
+                  disabled={deletingVolume}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={handleDeleteVolume}
+                  disabled={deletingVolume}
+                >
+                  {deletingVolume ? 'Eliminando...' : 'Eliminar tomo'}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {isReportModalOpen ? (
+          <div className="report-modal-backdrop" role="presentation">
+            <div className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-volume-modal-title">
+              <p className="eyebrow">Comiku / Reportar tomo</p>
+              <h2 id="report-volume-modal-title">Reportar tomo</h2>
+
+              {reportError ? <p className="form-message error">{reportError}</p> : null}
+
+              <form className="report-form" onSubmit={handleSubmitVolumeReport}>
+                <label htmlFor="volume-report-reason">Motivo</label>
+                <select
+                  id="volume-report-reason"
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  disabled={isSubmittingReport}
+                >
+                  {REPORT_REASON_OPTIONS_FOR_CONTENT.map((reasonOption) => (
+                    <option key={reasonOption} value={reasonOption}>
+                      {reasonOption}
+                    </option>
+                  ))}
+                </select>
+
+                <label htmlFor="volume-report-description">Descripción</label>
+                <textarea
+                  id="volume-report-description"
+                  value={reportDescription}
+                  onChange={(event) => setReportDescription(event.target.value)}
+                  rows={4}
+                  placeholder="Describe brevemente el problema."
+                  disabled={isSubmittingReport}
+                />
+
+                <label htmlFor="volume-report-screenshot">Captura de pantalla (opcional)</label>
+                <input
+                  id="volume-report-screenshot"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleReportScreenshotChange}
+                  disabled={isSubmittingReport}
+                />
+
+                {reportScreenshotPreview ? (
+                  <div className="report-screenshot-preview-card">
+                    <img
+                      src={reportScreenshotPreview}
+                      alt="Vista previa de la captura para el reporte"
+                      className="report-screenshot-preview-image"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="report-modal-actions">
+                  <button
+                    type="button"
+                    className="report-modal-button secondary"
+                    onClick={closeReportModal}
+                    disabled={isSubmittingReport}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="report-modal-button"
+                    disabled={isSubmittingReport}
+                  >
+                    {isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
 
         {readingToDelete ? (
           <div className="reading-modal-backdrop" role="presentation">

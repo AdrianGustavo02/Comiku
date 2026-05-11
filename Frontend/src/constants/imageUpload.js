@@ -74,3 +74,45 @@ export function createThumbnailFromDataUrl(dataUrl, { maxWidth = 320, maxHeight 
     image.src = dataUrl
   })
 }
+
+export async function createCompressedImageDataUrl(
+  dataUrl,
+  { maxWidth = 240, maxHeight = 240, maxBytes = 80 * 1024, minQuality = 0.45 } = {},
+) {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+    return dataUrl
+  }
+
+  const image = new Image()
+
+  await new Promise((resolve, reject) => {
+    image.onload = () => resolve()
+    image.onerror = () => reject(new Error('No se pudo comprimir la imagen seleccionada.'))
+    image.src = dataUrl
+  })
+
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1)
+  const targetWidth = Math.max(1, Math.round(image.width * scale))
+  const targetHeight = Math.max(1, Math.round(image.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = targetWidth
+  canvas.height = targetHeight
+
+  const context = canvas.getContext('2d')
+  if (!context) {
+    return dataUrl
+  }
+
+  context.drawImage(image, 0, 0, targetWidth, targetHeight)
+
+  let quality = 0.82
+  let compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+
+  while (compressedDataUrl.length > maxBytes && quality > minQuality) {
+    quality = Math.max(minQuality, Number((quality - 0.12).toFixed(2)))
+    compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+  }
+
+  return compressedDataUrl.length > maxBytes ? compressedDataUrl : compressedDataUrl
+}

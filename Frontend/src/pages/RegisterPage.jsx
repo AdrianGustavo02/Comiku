@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { deleteUser } from 'firebase/auth'
-import { isEmailRegistered, registerWithEmail, validatePassword } from '../firebase/auth'
+import {
+  isEmailBlockedForRegistration,
+  isEmailRegistered,
+  registerWithEmail,
+  validatePassword,
+} from '../firebase/auth'
 import { auth } from '../firebase/firebase'
 import { createUserProfile, isNickRegistered } from '../firebase/user'
 import {
@@ -134,6 +139,13 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         showErrorAndScrollTop('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
         return
       }
+    }
+
+    const emailIsBlocked = await isEmailBlockedForRegistration(trimmedEmail)
+
+    if (emailIsBlocked) {
+      showErrorAndScrollTop('Este correo fue bloqueado y no puede volver a registrarse.')
+      return
     }
 
     const emailAlreadyRegistered = await isEmailRegistered(trimmedEmail)

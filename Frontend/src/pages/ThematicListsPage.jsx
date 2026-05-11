@@ -55,7 +55,6 @@ function ThematicListsPage({
   onOpenList,
   onCreateList,
   onOpenMyLists,
-  onOpenVolume,
 }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

@@ -10,13 +10,14 @@ import {
   getUserLikeStatus,
   getUserSavedListStatus,
   toggleSaveListForUser,
+  deleteThematicListByAdmin,
 } from '../firebase/thematicLists'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import { getUserProfile, isUserBlocked } from '../firebase/user'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListDetailPage.css'
 
-function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
+function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDeleteList }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [list, setList] = useState(null)
@@ -30,6 +31,10 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
   const [processingLike, setProcessingLike] = useState(false)
   const [processingSave, setProcessingSave] = useState(false)
   const [deletingCommentId, setDeletingCommentId] = useState('')
+  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deletingList, setDeletingList] = useState(false)
 
   const loadCommentsWithAuthors = async (currentListId) => {
     const comms = await getListComments({ listId: currentListId })
@@ -146,6 +151,36 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
     }
   }, [listId, authUser?.uid])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadRole() {
+      if (!authUser?.uid) {
+        if (!cancelled) {
+          setCurrentUserRole('')
+        }
+        return
+      }
+
+      try {
+        const profile = await getUserProfile(authUser.uid)
+        if (!cancelled) {
+          setCurrentUserRole(profile?.rol || '')
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUserRole('')
+        }
+      }
+    }
+
+    loadRole()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authUser?.uid])
+
   const handleToggleLike = async () => {
     if (!authUser?.uid) {
       setError('Debes iniciar sesión para dar like.')
@@ -227,6 +262,51 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
     }
   }
 
+  const canDeleteList = currentUserRole === 'admin'
+
+  const openDeleteListModal = () => {
+    setDeleteError('')
+    setDeleteModalOpen(true)
+  }
+
+  const closeDeleteListModal = () => {
+    if (deletingList) {
+      return
+    }
+
+    setDeleteModalOpen(false)
+  }
+
+  const handleDeleteList = async () => {
+    if (!authUser?.getIdToken || !listId) {
+      setDeleteError('No fue posible iniciar la eliminación.')
+      return
+    }
+
+    try {
+      setDeletingList(true)
+      setDeleteError('')
+      const idToken = await authUser.getIdToken()
+      await deleteThematicListByAdmin({ idToken, listId })
+
+      setDeleteModalOpen(false)
+
+      if (onDeleteList) {
+        onDeleteList(listId)
+        return
+      }
+
+      setError('Lista temática eliminada correctamente.')
+      setList(null)
+      setVolumes([])
+      setComments([])
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'No fue posible eliminar la lista temática.')
+    } finally {
+      setDeletingList(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="app-shell">
@@ -262,6 +342,11 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
 
           <div className="hero-actions">
             <button className="back-button" onClick={onBack} type="button">Volver</button>
+            {canDeleteList ? (
+              <button className="danger-button" onClick={openDeleteListModal} type="button">
+                Eliminar lista
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -337,6 +422,63 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume }) {
             </div>
           </div>
         </div>
+
+        {deleteModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+            }}
+            role="presentation"
+            onClick={closeDeleteListModal}
+          >
+            <section
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 24,
+                maxWidth: 520,
+                width: 'calc(100% - 32px)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.24)',
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-list-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="eyebrow">ATENCION</p>
+              <h2 id="delete-list-modal-title">Eliminar lista temática</h2>
+              <p className="confirm-modal-text">
+                Esta acción eliminará la lista y todas sus referencias asociadas.
+              </p>
+              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
+
+              <div className="confirm-modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={closeDeleteListModal}
+                  disabled={deletingList}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={handleDeleteList}
+                  disabled={deletingList}
+                >
+                  {deletingList ? 'Eliminando...' : 'Eliminar lista'}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </section>
     </main>
   )

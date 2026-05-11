@@ -11,6 +11,10 @@ import { auth, isFirebaseConfigured } from './firebase'
 const passwordPolicyMessage =
   'La contraseña debe tener al menos 6 caracteres y al menos 1 numero.'
 
+function getBackendBaseUrl() {
+  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+}
+
 export function validatePassword(password) {
   const hasMinimumLength = password.length >= 6
   const hasNumber = /\d/.test(password)
@@ -60,6 +64,12 @@ function mapAuthError(error) {
 export async function registerWithEmail({ email, password }) {
   ensureAuthReady()
 
+  const emailBlocked = await isEmailBlockedForRegistration(email)
+
+  if (emailBlocked) {
+    throw new Error('Este correo fue bloqueado y no puede volver a registrarse.')
+  }
+
   try {
     const credentials = await createUserWithEmailAndPassword(auth, email, password)
 
@@ -84,6 +94,40 @@ export async function isEmailRegistered(email) {
   } catch (error) {
     throw new Error(mapAuthError(error))
   }
+}
+
+export async function isEmailBlockedForRegistration(email) {
+  const sanitizedEmail = String(email || '').trim().toLowerCase()
+
+  if (!sanitizedEmail) {
+    return false
+  }
+
+  const backendBaseUrl = getBackendBaseUrl()
+
+  let response
+
+  try {
+    response = await fetch(`${backendBaseUrl}/api/auth/validate-registration-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: sanitizedEmail }),
+    })
+  } catch {
+    throw new Error(
+      `No se pudo conectar con el backend (${backendBaseUrl}). Verifica que el servidor esté levantado.`,
+    )
+  }
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'No fue posible validar el correo para registro.')
+  }
+
+  return Boolean(payload?.blocked)
 }
 
 export async function loginWithEmail({ email, password }) {

@@ -3,6 +3,9 @@ import {
   addComicVolume,
   createComic,
   isbnExists,
+  isbnExistsExcluding,
+  getComicVolumeById,
+  updateComicVolume,
 } from '../firebase/comics'
 import {
   ALLOWED_IMAGE_TYPES,
@@ -24,7 +27,14 @@ function formatPublicationDate(publicationDate) {
   return `${month}/${year}`
 }
 
-function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) {
+function CreateComicVolumesPage({
+  comicDraft,
+  onBackToHome,
+  onFinishCreation,
+  comicId,
+  volumeId,
+  onVolumeUpdated,
+}) {
   const [mode, setMode] = useState('numero')
   const [numeroTomo, setNumeroTomo] = useState('')
   const [isbn, setIsbn] = useState('')
@@ -37,6 +47,7 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
   const [formError, setFormError] = useState('')
   const [formNotice, setFormNotice] = useState('')
   const [saving, setSaving] = useState(false)
+  const [loadingInitial, setLoadingInitial] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -56,6 +67,40 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
     setCoverPreviewUrl(file ? URL.createObjectURL(file) : '')
   }
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadInitial() {
+      if (!comicId || !volumeId) return
+      try {
+        setLoadingInitial(true)
+        const data = await getComicVolumeById({ comicId, volumeId })
+        if (cancelled || !data) return
+
+        setMode(data.numeroTomo !== null ? 'numero' : 'unico')
+        setNumeroTomo(data.numeroTomo !== null ? String(data.numeroTomo) : '')
+        setIsbn(data.isbn !== null ? String(data.isbn) : '')
+        setFechaPublicacion(data.fechaPublicacion || '')
+        // portada is object with dataUrl; we won't convert to File, but show preview
+        if (data.portada && data.portada.dataUrl) {
+          setCoverPreviewUrl(data.portada.dataUrl)
+          setCoverFileName(data.portada.fileName || '')
+          setCoverFile(null)
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoadingInitial(false)
+      }
+    }
+
+    loadInitial()
+
+    return () => {
+      cancelled = true
+    }
+  }, [comicId, volumeId])
+
   const resetForm = () => {
     setMode('numero')
     setNumeroTomo('')
@@ -64,8 +109,8 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
     updateCoverFile(null)
   }
 
-  const validateForm = () => {
-    if (!comicDraft) {
+  const validateForm = ({ requireComicDraft = true, requireCover = true } = {}) => {
+    if (requireComicDraft && !comicDraft) {
       return 'No se encontró el borrador del comic. Vuelve al inicio y créalo nuevamente.'
     }
 
@@ -95,23 +140,28 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
       return 'Fecha de publicación debe tener formato mes y año válido.'
     }
 
-    if (!coverFile) {
+    if (requireCover && !coverFile) {
       return 'Portada es obligatoria.'
     }
 
-    if (!ALLOWED_IMAGE_TYPES.includes(coverFile.type)) {
-      return 'Portada debe ser .jpg, .jpeg, .png o .webp.'
-    }
+    if (coverFile) {
+      if (!ALLOWED_IMAGE_TYPES.includes(coverFile.type)) {
+        return 'Portada debe ser .jpg, .jpeg, .png o .webp.'
+      }
 
-    if (coverFile.size > MAX_COVER_SIZE_BYTES) {
-      return 'Portada demasiado pesada. Usa una imagen menor a 500 KB.'
+      if (coverFile.size > MAX_COVER_SIZE_BYTES) {
+        return 'Portada demasiado pesada. Usa una imagen menor a 500 KB.'
+      }
     }
 
     return ''
   }
 
   const buildVolumeDraft = async () => {
-    const validationError = validateForm()
+    const validationError = validateForm({
+      requireComicDraft: true,
+      requireCover: true,
+    })
 
     if (validationError) {
       setFormError(validationError)
@@ -242,6 +292,88 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
     }
   }
 
+  const handleUpdateVolume = async () => {
+    setFormError('')
+    try {
+      setSaving(true)
+
+      // validate
+      const validation = validateForm({
+        requireComicDraft: false,
+        requireCover: !coverPreviewUrl,
+      })
+      if (validation) {
+        setFormError(validation)
+        return
+      }
+
+      if (!comicId || !volumeId) {
+        setFormError('No se encontraron datos del tomo para actualizar.')
+        return
+      }
+
+      // decide portada payload: if coverFile is set, upload inline, else undefined to keep existing
+      let portadaPayload = undefined
+
+      if (coverFile) {
+        if (!ALLOWED_IMAGE_TYPES.includes(coverFile.type)) {
+          setFormError('Portada debe ser .jpg, .jpeg, .png o .webp.')
+          return
+        }
+
+        if (coverFile.size > MAX_COVER_SIZE_BYTES) {
+          setFormError('Portada demasiado pesada. Usa una imagen menor a 500 KB.')
+          return
+        }
+
+        const coverDataUrl = await readFileAsDataUrl(coverFile)
+        portadaPayload = {
+          dataUrl: coverDataUrl,
+          fileName: coverFile.name,
+          contentType: coverFile.type,
+          sizeBytes: coverFile.size,
+          source: 'firestore-inline',
+        }
+      }
+
+      const isbnValue = Number.parseInt(isbn.trim(), 10)
+
+      if (isbnValue) {
+        const isbnAlreadyExists = await isbnExistsExcluding(isbnValue, comicId, volumeId)
+        if (isbnAlreadyExists) {
+          setFormError(`El código ISBN ${isbn} ya existe en la base de datos. El ISBN debe ser único.`)
+          return
+        }
+      }
+
+      const numeroTomoValue = mode === 'numero' ? Number.parseInt(numeroTomo, 10) : null
+      const tomoUnicoValue = mode === 'unico'
+
+      await updateComicVolume({
+        comicId,
+        volumeId,
+        numeroTomo: numeroTomoValue,
+        tomoUnico: tomoUnicoValue,
+        isbn: Number.parseInt(isbn.trim(), 10),
+        fechaPublicacion,
+        portada: portadaPayload,
+      })
+
+      if (onVolumeUpdated) onVolumeUpdated()
+    } catch (err) {
+      const rawMessage = err instanceof Error ? err.message : ''
+      const message =
+        /ERR_BLOCKED_BY_CLIENT|Failed to fetch|NetworkError/i.test(rawMessage)
+          ? 'El navegador o una extensión está bloqueando la conexión con Firebase. Desactiva el bloqueador y vuelve a intentar.'
+          : err instanceof Error
+            ? err.message
+            : 'No fue posible actualizar el tomo.'
+      setFormError(message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="app-card">
@@ -330,7 +462,7 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
               const file = event.target.files?.[0] || null
               updateCoverFile(file)
             }}
-            required
+            required={!volumeId}
             type="file"
           />
           {coverFileName ? (
@@ -349,25 +481,38 @@ function CreateComicVolumesPage({ comicDraft, onBackToHome, onFinishCreation }) 
           ) : null}
 
           <div className="volume-actions">
-            {mode === 'numero' ? (
+            {!volumeId ? (
+              <>
+                {mode === 'numero' ? (
+                  <button
+                    className="secondary-button"
+                    disabled={saving}
+                    onClick={handleContinue}
+                    type="button"
+                  >
+                    {saving ? 'Guardando...' : 'Seguir agregando tomos'}
+                  </button>
+                ) : null}
+
+                <button
+                  className="primary-button"
+                  disabled={saving}
+                  onClick={handleFinalize}
+                  type="button"
+                >
+                  {saving ? 'Guardando...' : 'Finalizar creacion'}
+                </button>
+              </>
+            ) : (
               <button
-                className="secondary-button"
+                className="primary-button"
                 disabled={saving}
-                onClick={handleContinue}
+                onClick={handleUpdateVolume}
                 type="button"
               >
-                {saving ? 'Guardando...' : 'Seguir agregando tomos'}
+                {saving ? 'Guardando...' : 'Actualizar tomo'}
               </button>
-            ) : null}
-
-            <button
-              className="primary-button"
-              disabled={saving}
-              onClick={handleFinalize}
-              type="button"
-            >
-              {saving ? 'Guardando...' : 'Finalizar creacion'}
-            </button>
+            )}
           </div>
         </form>
 

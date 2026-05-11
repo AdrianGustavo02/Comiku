@@ -406,3 +406,155 @@ export async function isbnExists(isbn) {
 
   return false
 }
+
+export async function isbnExistsExcluding(isbn, excludeComicId = null, excludeVolumeId = null) {
+  ensureFirestoreReady()
+
+  if (!isbn) {
+    return false
+  }
+
+  const isbnNumber = Number.parseInt(String(isbn).trim(), 10)
+
+  if (Number.isNaN(isbnNumber)) {
+    return false
+  }
+
+  const comicsSnapshots = await getDocs(collection(db, COMICS_COLLECTION))
+
+  for (const comicDoc of comicsSnapshots.docs) {
+    const volumesSnapshots = await getDocs(
+      collection(db, COMICS_COLLECTION, comicDoc.id, VOLUMES_SUBCOLLECTION),
+    )
+
+    for (const volumeDoc of volumesSnapshots.docs) {
+      if (excludeComicId && excludeVolumeId) {
+        if (comicDoc.id === excludeComicId && volumeDoc.id === excludeVolumeId) {
+          continue
+        }
+      }
+
+      const data = volumeDoc.data()
+      if (data.ISBN === isbnNumber) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+export async function updateComic({
+  comicId,
+  nombre,
+  autores,
+  editorial,
+  paisEditorial,
+  estado,
+  generos,
+  descripcion,
+  formato,
+}) {
+  ensureFirestoreReady()
+
+  if (!comicId) {
+    throw new Error('No se pudo actualizar el comic: ID inválido.')
+  }
+
+  const comicRef = doc(db, COMICS_COLLECTION, comicId)
+
+  const payload = {
+    Nombre: nombre,
+    Autor: autores,
+    Editorial: editorial,
+    PaisEditorial: paisEditorial,
+    Estado: estado,
+    Genero: generos,
+    Descripcion: descripcion,
+    Formato: formato,
+  }
+
+  await updateDoc(comicRef, payload)
+}
+
+export async function updateComicVolume({
+  comicId,
+  volumeId,
+  numeroTomo,
+  tomoUnico,
+  isbn,
+  fechaPublicacion,
+  portada,
+}) {
+  ensureFirestoreReady()
+
+  if (!comicId || !volumeId) {
+    throw new Error('No se pudo actualizar el tomo: datos inválidos.')
+  }
+
+  const volumeRef = doc(db, COMICS_COLLECTION, comicId, VOLUMES_SUBCOLLECTION, volumeId)
+
+  const payload = {
+    NumeroTomo: numeroTomo ?? null,
+    TomoUnico: tomoUnico ?? null,
+    ISBN: isbn,
+    FechaPublicacion: fechaPublicacion ?? null,
+  }
+
+  if (portada !== undefined) {
+    payload.Portada = portada
+  }
+
+  await updateDoc(volumeRef, payload)
+}
+
+export async function deleteComicByAdmin({ idToken, comicId }) {
+  ensureFirestoreReady()
+
+  if (!idToken || !comicId) {
+    throw new Error('No se pudo eliminar el comic: datos inválidos.')
+  }
+
+  const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+  const response = await fetch(`${backendBaseUrl}/api/admin/comics/${encodeURIComponent(comicId)}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'No fue posible eliminar el comic.')
+  }
+
+  return payload
+}
+
+export async function deleteVolumeByAdmin({ idToken, comicId, volumeId }) {
+  ensureFirestoreReady()
+
+  if (!idToken || !comicId || !volumeId) {
+    throw new Error('No se pudo eliminar el tomo: datos inválidos.')
+  }
+
+  const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+  const response = await fetch(
+    `${backendBaseUrl}/api/admin/comics/${encodeURIComponent(comicId)}/volumes/${encodeURIComponent(volumeId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    },
+  )
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'No fue posible eliminar el tomo.')
+  }
+
+  return payload
+}

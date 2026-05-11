@@ -10,8 +10,10 @@ import {
   increment,
   query,
   where,
+  limit,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
+import { createNotification, deleteNotificationsByActorUid, NOTIFICATION_TYPES } from './notifications'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 
 const USER_COLLECTION = 'usuario'
@@ -36,25 +38,29 @@ async function assertUniqueNick({ nick, uidToIgnore = null }) {
     throw new Error('El campo "Nick" es obligatorio.')
   }
 
-  const usersSnapshot = await getDocs(collection(db, USER_COLLECTION))
+  // Consultar por NickLower directamente para evitar leer toda la colección.
+  // Esto asume que los documentos tienen `NickLower` (migrar los existentes si no).
+  const q = query(
+    collection(db, USER_COLLECTION),
+    where('NickLower', '==', normalizedNick),
+    limit(1),
+  )
 
-  const duplicateUser = usersSnapshot.docs.find((userSnapshot) => {
-    const data = userSnapshot.data()
-    const existingUid = data.UID || userSnapshot.id
+  const snapshot = await getDocs(q)
 
-    if (uidToIgnore && existingUid === uidToIgnore) {
-      return false
-    }
-
-    const existingNick = normalizeNick(data.Nick || data.nick || data.NickLower)
-    return existingNick === normalizedNick
-  })
-
-  if (duplicateUser) {
-    throw new Error('Ese nick ya está registrado. Elige otro.')
+  if (snapshot.docs.length === 0) {
+    // No existe duplicado usando NickLower
+    return normalizedNick
   }
 
-  return normalizedNick
+  const found = snapshot.docs[0]
+  const existingUid = found.data().UID || found.id
+
+  if (uidToIgnore && existingUid === uidToIgnore) {
+    return normalizedNick
+  }
+
+  throw new Error('Ese nick ya está registrado. Elige otro.')
 }
 
 export async function isNickRegistered(nick, uidToIgnore = null) {
@@ -223,6 +229,39 @@ export async function deleteCurrentAccountData({ idToken }) {
   return payload
 }
 
+export async function deleteUserAccountByAdmin({ idToken, uid }) {
+  if (!idToken || !uid) {
+    throw new Error('No se pudo eliminar la cuenta: datos inválidos.')
+  }
+
+  const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+
+  let response
+
+  try {
+    response = await fetch(`${backendBaseUrl}/api/admin/users/${encodeURIComponent(uid)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    })
+  } catch {
+    throw new Error(
+      `No se pudo conectar con el backend (${backendBaseUrl}). Verifica que el servidor esté levantado.`,
+    )
+  }
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(
+      payload?.message || 'No fue posible eliminar la cuenta en el servidor.',
+    )
+  }
+
+  return payload
+}
+
 export async function getAllUsers() {
   ensureFirestoreReady()
 
@@ -277,6 +316,17 @@ export async function sendFriendRequest(fromUid, toUid) {
     FotoPerfil: senderProfile.fotoPerfil,
     fechaSolicitud: Timestamp.now(),
   })
+
+  try {
+    await createNotification({
+      userId: toUid,
+      type: NOTIFICATION_TYPES.FRIEND_REQUEST,
+      actorUid: fromUid,
+      metadata: {},
+    })
+  } catch (error) {
+    console.error('Error creating friend request notification:', error)
+  }
 }
 
 export async function getFriendRequests(uid) {
@@ -338,8 +388,8 @@ export async function acceptFriendRequest(uid, senderUid) {
   // Eliminar solicitud pendiente
   try {
     await deleteDoc(doc(db, USER_COLLECTION, uid, 'SolicitudesAmistad', senderUid))
-  } catch (err) {
-    // Ignorar error si no se puede eliminar
+  } catch (error) {
+    void error
   }
 
   // Actualizar contador de amigos
@@ -366,8 +416,14 @@ export async function declineFriendRequest(uid, senderUid) {
   // Simplemente eliminar la solicitud
   try {
     await deleteDoc(doc(db, USER_COLLECTION, uid, 'SolicitudesAmistad', senderUid))
-  } catch (err) {
-    // Ignorar error
+    try {
+      // Eliminar notificación de solicitud de amistad si existe
+      await deleteNotificationsByActorUid(uid, senderUid)
+    } catch (err) {
+      void err
+    }
+  } catch (error) {
+    void error
   }
 }
 
@@ -434,6 +490,13 @@ export async function removeFriend(uid1, uid2) {
   })
 
   await batch.commit()
+
+  try {
+    await deleteNotificationsByActorUid(uid1, uid2)
+    await deleteNotificationsByActorUid(uid2, uid1)
+  } catch (error) {
+    console.error('Error deleting notifications on removeFriend:', error)
+  }
 }
 
 export async function blockUser(uid, userToBlockUid) {
@@ -478,6 +541,13 @@ export async function blockUser(uid, userToBlockUid) {
   }
 
   await batch.commit()
+
+  try {
+    await deleteNotificationsByActorUid(uid, userToBlockUid)
+    await deleteNotificationsByActorUid(userToBlockUid, uid)
+  } catch (error) {
+    console.error('Error deleting notifications on blockUser:', error)
+  }
 
   // Si el usuario bloqueado tenía listas guardadas creadas por quien bloquea,
   // se eliminan de su subcolección de listas guardadas.
@@ -586,4 +656,53 @@ export async function getUsersWhoBlockedUser(uid) {
   )
 
   return checks.filter(Boolean)
+}
+
+export async function setUserRole(uid, role) {
+  ensureFirestoreReady()
+
+  if (!uid) {
+    throw new Error('UID inválido.')
+  }
+
+  if (!role || (role !== 'usuario' && role !== 'admin')) {
+    throw new Error('Rol inválido.')
+  }
+
+  await setDoc(doc(db, USER_COLLECTION, uid), { Rol: role }, { merge: true })
+}
+
+export async function getUsersNicksByUids(uids) {
+  ensureFirestoreReady()
+
+  if (!Array.isArray(uids) || uids.length === 0) {
+    return {}
+  }
+
+  const nickMap = {}
+
+  try {
+    // Cargar todos los usuarios de una vez
+    const userDocs = await Promise.all(
+      uids.map((uid) => getDoc(doc(db, USER_COLLECTION, uid)))
+    )
+
+    userDocs.forEach((docSnapshot, index) => {
+      const uid = uids[index]
+      if (docSnapshot.exists()) {
+        const userData = docSnapshot.data()
+        nickMap[uid] = userData.Nick || userData.nick || uid
+      } else {
+        nickMap[uid] = uid
+      }
+    })
+  } catch (error) {
+    console.error('Error cargando nicks de usuarios:', error)
+    // Fallback: devolver los UIDs como nicks
+    uids.forEach((uid) => {
+      nickMap[uid] = uid
+    })
+  }
+
+  return nickMap
 }

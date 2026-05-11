@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { COMIC_GENRES } from '../constants/comicGenres'
 import '../styles/ComicForm.css'
+import { getComicById, updateComic } from '../firebase/comics'
 
 const FORBIDDEN_INPUT_CHARACTERS = /[@#$^&*{}[\]<>]/
 
@@ -30,7 +31,7 @@ function hasForbiddenCharacters(value) {
   return FORBIDDEN_INPUT_CHARACTERS.test(value)
 }
 
-function CreateComicPage({ onBack, onComicCreated }) {
+function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
   const [nombre, setNombre] = useState('')
   const [autores, setAutores] = useState([''])
   const [editorial, setEditorial] = useState('')
@@ -40,6 +41,7 @@ function CreateComicPage({ onBack, onComicCreated }) {
   const [descripcion, setDescripcion] = useState('')
   const [formato, setFormato] = useState('')
   const [formError, setFormError] = useState('')
+  const [loadingInitial, setLoadingInitial] = useState(false)
 
   const sortedCountries = useMemo(
     () => [...COUNTRIES].sort((a, b) => a.localeCompare(b, 'es')),
@@ -145,7 +147,24 @@ function CreateComicPage({ onBack, onComicCreated }) {
         formato: formato.trim(),
       }
 
-      onComicCreated(comicDraft)
+      if (comicId) {
+        // editar comic existente
+        void (async () => {
+          try {
+            await updateComic({ comicId, ...comicDraft })
+            if (onComicUpdated) {
+              onComicUpdated()
+            } else {
+              onBack()
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'No fue posible actualizar el comic.'
+            setFormError(message)
+          }
+        })()
+      } else {
+        onComicCreated(comicDraft)
+      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -155,15 +174,49 @@ function CreateComicPage({ onBack, onComicCreated }) {
     }
   }
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadInitial() {
+      if (!comicId) return
+      try {
+        setLoadingInitial(true)
+        const data = await getComicById(comicId)
+        if (cancelled || !data) return
+
+        setNombre(data.nombre || '')
+        setAutores(data.autores && data.autores.length > 0 ? data.autores : [''])
+        setEditorial(data.editorial || '')
+        setPaisEditorial(data.paisEditorial || '')
+        setEstado(data.estado || STATUS_OPTIONS[0])
+        setGeneros(data.generos && data.generos.length > 0 ? data.generos : [''])
+        setDescripcion(data.descripcion || '')
+        setFormato(data.formato || '')
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoadingInitial(false)
+      }
+    }
+
+    loadInitial()
+
+    return () => {
+      cancelled = true
+    }
+  }, [comicId])
+
   return (
     <main className="app-shell">
       <section className="app-card">
         <div className="app-hero">
           <div>
-            <p className="eyebrow">Comiku / Nuevo comic</p>
-            <h1>Crear comic</h1>
+            <p className="eyebrow">Comiku / {comicId ? 'Modificar comic' : 'Nuevo comic'}</p>
+            <h1>{comicId ? 'Modificar comic' : 'Crear comic'}</h1>
             <p className="lead">
-              Completa los datos principales para guardar el comic en tu colección.
+              {comicId
+                ? 'Estás modificando los datos del comic. Cambia los campos que quieras y guarda.'
+                : 'Completa los datos principales para guardar el comic en tu colección.'}
             </p>
           </div>
 
@@ -314,7 +367,7 @@ function CreateComicPage({ onBack, onComicCreated }) {
           />
 
           <button className="primary-button" type="submit">
-            Siguiente
+            {comicId ? 'Guardar cambios' : 'Siguiente'}
           </button>
         </form>
       </section>

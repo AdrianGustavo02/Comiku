@@ -13,9 +13,11 @@ import {
   arrayRemove,
   increment,
   setDoc,
-  writeBatch,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
+import { getUserProfile } from './user'
+import { appendThematicListActivityForToday } from './activities'
+import { createNotification, NOTIFICATION_TYPES, deleteNotificationsByMetadata } from './notifications'
 
 const THEMATIC_LISTS_COLLECTION = 'listasTematicas'
 const VOLUMES_SUBCOLLECTION = 'tomosDeLista'
@@ -93,6 +95,22 @@ export async function createThematicList({
   }
 
   const listReference = await addDoc(collection(db, THEMATIC_LISTS_COLLECTION), listPayload)
+
+  try {
+    const profile = await getUserProfile(userId)
+
+    await appendThematicListActivityForToday({
+      actorUid: userId,
+      actorNick: profile?.nick || '',
+      actorFotoPerfil: profile?.fotoPerfil || null,
+      list: {
+        id: listReference.id,
+        name: nombre,
+      },
+    })
+  } catch (error) {
+    void error
+  }
 
   return listReference.id
 }
@@ -246,11 +264,15 @@ export async function removeVolumeFromList({ listId, volumeId }) {
         await updateDoc(listReference, {
           tomosDeLista: arrayRemove(data.VolumeId),
         })
-      } catch {}
+      } catch (error) {
+        void error
+      }
 
       return
     }
-  } catch {}
+  } catch (error) {
+    void error
+  }
 
   // Si no existe, buscamos documentos donde VolumeId == volumeId
   const q = query(
@@ -268,7 +290,9 @@ export async function removeVolumeFromList({ listId, volumeId }) {
       await updateDoc(listReference, {
         tomosDeLista: arrayRemove(data.VolumeId),
       })
-    } catch {}
+    } catch (error) {
+      void error
+    }
   }
 }
 
@@ -320,6 +344,27 @@ export async function addCommentToList({ listId, userId, comentario }) {
   await updateDoc(listReference, {
     CantidadComentarios: (await getListComments({ listId })).length,
   })
+
+  try {
+    const listSnapshot = await getDoc(listReference)
+    if (listSnapshot.exists()) {
+      const listData = listSnapshot.data()
+      const listOwnerId = listData.UserId
+
+      if (listOwnerId && listOwnerId !== userId) {
+        await createNotification({
+          userId: listOwnerId,
+          type: NOTIFICATION_TYPES.THEMATIC_LIST_COMMENT,
+          actorUid: userId,
+          metadata: {
+            listId,
+          },
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Error creating comment notification:', error)
+  }
 }
 
 export async function getListComments({ listId }) {
@@ -363,6 +408,25 @@ export async function deleteCommentFromList({ listId, commentId, userId }) {
   await updateDoc(listReference, {
     CantidadComentarios: remainingComments.length,
   })
+  try {
+    const listSnapshot = await getDoc(listReference)
+    if (listSnapshot.exists()) {
+      const listData = listSnapshot.data()
+      const listOwnerId = listData.UserId
+
+      if (listOwnerId && listOwnerId !== userId) {
+        try {
+          await deleteNotificationsByMetadata({
+            userId: listOwnerId,
+            type: NOTIFICATION_TYPES.THEMATIC_LIST_COMMENT,
+            metadataKey: 'listId',
+            metadataValue: listId,
+            actorUid: userId,
+          })
+        } catch (err) { void err }
+      }
+    }
+  } catch (err) { void err }
 }
 
 export async function toggleLikeForList({ listId, userId }) {
@@ -383,7 +447,29 @@ export async function toggleLikeForList({ listId, userId }) {
       await updateDoc(listReference, {
         CantidadLikes: increment(-1),
       })
-    } catch {}
+    } catch (error) {
+      void error
+    }
+
+    try {
+      const listSnapshot = await getDoc(listReference)
+      if (listSnapshot.exists()) {
+        const listData = listSnapshot.data()
+        const listOwnerId = listData.UserId
+
+        if (listOwnerId && listOwnerId !== userId) {
+          try {
+            await deleteNotificationsByMetadata({
+              userId: listOwnerId,
+              type: NOTIFICATION_TYPES.THEMATIC_LIST_LIKE,
+              metadataKey: 'listId',
+              metadataValue: listId,
+              actorUid: userId,
+            })
+          } catch (err) { void err }
+        }
+      }
+    } catch (err) { void err }
 
     return { liked: false }
   }
@@ -398,7 +484,26 @@ export async function toggleLikeForList({ listId, userId }) {
     await updateDoc(listReference, {
       CantidadLikes: increment(1),
     })
-  } catch {}
+
+    const listSnapshot = await getDoc(listReference)
+    if (listSnapshot.exists()) {
+      const listData = listSnapshot.data()
+      const listOwnerId = listData.UserId
+
+      if (listOwnerId && listOwnerId !== userId) {
+        await createNotification({
+          userId: listOwnerId,
+          type: NOTIFICATION_TYPES.THEMATIC_LIST_LIKE,
+          actorUid: userId,
+          metadata: {
+            listId,
+          },
+        })
+      }
+    }
+  } catch (error) {
+    void error
+  }
 
   return { liked: true }
 }
@@ -449,4 +554,31 @@ export async function getUserSavedListStatus({ listId, userId }) {
   const snapshot = await getDoc(savedDocRef)
 
   return snapshot.exists()
+}
+
+export async function deleteThematicListByAdmin({ idToken, listId }) {
+  ensureFirestoreReady()
+
+  if (!idToken || !listId) {
+    throw new Error('No se pudo eliminar la lista temática: datos inválidos.')
+  }
+
+  const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+  const response = await fetch(
+    `${backendBaseUrl}/api/admin/thematic-lists/${encodeURIComponent(listId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    },
+  )
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'No fue posible eliminar la lista temática.')
+  }
+
+  return payload
 }

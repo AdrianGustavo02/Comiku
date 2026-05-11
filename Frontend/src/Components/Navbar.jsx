@@ -29,9 +29,15 @@ function Navbar({
   onOpenHome,
   onOpenLibrary,
   onOpenWishlist,
-    onOpenThematicLists,
-    onOpenChats,
+  onOpenThematicLists,
+  onOpenChats,
+  onOpenActivities,
+  onOpenNotifications,
+  onOpenReports,
+  onOpenContacto,
+  onOpenMensajesUsuarios,
   activePage,
+  currentUserRole,
 }) {
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -58,6 +64,10 @@ function Navbar({
       return []
     }
 
+    if (!Array.isArray(comics)) {
+      return []
+    }
+
     return comics
       .map((comic) => {
         const normalizedName = normalizeText(comic.nombre)
@@ -80,6 +90,7 @@ function Navbar({
   }, [comics, query])
 
   const hasTypedQuery = normalizeText(query).length > 0
+  const canSeeReports = String(currentUserRole || '').toLowerCase().includes('admin')
 
   return (
     <header className="navbar-shell">
@@ -120,6 +131,47 @@ function Navbar({
           >
             Chats
           </button>
+          <button
+            type="button"
+            className={`navbar-link-button ${activePage === 'activities' ? 'active' : ''}`}
+            onClick={onOpenActivities}
+          >
+            Actividad
+          </button>
+          <button
+            type="button"
+            className={`navbar-link-button ${activePage === 'notifications' ? 'active' : ''}`}
+            onClick={onOpenNotifications}
+          >
+            🔔 Notificaciones
+          </button>
+          {canSeeReports ? (
+            <button
+              type="button"
+              className={`navbar-link-button ${activePage === 'reports' ? 'active' : ''}`}
+              onClick={onOpenReports}
+            >
+              Reportes
+            </button>
+          ) : null}
+          {!canSeeReports && onOpenContacto ? (
+            <button
+              type="button"
+              className={`navbar-link-button ${activePage === 'contacto' ? 'active' : ''}`}
+              onClick={onOpenContacto}
+            >
+              Contacto
+            </button>
+          ) : null}
+          {canSeeReports && onOpenMensajesUsuarios ? (
+            <button
+              type="button"
+              className={`navbar-link-button ${activePage === 'mensajes-usuarios' ? 'active' : ''}`}
+              onClick={onOpenMensajesUsuarios}
+            >
+              Mensajes de usuarios
+            </button>
+          ) : null}
         </div>
 
         <label className="search-label" htmlFor="comic-search-input">

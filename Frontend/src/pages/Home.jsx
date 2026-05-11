@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Navbar from '../Components/Navbar'
 import { logout, subscribeToAuthChanges } from '../firebase/auth'
 import { getAllComics, getComicVolumes } from '../firebase/comics'
-import { deleteCurrentAccountData } from '../firebase/user'
+import { deleteCurrentAccountData, getUserProfile } from '../firebase/user'
 import { getUserLibraryItems } from '../firebase/volumeLists'
 import AuthPage from './AuthPage'
 import ComicDetailPage from './ComicDetailPage'
@@ -19,6 +19,11 @@ import WishlistPage from './WishlistPage'
 import ChatsPage from './ChatsPage'
 import FriendsPage from './FriendsPage'
 import BlockedUsersPage from './BlockedUsersPage'
+import ReportsPage from './ReportsPage'
+import ActivitiesPage from './ActivitiesPage'
+import NotificationsPage from './NotificationsPage'
+import ContactPage from './ContactPage'
+import UserMessagesPage from './UserMessagesPage'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import '../styles/ComicDetailPage.css'
 import '../styles/Home.css'
@@ -81,6 +86,31 @@ function parseRoute(pathname) {
 
   if (pathname === '/usuarios-bloqueados') {
     return { page: 'blocked-users', comicId: '', volumeId: '' }
+  }
+
+  if (pathname === '/reportes') {
+    return { page: 'reports', comicId: '', volumeId: '' }
+  }
+
+  if (pathname === '/contacto') {
+    return { page: 'contacto', comicId: '', volumeId: '' }
+  }
+
+  if (pathname === '/actividades') {
+    return { page: 'activities', comicId: '', volumeId: '' }
+  }
+
+  const activityMatch = pathname.match(/^\/actividades\/([^/]+)$/) 
+  if (activityMatch) {
+    return { page: 'activities', comicId: decodeURIComponent(activityMatch[1]), volumeId: '' }
+  }
+
+  if (pathname === '/notificaciones') {
+    return { page: 'notifications', comicId: '', volumeId: '' }
+  }
+
+  if (pathname === '/mensajes-usuarios') {
+    return { page: 'mensajes-usuarios', comicId: '', volumeId: '' }
   }
 
   if (pathname === '/listas-tematicas/crear') {
@@ -270,6 +300,7 @@ function Home() {
   const [authError, setAuthError] = useState('')
   const [authNotice, setAuthNotice] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState(null)
 
   const goToHome = () => {
     window.history.replaceState({}, '', '/')
@@ -302,6 +333,41 @@ function Home() {
     window.history.pushState({}, '', '/usuarios-bloqueados')
     setActivePage('blocked-users')
     setActiveComicId('')
+  }
+
+  const goToReports = () => {
+    window.history.pushState({}, '', '/reportes')
+    setActivePage('reports')
+    setActiveComicId('')
+    setActiveVolumeId('')
+  }
+
+  const goToContacto = () => {
+    window.history.pushState({}, '', '/contacto')
+    setActivePage('contacto')
+    setActiveComicId('')
+    setActiveVolumeId('')
+  }
+
+  const goToMensajesUsuarios = () => {
+    window.history.pushState({}, '', '/mensajes-usuarios')
+    setActivePage('mensajes-usuarios')
+    setActiveComicId('')
+    setActiveVolumeId('')
+  }
+
+  const goToActivities = () => {
+    window.history.pushState({}, '', '/actividades')
+    setActivePage('activities')
+    setActiveComicId('')
+    setActiveVolumeId('')
+  }
+
+  const goToNotifications = () => {
+    window.history.pushState({}, '', '/notificaciones')
+    setActivePage('notifications')
+    setActiveComicId('')
+    setActiveVolumeId('')
   }
 
   const goToCreateComic = () => {
@@ -356,6 +422,24 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  const goToEditComic = (comicId) => {
+    window.history.pushState({}, '', `/comic/editar/${encodeURIComponent(comicId)}`)
+    setActivePage('edit-comic')
+    setActiveComicId(comicId)
+    setActiveVolumeId('')
+  }
+
+  const goToEditVolume = ({ comicId, volumeId }) => {
+    window.history.pushState(
+      {},
+      '',
+      `/comic/${encodeURIComponent(comicId)}/tomo/editar/${encodeURIComponent(volumeId)}`,
+    )
+    setActivePage('edit-volume')
+    setActiveComicId(comicId)
+    setActiveVolumeId(volumeId)
+  }
+
   const goToEditThematicList = (listId) => {
     window.history.pushState({}, '', `/listas-tematicas/editar/${encodeURIComponent(listId)}`)
     setActivePage('edit-thematic-list')
@@ -397,6 +481,35 @@ function Home() {
 
     return unsubscribe
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCurrentUserRole() {
+      if (!authUser?.uid) {
+        setCurrentUserRole(null)
+        return
+      }
+
+      try {
+        const profile = await getUserProfile(authUser.uid)
+
+        if (!cancelled) {
+          setCurrentUserRole(profile?.rol || '')
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUserRole('')
+        }
+      }
+    }
+
+    loadCurrentUserRole()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authUser?.uid])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -657,22 +770,35 @@ function Home() {
     }
   }
 
-  const renderNavbar = () => (
-    <Navbar
-      comics={searchableComics}
-      onSelectComic={(comic) => goToComicDetail(comic.id)}
-      onOpenHome={goToHome}
-      onOpenLibrary={goToLibrary}
-      onOpenWishlist={goToWishlist}
-      onOpenThematicLists={goToThematicLists}
-      onOpenChats={() => {
-        window.history.pushState({}, '', '/chats')
-        setActivePage('chats')
-        setActiveComicId('')
-      }}
-      activePage={activePage}
-    />
-  )
+  const renderNavbar = () => {
+    try {
+      return (
+        <Navbar
+          comics={searchableComics || []}
+          onSelectComic={(comic) => goToComicDetail(comic.id)}
+          onOpenHome={goToHome}
+          onOpenLibrary={goToLibrary}
+          onOpenWishlist={goToWishlist}
+          onOpenThematicLists={goToThematicLists}
+          onOpenChats={() => {
+            window.history.pushState({}, '', '/chats')
+            setActivePage('chats')
+            setActiveComicId('')
+          }}
+          onOpenReports={goToReports}
+          onOpenContacto={goToContacto}
+          onOpenMensajesUsuarios={goToMensajesUsuarios}
+          onOpenActivities={goToActivities}
+          onOpenNotifications={goToNotifications}
+          activePage={activePage}
+          currentUserRole={currentUserRole}
+        />
+      )
+    } catch (error) {
+      console.error('Error rendering navbar:', error)
+      return null
+    }
+  }
 
   if (authLoading) {
     return (
@@ -714,6 +840,11 @@ function Home() {
           authUser={authUser}
           onBack={() => {
             setActivePage('home')
+            goToHome()
+          }}
+          onAccountDeleted={({ message }) => {
+            setAuthError('')
+            setAuthNotice(message || 'Cuenta eliminada correctamente.')
             goToHome()
           }}
           profileUid={activeComicId || undefined}
@@ -771,6 +902,75 @@ function Home() {
     )
   }
 
+  if (activePage === 'reports') {
+    return (
+      <>
+        {renderNavbar()}
+        <ReportsPage authUser={authUser} currentUserRole={currentUserRole} />
+      </>
+    )
+  }
+
+  if (activePage === 'activities') {
+    return (
+      <>
+        {renderNavbar()}
+        <ActivitiesPage
+          authUser={authUser}
+          selectedActivityId={activeComicId || undefined}
+          onBack={() => {
+            setActivePage('home')
+            goToHome()
+          }}
+          onOpenVolume={({ comicId, volumeId }) => {
+            goToVolumeDetail({ comicId, volumeId })
+          }}
+          onOpenThematicList={(listId) => {
+            goToThematicListDetail(listId)
+          }}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'notifications') {
+    return (
+      <>
+        {renderNavbar()}
+        <NotificationsPage authUser={authUser} />
+      </>
+    )
+  }
+
+  if (activePage === 'contacto') {
+    return (
+      <>
+        {renderNavbar()}
+        <ContactPage
+          authUser={authUser}
+          onBack={() => {
+            setActivePage('home')
+            goToHome()
+          }}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'mensajes-usuarios') {
+    return (
+      <>
+        {renderNavbar()}
+        <UserMessagesPage
+          onBack={() => {
+            setActivePage('home')
+            goToHome()
+          }}
+        />
+      </>
+    )
+  }
+
   if (activePage === 'create-comic') {
     return (
       <>
@@ -818,6 +1018,50 @@ function Home() {
     )
   }
 
+  if (activePage === 'edit-comic') {
+    return (
+      <>
+        {renderNavbar()}
+        <CreateComicPage
+          onBack={() => {
+            setActivePage('home')
+            setActiveComicDraft(null)
+            goToHome()
+          }}
+          comicId={activeComicId}
+          onComicUpdated={() => {
+            setAuthError('')
+            setAuthNotice('Comic actualizado correctamente.')
+            setActivePage('comic-detail')
+            goToComicDetail(activeComicId)
+          }}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'edit-volume') {
+    return (
+      <>
+        {renderNavbar()}
+        <CreateComicVolumesPage
+          comicId={activeComicId}
+          volumeId={activeVolumeId}
+          onBackToHome={() => {
+            setActivePage('home')
+            goToHome()
+          }}
+          onVolumeUpdated={() => {
+            setAuthError('')
+            setAuthNotice('Tomo actualizado correctamente.')
+            setActivePage('volume-detail')
+            goToVolumeDetail({ comicId: activeComicId, volumeId: activeVolumeId })
+          }}
+        />
+      </>
+    )
+  }
+
   if (activePage === 'comic-detail') {
     return (
       <>
@@ -827,6 +1071,11 @@ function Home() {
           comicId={activeComicId}
           onOpenVolume={(volume) => {
             goToVolumeDetail({ comicId: activeComicId, volumeId: volume.id })
+          }}
+          onEditComic={(id) => goToEditComic(id)}
+          onDeleteComic={() => {
+            setAuthNotice('Comic eliminado correctamente.')
+            goToLibrary()
           }}
         />
       </>
@@ -841,6 +1090,11 @@ function Home() {
           comicId={activeComicId}
           volumeId={activeVolumeId}
           authUser={authUser}
+          onEditVolume={({ comicId, volumeId }) => goToEditVolume({ comicId, volumeId })}
+          onDeleteVolume={({ comicId }) => {
+            setAuthNotice('Tomo eliminado correctamente.')
+            goToComicDetail(comicId)
+          }}
         />
       </>
     )
@@ -933,6 +1187,10 @@ function Home() {
           onBack={goToThematicLists}
           onOpenVolume={({ comicId, volumeId }) => {
             goToVolumeDetail({ comicId, volumeId })
+          }}
+          onDeleteList={() => {
+            setAuthNotice('Lista temática eliminada correctamente.')
+            goToThematicLists()
           }}
         />
       </>
