@@ -45,11 +45,22 @@ function mapAuthError(error) {
     return 'Ese correo ya está registrado. Inicia sesión o usa otro correo.'
   }
 
+  if (code === 'auth/requires-recent-login') {
+    return 'Por seguridad, vuelve a iniciar sesión antes de cambiar el correo.'
+  }
+
+  if (code === 'auth/network-request-failed') {
+    return 'No se pudo conectar con el servicio de autenticación. Intenta nuevamente.'
+  }
+
+  if (code === 'auth/invalid-email') {
+    return 'Ingresa un correo electrónico válido.'
+  }
+
   if (
     code === 'auth/invalid-credential' ||
     code === 'auth/user-not-found' ||
-    code === 'auth/wrong-password' ||
-    code === 'auth/invalid-email'
+    code === 'auth/wrong-password'
   ) {
     return 'Correo o contraseña incorrectos.'
   }
@@ -59,6 +70,56 @@ function mapAuthError(error) {
   }
 
   return 'Ocurrió un error al autenticar. Intenta nuevamente.'
+}
+
+function mapEmailOperationError(error, operation = 'validate') {
+  const code = error?.code
+
+  if (code === 'auth/invalid-email') {
+    return 'Ingresa un correo electrónico válido.'
+  }
+
+  if (code === 'auth/email-already-in-use') {
+    return 'Ese correo ya está registrado. Inicia sesión o usa otro correo.'
+  }
+
+  if (code === 'auth/requires-recent-login') {
+    return 'Por seguridad, vuelve a iniciar sesión antes de cambiar el correo.'
+  }
+
+  if (code === 'auth/invalid-credential' || code === 'auth/user-token-expired') {
+    return 'Tu sesión expiró. Cierra sesión, vuelve a entrar e intenta cambiar el correo nuevamente.'
+  }
+
+  if (code === 'auth/too-many-requests') {
+    return 'Demasiados intentos en poco tiempo. Espera unos minutos y vuelve a intentar.'
+  }
+
+  if (code === 'auth/operation-not-allowed') {
+    if (operation === 'update') {
+      return 'No está habilitada la operación para actualizar correo en Firebase Auth. Activa el proveedor Email/Password en Authentication > Sign-in method.'
+    }
+
+    return 'No está habilitada la validación de correo en Firebase Auth. Activa el proveedor Email/Password en Authentication > Sign-in method.'
+  }
+
+  if (code === 'auth/network-request-failed') {
+    return 'No se pudo validar el correo por un problema de conexión. Intenta nuevamente.'
+  }
+
+  if (code === 'auth/internal-error') {
+    if (operation === 'update') {
+      return 'El servicio no pudo actualizar el correo en este momento. Intenta nuevamente en unos minutos.'
+    }
+
+    return 'El servicio no pudo validar el correo en este momento. Intenta nuevamente en unos minutos.'
+  }
+
+  if (operation === 'update') {
+    return `No fue posible actualizar el correo. Intenta nuevamente. (${code || 'sin-codigo'})`
+  }
+
+  return `No fue posible validar el correo. Intenta nuevamente. (${code || 'sin-codigo'})`
 }
 
 export async function registerWithEmail({ email, password }) {
@@ -92,7 +153,7 @@ export async function isEmailRegistered(email) {
     const signInMethods = await fetchSignInMethodsForEmail(auth, email)
     return signInMethods.length > 0
   } catch (error) {
-    throw new Error(mapAuthError(error))
+    throw new Error(mapEmailOperationError(error, 'validate'))
   }
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { deleteUser } from 'firebase/auth'
 import {
   isEmailBlockedForRegistration,
@@ -8,6 +8,12 @@ import {
 } from '../firebase/auth'
 import { auth } from '../firebase/firebase'
 import { createUserProfile, isNickRegistered } from '../firebase/user'
+import {
+  containsNumbers,
+  sanitizeForbiddenInputChars,
+  sanitizeNameInput,
+} from '../constants/forbiddenInputCharacters'
+import ImageCropperModal from '../Components/ImageCropperModal'
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_PROFILE_PICTURE_SIZE_BYTES,
@@ -48,11 +54,17 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     password: '',
     confirmPassword: '',
   })
-  const [fotoPerfil, setFotoPerfil] = useState(null)
+  const [fotoPerfilData, setFotoPerfilData] = useState(null)
   const [fotoPerfilFileName, setFotoPerfilFileName] = useState('')
   const [fotoPerfilPreviewUrl, setFotoPerfilPreviewUrl] = useState('')
   const [defaultPreviewUrl, setDefaultPreviewUrl] = useState('')
+  const [isCropOpen, setIsCropOpen] = useState(false)
+  const [pendingFotoSrc, setPendingFotoSrc] = useState('')
+  const [pendingFotoName, setPendingFotoName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const fotoInputRef = useRef(null)
 
   useEffect(() => {
     // Cargar la preview de la foto por defecto
@@ -70,10 +82,10 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     loadDefaultPreview()
 
     return () => {
-      if (fotoPerfilPreviewUrl) {
+      if (fotoPerfilPreviewUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(fotoPerfilPreviewUrl)
       }
-      if (defaultPreviewUrl) {
+      if (defaultPreviewUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(defaultPreviewUrl)
       }
     }
@@ -87,17 +99,69 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     }
   }
 
-  const handleFotoPerfilChange = (event) => {
+  const handleFotoPerfilChange = async (event) => {
     const file = event.target.files?.[0] || null
-    const newPreviewUrl = file ? URL.createObjectURL(file) : ''
 
-    if (fotoPerfilPreviewUrl) {
-      URL.revokeObjectURL(fotoPerfilPreviewUrl)
+    if (!file) {
+      setFotoPerfilData(null)
+      setFotoPerfilFileName('')
+      setFotoPerfilPreviewUrl('')
+      setPendingFotoSrc('')
+      setPendingFotoName('')
+      return
     }
 
-    setFotoPerfil(file)
-    setFotoPerfilFileName(file ? file.name : '')
-    setFotoPerfilPreviewUrl(newPreviewUrl)
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showErrorAndScrollTop('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
+      if (fotoInputRef.current) fotoInputRef.current.value = ''
+      return
+    }
+
+    if (file.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
+      showErrorAndScrollTop('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
+      if (fotoInputRef.current) fotoInputRef.current.value = ''
+      return
+    }
+
+    try {
+      const previewUrl = await readFileAsDataUrl(file)
+      setPendingFotoSrc(previewUrl)
+      setPendingFotoName(file.name)
+      setIsCropOpen(true)
+    } catch (error) {
+      showErrorAndScrollTop(
+        error instanceof Error ? error.message : 'No se pudo leer la foto seleccionada.',
+      )
+      if (fotoInputRef.current) fotoInputRef.current.value = ''
+    }
+  }
+
+  const handleCropCancel = () => {
+    setIsCropOpen(false)
+    setPendingFotoSrc('')
+    setPendingFotoName('')
+    if (fotoInputRef.current) fotoInputRef.current.value = ''
+  }
+
+  const handleCropConfirm = async (croppedDataUrl) => {
+    if (!croppedDataUrl) {
+      handleCropCancel()
+      return
+    }
+
+    setFotoPerfilData({
+      dataUrl: croppedDataUrl,
+      fileName: pendingFotoName || 'foto-recortada.jpg',
+    })
+    setFotoPerfilFileName(pendingFotoName || 'foto-recortada.jpg')
+    setFotoPerfilPreviewUrl(croppedDataUrl)
+    setIsCropOpen(false)
+    setPendingFotoSrc('')
+    setPendingFotoName('')
+
+    if (fotoInputRef.current) {
+      fotoInputRef.current.value = ''
+    }
   }
 
   const handleRegisterSubmit = async (event) => {
@@ -107,6 +171,8 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
 
     const { nombre, apellido, nick, email, fechaCumpleanos, password, confirmPassword } =
       registerForm
+    const trimmedNombre = nombre.trim()
+    const trimmedApellido = apellido.trim()
     const trimmedNick = nick.trim()
     const trimmedEmail = email.trim()
 
@@ -114,6 +180,11 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       showErrorAndScrollTop(
         'Completa nick, correo, fecha de cumpleaños, contraseña y confirmación.',
       )
+      return
+    }
+
+    if (containsNumbers(trimmedNombre) || containsNumbers(trimmedApellido)) {
+      showErrorAndScrollTop('Nombre y apellido no pueden contener números.')
       return
     }
 
@@ -127,18 +198,6 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     if (age < MINIMUM_AGE) {
       showErrorAndScrollTop(`Debes tener al menos ${MINIMUM_AGE} años para registrarte.`)
       return
-    }
-
-    if (fotoPerfil) {
-      if (!ALLOWED_IMAGE_TYPES.includes(fotoPerfil.type)) {
-        showErrorAndScrollTop('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
-        return
-      }
-
-      if (fotoPerfil.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
-        showErrorAndScrollTop('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
-        return
-      }
     }
 
     const emailIsBlocked = await isEmailBlockedForRegistration(trimmedEmail)
@@ -179,25 +238,23 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     try {
       setIsSubmitting(true)
 
-      let fotoPefilDataUrl = null
       let fotoPefilObject = null
 
-      if (fotoPerfil) {
-        // Usuario subió una foto personalizada
-        fotoPefilDataUrl = await readFileAsDataUrl(fotoPerfil)
+      if (fotoPerfilData) {
+        const response = await fetch(fotoPerfilData.dataUrl)
+        const blob = await response.blob()
         fotoPefilObject = {
-          dataUrl: fotoPefilDataUrl,
-          fileName: fotoPerfil.name,
-          contentType: fotoPerfil.type,
-          sizeBytes: fotoPerfil.size,
+          dataUrl: fotoPerfilData.dataUrl,
+          fileName: fotoPerfilData.fileName,
+          contentType: blob.type || 'image/jpeg',
+          sizeBytes: blob.size,
         }
       } else {
         // Usuario no seleccionó foto, usar la imagen por defecto
         const response = await fetch(defaultProfilePicture)
         const blob = await response.blob()
-        fotoPefilDataUrl = await readFileAsDataUrl(blob)
         fotoPefilObject = {
-          dataUrl: fotoPefilDataUrl,
+          dataUrl: await readFileAsDataUrl(blob),
           fileName: 'defaultProfilePicture.png',
           contentType: 'image/png',
           sizeBytes: blob.size,
@@ -209,8 +266,8 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
 
       await createUserProfile({
         uid: user.uid,
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
+        nombre: trimmedNombre,
+        apellido: trimmedApellido,
         nick: trimmedNick,
         email: trimmedEmail,
         fechaCumpleanos,
@@ -226,14 +283,18 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         password: '',
         confirmPassword: '',
       })
-      setFotoPerfil(null)
+      setFotoPerfilData(null)
       setFotoPerfilFileName('')
       setFotoPerfilPreviewUrl('')
+      setPendingFotoSrc('')
+      setPendingFotoName('')
+      if (fotoInputRef.current) {
+        fotoInputRef.current.value = ''
+      }
       
       onAuthenticated({
         user,
-        notice:
-          'Registro exitoso. Tu perfil fue guardado en Firestore y enviamos un correo de verificación.',
+        notice: 'Registro exitoso. Tu perfil fue guardado correctamente.',
       })
     } catch (error) {
       if (createdAuthUser && auth?.currentUser?.uid === createdAuthUser.uid) {
@@ -260,7 +321,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         onChange={(event) =>
           setRegisterForm((current) => ({
             ...current,
-            nombre: event.target.value,
+            nombre: sanitizeNameInput(event.target.value),
           }))
         }
         placeholder="Tu nombre"
@@ -277,7 +338,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         onChange={(event) =>
           setRegisterForm((current) => ({
             ...current,
-            apellido: event.target.value,
+            apellido: sanitizeNameInput(event.target.value),
           }))
         }
         placeholder="Tu apellido"
@@ -294,7 +355,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         onChange={(event) =>
           setRegisterForm((current) => ({
             ...current,
-            nick: event.target.value,
+            nick: sanitizeForbiddenInputChars(event.target.value),
           }))
         }
         placeholder="Tu nick"
@@ -318,7 +379,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         disabled={isSubmitting}
       />
 
-      <label htmlFor="register-fecha-cumpleanos">Fecha de cumpleaños</label>
+      <label htmlFor="register-fecha-cumpleanos">Fecha de nacimiento</label>
       <input
         id="register-fecha-cumpleanos"
         name="fechaCumpleanos"
@@ -341,10 +402,22 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         accept=".jpg,.jpeg,.png,.webp"
         onChange={handleFotoPerfilChange}
         disabled={isSubmitting}
+        ref={fotoInputRef}
+        className="file-input-hidden"
       />
-      {fotoPerfilFileName && (
-        <p className="helper-text">Archivo seleccionado: {fotoPerfilFileName}</p>
-      )}
+      <div className="file-input-control">
+        <button
+          type="button"
+          className="file-input-trigger"
+          onClick={() => fotoInputRef.current?.click()}
+          disabled={isSubmitting}
+        >
+          Seleccionar archivo
+        </button>
+        <span className={`file-input-name ${fotoPerfilFileName ? 'has-file' : ''}`}>
+          {fotoPerfilFileName || 'Sin archivo seleccionado'}
+        </span>
+      </div>
       <div className="cover-preview-card">
         <p className="helper-text">
           {fotoPerfilFileName ? 'Tu foto de perfil' : 'Foto de perfil por defecto'}
@@ -357,38 +430,60 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       </div>
 
       <label htmlFor="register-password">Contraseña</label>
-      <input
-        id="register-password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        value={registerForm.password}
-        onChange={(event) =>
-          setRegisterForm((current) => ({
-            ...current,
-            password: event.target.value,
-          }))
-        }
-        placeholder="Minimo 6 caracteres y 1 numero"
-        disabled={isSubmitting}
-      />
+      <div className="password-field">
+        <input
+          id="register-password"
+          name="password"
+          type={showPassword ? 'text' : 'password'}
+          autoComplete="new-password"
+          value={registerForm.password}
+          onChange={(event) =>
+            setRegisterForm((current) => ({
+              ...current,
+              password: event.target.value,
+            }))
+          }
+          placeholder="Minimo 6 caracteres y 1 numero"
+          disabled={isSubmitting}
+        />
+        <button
+          type="button"
+          className="password-visibility-toggle"
+          onClick={() => setShowPassword((current) => !current)}
+          aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          disabled={isSubmitting}
+        >
+          {showPassword ? 'Ocultar' : 'Ver'}
+        </button>
+      </div>
 
       <label htmlFor="register-confirm-password">Confirmar contraseña</label>
-      <input
-        id="register-confirm-password"
-        name="confirmPassword"
-        type="password"
-        autoComplete="new-password"
-        value={registerForm.confirmPassword}
-        onChange={(event) =>
-          setRegisterForm((current) => ({
-            ...current,
-            confirmPassword: event.target.value,
-          }))
-        }
-        placeholder="Repite la contraseña"
-        disabled={isSubmitting}
-      />
+      <div className="password-field">
+        <input
+          id="register-confirm-password"
+          name="confirmPassword"
+          type={showConfirmPassword ? 'text' : 'password'}
+          autoComplete="new-password"
+          value={registerForm.confirmPassword}
+          onChange={(event) =>
+            setRegisterForm((current) => ({
+              ...current,
+              confirmPassword: event.target.value,
+            }))
+          }
+          placeholder="Repite la contraseña"
+          disabled={isSubmitting}
+        />
+        <button
+          type="button"
+          className="password-visibility-toggle"
+          onClick={() => setShowConfirmPassword((current) => !current)}
+          aria-label={showConfirmPassword ? 'Ocultar confirmacion de contraseña' : 'Mostrar confirmacion de contraseña'}
+          disabled={isSubmitting}
+        >
+          {showConfirmPassword ? 'Ocultar' : 'Ver'}
+        </button>
+      </div>
 
       <button
         className="register-submit"
@@ -397,6 +492,16 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       >
         {isSubmitting ? 'Registrando...' : 'Registrarse'}
       </button>
+
+      <ImageCropperModal
+        open={isCropOpen}
+        imageSrc={pendingFotoSrc}
+        title="Recortar foto de perfil"
+        subtitle="Ajusta la imagen antes de usarla en tu perfil."
+        confirmLabel="Guardar recorte"
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+      />
     </form>
   )
 }

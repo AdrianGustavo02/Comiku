@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/Navbar.css'
 
 function normalizeText(value) {
@@ -184,7 +185,7 @@ function Navbar({
           placeholder="Ejemplo: One Piece"
           value={query}
           onChange={(event) => {
-            setQuery(event.target.value)
+            setQuery(sanitizeForbiddenInputChars(event.target.value))
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}

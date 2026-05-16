@@ -8,6 +8,7 @@ function LoginPage({ onAuthenticated, onError }) {
     password: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleLoginSubmit = async (event) => {
     event.preventDefault()
@@ -54,21 +55,32 @@ function LoginPage({ onAuthenticated, onError }) {
       />
 
       <label htmlFor="login-password">Contraseña</label>
-      <input
-        id="login-password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        value={loginForm.password}
-        onChange={(event) =>
-          setLoginForm((current) => ({
-            ...current,
-            password: event.target.value,
-          }))
-        }
-        placeholder="Tu contraseña"
-        disabled={isSubmitting}
-      />
+      <div className="password-field">
+        <input
+          id="login-password"
+          name="password"
+          type={showPassword ? 'text' : 'password'}
+          autoComplete="current-password"
+          value={loginForm.password}
+          onChange={(event) =>
+            setLoginForm((current) => ({
+              ...current,
+              password: event.target.value,
+            }))
+          }
+          placeholder="Tu contraseña"
+          disabled={isSubmitting}
+        />
+        <button
+          type="button"
+          className="password-visibility-toggle"
+          onClick={() => setShowPassword((current) => !current)}
+          aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          disabled={isSubmitting}
+        >
+          {showPassword ? 'Ocultar' : 'Ver'}
+        </button>
+      </div>
 
       <button
         className="login-submit"

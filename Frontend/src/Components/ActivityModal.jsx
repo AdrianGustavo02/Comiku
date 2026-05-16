@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/ActivitiesPage.css'
 import {
   toggleLikeActivity,
-  getLikesCount,
+  getCantidadLikes,
   addComment,
   deleteComment,
   getCommentsPage,
@@ -17,18 +18,20 @@ function ActivityModal({
   onOpenThematicList,
   onActivityStatsChange,
 }) {
-  const [likes, setLikes] = useState(0)
+  const [cantidadLikes, setCantidadLikes] = useState(0)
   const [liked, setLiked] = useState(false)
   const [comments, setComments] = useState([])
   const [commentsCursor, setCommentsCursor] = useState(null)
   const [commentText, setCommentText] = useState('')
   const [loadingComments, setLoadingComments] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState(null)
-  const [commentsCount, setCommentsCount] = useState(activity.commentsCount || 0)
+  const [cantidadComentarios, setCantidadComentarios] = useState(
+    activity.cantidadComentarios || 0,
+  )
 
   useEffect(() => {
-    setCommentsCount(activity.commentsCount || 0)
-  }, [activity.commentsCount, activity.id])
+    setCantidadComentarios(activity.cantidadComentarios || 0)
+  }, [activity.cantidadComentarios, activity.id])
 
   useEffect(() => {
     let mounted = true
@@ -36,11 +39,11 @@ function ActivityModal({
     async function load() {
       try {
         const [count, likeStatus] = await Promise.all([
-          getLikesCount(activity.id),
+          getCantidadLikes(activity.id),
           getUserLikeStatus(activity.id, authUser.uid),
         ])
         if (mounted) {
-          setLikes(count)
+          setCantidadLikes(count)
           setLiked(likeStatus)
         }
       } catch (e) {
@@ -69,12 +72,12 @@ function ActivityModal({
   const handleToggleLike = async () => {
     try {
       const res = await toggleLikeActivity({ activityId: activity.id, uid: authUser.uid })
-      const nextLikes = res.liked ? likes + 1 : Math.max(0, likes - 1)
+      const nextCantidadLikes = res.liked ? cantidadLikes + 1 : Math.max(0, cantidadLikes - 1)
       setLiked(res.liked)
-      setLikes(nextLikes)
+      setCantidadLikes(nextCantidadLikes)
       onActivityStatsChange?.({
         activityId: activity.id,
-        likesCount: nextLikes,
+        cantidadLikes: nextCantidadLikes,
       })
     } catch (e) {
       console.error(e)
@@ -82,23 +85,25 @@ function ActivityModal({
   }
 
   const handleAddComment = async () => {
-    if (!commentText.trim()) return
+    const cleanCommentText = sanitizeForbiddenInputChars(commentText).trim()
+
+    if (!cleanCommentText) return
 
     try {
       await addComment({
         activityId: activity.id,
         uid: authUser.uid,
-        texto: commentText.trim(),
+        texto: cleanCommentText,
       })
       setCommentText('')
       const page = await getCommentsPage({ activityId: activity.id, pageSize: 10 })
       setComments(page.items)
       setCommentsCursor(page.last)
-      const nextCommentsCount = commentsCount + 1
-      setCommentsCount(nextCommentsCount)
+      const nextCantidadComentarios = cantidadComentarios + 1
+      setCantidadComentarios(nextCantidadComentarios)
       onActivityStatsChange?.({
         activityId: activity.id,
-        commentsCount: nextCommentsCount,
+        cantidadComentarios: nextCantidadComentarios,
       })
     } catch (e) {
       console.error(e)
@@ -109,11 +114,11 @@ function ActivityModal({
     try {
       await deleteComment({ activityId: activity.id, commentId, uid: authUser.uid })
       setComments((c) => c.filter((x) => x.id !== commentId))
-      const nextCommentsCount = Math.max(0, commentsCount - 1)
-      setCommentsCount(nextCommentsCount)
+      const nextCantidadComentarios = Math.max(0, cantidadComentarios - 1)
+      setCantidadComentarios(nextCantidadComentarios)
       onActivityStatsChange?.({
         activityId: activity.id,
-        commentsCount: nextCommentsCount,
+        cantidadComentarios: nextCantidadComentarios,
       })
       setCommentToDelete(null)
     } catch (e) {
@@ -184,14 +189,14 @@ function ActivityModal({
         </div>
 
         <div className="activity-modal-actions">
-          <button type="button" className="like-button" onClick={handleToggleLike}>{liked ? 'Quitar like' : 'Like'} ({likes})</button>
+          <button type="button" className="like-button" onClick={handleToggleLike}>{liked ? 'Quitar like' : 'Like'} ({cantidadLikes})</button>
           <button type="button" className="close-button" onClick={onClose}>Cerrar</button>
         </div>
 
         <div className="activity-comments">
           <h3>Comentarios</h3>
           <div className="add-comment">
-            <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Escribe un comentario" />
+            <input value={commentText} onChange={(e) => setCommentText(sanitizeForbiddenInputChars(e.target.value))} placeholder="Escribe un comentario" />
             <button type="button" onClick={handleAddComment}>Enviar</button>
           </div>
 

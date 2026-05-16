@@ -171,13 +171,13 @@ function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss
         {report.objectType === 'usuario' ? (
           <>
             <p>
-              <strong>ID del usuario:</strong> {report.objetoReportadoId || report.ObjetoReportadoId || 'No disponible'}
+              <strong>ID del usuario:</strong> {report.objetoReportadoId || 'No disponible'}
             </p>
           </>
         ) : report.objectType === 'grupo de chat' ? (
           <>
             <p>
-              <strong>ID del grupo de chat:</strong> {report.objetoReportadoId || report.ObjetoReportadoId || 'No disponible'}
+              <strong>ID del grupo de chat:</strong> {report.objetoReportadoId || 'No disponible'}
             </p>
           </>
         ) : (

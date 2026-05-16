@@ -23,9 +23,10 @@ import {
 import { getUserProfile } from '../firebase/user'
 import { getUserLibraryItems } from '../firebase/volumeLists'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/ComicDetailPage.css'
 
-function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDeleteComic }) {
+function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDeleteComic, onCreateVolume }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [comic, setComic] = useState(null)
@@ -54,6 +55,7 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deletingComic, setDeletingComic] = useState(false)
+  const reportScreenshotInputRef = useRef(null)
   const volumeGridRef = useRef(null)
   const volumeGridLeftRef = useRef(null)
   const volumeGridRightRef = useRef(null)
@@ -265,11 +267,7 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
   const [userProfiles, setUserProfiles] = useState({})
 
   function sanitizeInput(text) {
-    if (!text) return ''
-    return String(text)
-      .split('')
-      .filter((character) => !'@#$^&*{}[]<>'.includes(character))
-      .join('')
+    return sanitizeForbiddenInputChars(text)
   }
 
   async function ensureUserProfile(uid) {
@@ -536,26 +534,37 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
               <p className="eyebrow">Comiku / Detalle comic</p>
               <h1>{comic.nombre}</h1>
               <p className="lead">{comic.descripcion || 'Sin descripción.'}</p>
-              {canDeleteComic ? (
-                <div className="hero-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => {
-                      if (onEditComic) onEditComic(comic.id)
-                    }}
-                  >
-                    Modificar comic
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-button"
-                    onClick={openDeleteComicModal}
-                  >
-                    Eliminar comic
-                  </button>
-                </div>
-              ) : null}
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    if (onCreateVolume) onCreateVolume()
+                  }}
+                >
+                  Crear tomo
+                </button>
+                {canDeleteComic ? (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => {
+                        if (onEditComic) onEditComic(comic.id)
+                      }}
+                    >
+                      Modificar comic
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      onClick={openDeleteComicModal}
+                    >
+                      Eliminar comic
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </header>
 
             <section className="comic-detail-metadata">
@@ -750,7 +759,7 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
                     <div>
                       <textarea
                         value={userComment}
-                        onChange={(e) => setUserComment(e.target.value)}
+                        onChange={(e) => setUserComment(sanitizeForbiddenInputChars(e.target.value))}
                         placeholder="Deja tu comentario (opcional)"
                         rows={3}
                       />
@@ -905,7 +914,7 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
                 <textarea
                   id="comic-report-description"
                   value={reportDescription}
-                  onChange={(event) => setReportDescription(event.target.value)}
+                  onChange={(event) => setReportDescription(sanitizeForbiddenInputChars(event.target.value))}
                   rows={4}
                   placeholder="Describe brevemente el problema."
                   disabled={isSubmittingReport}
@@ -918,7 +927,22 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
                   accept=".jpg,.jpeg,.png,.webp"
                   onChange={handleReportScreenshotChange}
                   disabled={isSubmittingReport}
+                  ref={reportScreenshotInputRef}
+                  className="file-input-hidden"
                 />
+                <div className="file-input-control">
+                  <button
+                    type="button"
+                    className="file-input-trigger"
+                    onClick={() => reportScreenshotInputRef.current?.click()}
+                    disabled={isSubmittingReport}
+                  >
+                    Seleccionar archivo
+                  </button>
+                  <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
+                    {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
+                  </span>
+                </div>
 
                 {reportScreenshotPreview ? (
                   <div className="report-screenshot-preview-card">

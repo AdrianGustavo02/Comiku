@@ -14,10 +14,15 @@ import {
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
 import { createNotification, deleteNotificationsByActorUid, NOTIFICATION_TYPES } from './notifications'
+import { containsNumbers } from '../constants/forbiddenInputCharacters'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 
 const USER_COLLECTION = 'usuario'
 const THEMATIC_LISTS_COLLECTION = 'listasTematicas'
+
+function getUserIdFromData(data, fallbackId = '') {
+  return data?.UserID || fallbackId
+}
 
 function ensureFirestoreReady() {
   if (!isFirebaseConfigured || !db) {
@@ -31,6 +36,16 @@ function normalizeNick(nick) {
   return String(nick || '').trim().toLowerCase()
 }
 
+function validateNameFieldsWithoutNumbers({ nombre, apellido }) {
+  if (typeof nombre === 'string' && containsNumbers(nombre)) {
+    throw new Error('Nombre y apellido no pueden contener números.')
+  }
+
+  if (typeof apellido === 'string' && containsNumbers(apellido)) {
+    throw new Error('Nombre y apellido no pueden contener números.')
+  }
+}
+
 async function assertUniqueNick({ nick, uidToIgnore = null }) {
   const normalizedNick = normalizeNick(nick)
 
@@ -38,23 +53,23 @@ async function assertUniqueNick({ nick, uidToIgnore = null }) {
     throw new Error('El campo "Nick" es obligatorio.')
   }
 
-  // Consultar por NickLower directamente para evitar leer toda la colección.
-  // Esto asume que los documentos tienen `NickLower` (migrar los existentes si no).
-  const q = query(
+  // Consultar por Nick exacto para evitar leer toda la colección.
+  // Permite variaciones de capitalización (batman, BATMAN, BaTmAn son usuarios diferentes).
+    const q = query(
     collection(db, USER_COLLECTION),
-    where('NickLower', '==', normalizedNick),
+    where('Nick', '==', nick),
     limit(1),
   )
 
   const snapshot = await getDocs(q)
 
   if (snapshot.docs.length === 0) {
-    // No existe duplicado usando NickLower
+    // No existe duplicado
     return normalizedNick
   }
 
   const found = snapshot.docs[0]
-  const existingUid = found.data().UID || found.id
+  const existingUid = getUserIdFromData(found.data(), found.id)
 
   if (uidToIgnore && existingUid === uidToIgnore) {
     return normalizedNick
@@ -90,14 +105,15 @@ export async function updateUserProfile({
     throw new Error('No se pudo actualizar el perfil: UID inválido.')
   }
 
+  validateNameFieldsWithoutNumbers({ nombre, apellido })
+
   const updatePayload = {}
 
   if (typeof nombre === 'string') updatePayload.Nombre = nombre
   if (typeof apellido === 'string') updatePayload.Apellido = apellido
   if (typeof nick === 'string') {
-    const normalizedNick = await assertUniqueNick({ nick, uidToIgnore: uid })
+    await assertUniqueNick({ nick, uidToIgnore: uid })
     updatePayload.Nick = nick
-    updatePayload.NickLower = normalizedNick
   }
 
   if (fechaCumpleanos) {
@@ -133,7 +149,9 @@ export async function createUserProfile({
     throw new Error('No se pudo crear el perfil: UID inválido.')
   }
 
-  const normalizedNick = await assertUniqueNick({ nick, uidToIgnore: uid })
+  validateNameFieldsWithoutNumbers({ nombre, apellido })
+
+  await assertUniqueNick({ nick, uidToIgnore: uid })
   const dateValue = new Date(`${fechaCumpleanos}T00:00:00`)
 
   if (Number.isNaN(dateValue.getTime())) {
@@ -141,11 +159,10 @@ export async function createUserProfile({
   }
 
   await setDoc(doc(db, USER_COLLECTION, uid), {
-    UID: uid,
+    UserID: uid,
     Nombre: nombre,
     Apellido: apellido,
     Nick: nick,
-    NickLower: normalizedNick,
     Email: email,
     Rol: 'usuario',
     FechaCumpleanos: Timestamp.fromDate(dateValue),
@@ -181,7 +198,7 @@ export async function getUserProfile(uid) {
       : defaultProfilePicture
 
   return {
-    uid: data.UID || uid,
+    uid: getUserIdFromData(data, uid),
     nombre: data.Nombre || '',
     apellido: data.Apellido || '',
     nick: data.Nick || '',
@@ -276,7 +293,7 @@ export async function getAllUsers() {
         : defaultProfilePicture
 
     return {
-      uid: data.UID || snap.id,
+      uid: getUserIdFromData(data, snap.id),
       nick: data.Nick || '',
       nombre: data.Nombre || '',
       apellido: data.Apellido || '',
@@ -311,7 +328,7 @@ export async function sendFriendRequest(fromUid, toUid) {
   }
 
   await setDoc(doc(db, USER_COLLECTION, toUid, 'SolicitudesAmistad', fromUid), {
-    UID: fromUid,
+    UserID: fromUid,
     Nick: senderProfile.nick,
     FotoPerfil: senderProfile.fotoPerfil,
     fechaSolicitud: Timestamp.now(),
@@ -344,7 +361,7 @@ export async function getFriendRequests(uid) {
     const data = doc.data()
 
     return {
-      senderUid: data.UID || doc.id,
+      senderUid: getUserIdFromData(data, doc.id),
       nick: data.Nick || '',
       fotoPerfil: data.FotoPerfil || defaultProfilePicture,
       fechaSolicitud: data.fechaSolicitud?.toDate
@@ -375,13 +392,13 @@ export async function acceptFriendRequest(uid, senderUid) {
 
   // Agregar amigo del lado del receptor
   await setDoc(doc(db, USER_COLLECTION, uid, 'Amigos', senderUid), {
-    UID: senderUid,
+    UserID: senderUid,
     fechaAmistad: Timestamp.now(),
   })
 
   // Agregar amigo del lado del remitente
   await setDoc(doc(db, USER_COLLECTION, senderUid, 'Amigos', uid), {
-    UID: uid,
+    UserID: uid,
     fechaAmistad: Timestamp.now(),
   })
 
@@ -451,7 +468,7 @@ export async function getUserFriends(uid) {
   const friends = await Promise.all(
     snapshot.docs.map(async (friendDoc) => {
       const data = friendDoc.data()
-      const friendUid = data.UID || friendDoc.id
+      const friendUid = getUserIdFromData(data, friendDoc.id)
       const friendProfile = await getUserProfile(friendUid)
 
       if (!friendProfile) {
@@ -520,7 +537,7 @@ export async function blockUser(uid, userToBlockUid) {
 
   // Agregar a la lista de bloqueados
   batch.set(doc(db, USER_COLLECTION, uid, 'UsuariosBloqueados', userToBlockUid), {
-    UID: userToBlockUid,
+    UserID: userToBlockUid,
     fechaBloqueo: Timestamp.now(),
   })
 
@@ -554,7 +571,7 @@ export async function blockUser(uid, userToBlockUid) {
   const blockerListsSnapshot = await getDocs(
     query(
       collection(db, THEMATIC_LISTS_COLLECTION),
-      where('UserId', '==', uid),
+      where('UserID', '==', uid),
     ),
   )
 
@@ -611,7 +628,7 @@ export async function getBlockedUsers(uid) {
   const blockedUsers = await Promise.all(
     snapshot.docs.map(async (blockedDoc) => {
       const data = blockedDoc.data()
-      const blockedUid = data.UID || blockedDoc.id
+      const blockedUid = getUserIdFromData(data, blockedDoc.id)
       const blockedProfile = await getUserProfile(blockedUid)
 
       if (!blockedProfile) {

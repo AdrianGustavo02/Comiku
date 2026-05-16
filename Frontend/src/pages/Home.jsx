@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Navbar from '../Components/Navbar'
 import { logout, subscribeToAuthChanges } from '../firebase/auth'
-import { getAllComics, getComicVolumes } from '../firebase/comics'
+import { getAllComics, getComicVolumes, getComicById } from '../firebase/comics'
 import { deleteCurrentAccountData, getUserProfile } from '../firebase/user'
 import { getUserLibraryItems } from '../firebase/volumeLists'
 import AuthPage from './AuthPage'
@@ -289,6 +289,7 @@ function Home() {
   const [activeComicId, setActiveComicId] = useState(initialRoute.comicId)
   const [activeVolumeId, setActiveVolumeId] = useState(initialRoute.volumeId)
   const [activeComicDraft, setActiveComicDraft] = useState(null)
+  const [createVolumesFromDetail, setCreateVolumesFromDetail] = useState(false)
   const [searchableComics, setSearchableComics] = useState([])
   const [homeRefreshTick, setHomeRefreshTick] = useState(0)
   const [homeLoading, setHomeLoading] = useState(true)
@@ -983,7 +984,6 @@ function Home() {
           }}
           onComicCreated={(comicDraft) => {
             setAuthError('')
-            setAuthNotice('Datos del comic listos. Ahora carga los tomos y finaliza.')
             setActiveComicDraft(comicDraft)
             setActivePage('create-comic-volumes')
             goToCreateComicVolumes()
@@ -998,20 +998,36 @@ function Home() {
       <>
         {renderNavbar()}
         <CreateComicVolumesPage
-          comicDraft={activeComicDraft}
+          comicDraft={createVolumesFromDetail ? null : activeComicDraft}
+          comicId={createVolumesFromDetail ? activeComicId : ''}
           onBackToHome={() => {
             setActivePage('home')
             setActiveComicDraft(null)
+            setCreateVolumesFromDetail(false)
             goToHome()
+          }}
+          initialNotice={createVolumesFromDetail ? '' : (activeComicDraft ? 'Datos del comic listos. Ahora carga los tomos y finaliza.' : '')}
+          showComicMetadata={createVolumesFromDetail}
+          onCancel={() => {
+            setCreateVolumesFromDetail(false)
+            setActivePage('comic-detail')
+            goToComicDetail(activeComicId)
           }}
           onFinishCreation={(volumeCount) => {
             setAuthError('')
             setAuthNotice(
-              `Comic y tomos creados correctamente. Tomos cargados: ${volumeCount}.`,
+              createVolumesFromDetail
+                ? `Tomos agregados correctamente. Tomos cargados: ${volumeCount}.`
+                : `Comic y tomos creados correctamente. Tomos cargados: ${volumeCount}.`,
             )
-            setActivePage('home')
+            setActivePage(createVolumesFromDetail ? 'comic-detail' : 'home')
             setActiveComicDraft(null)
-            goToHome()
+            setCreateVolumesFromDetail(false)
+            if (createVolumesFromDetail) {
+              goToComicDetail(activeComicId)
+            } else {
+              goToHome()
+            }
           }}
         />
       </>
@@ -1073,6 +1089,19 @@ function Home() {
             goToVolumeDetail({ comicId: activeComicId, volumeId: volume.id })
           }}
           onEditComic={(id) => goToEditComic(id)}
+          onCreateVolume={() => {
+            ;(async () => {
+              try {
+                const comic = await getComicById(activeComicId)
+                setCreateVolumesFromDetail(true)
+                setActiveComicDraft(comic)
+                setActivePage('create-comic-volumes')
+                goToCreateComicVolumes()
+              } catch (error) {
+                setAuthError('No fue posible cargar los datos del cómic para crear tomos.')
+              }
+            })()
+          }}
           onDeleteComic={() => {
             setAuthNotice('Comic eliminado correctamente.')
             goToLibrary()

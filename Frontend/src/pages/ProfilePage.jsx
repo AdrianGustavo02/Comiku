@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   getUserProfile,
   updateUserProfile,
@@ -14,6 +14,12 @@ import {
 } from '../firebase/user'
 import { createReport, hasPendingObjectReport, REPORT_REASON_OPTIONS_FOR_USER } from '../firebase/reports'
 import {
+  containsNumbers,
+  sanitizeForbiddenInputChars,
+  sanitizeNameInput,
+} from '../constants/forbiddenInputCharacters'
+import ImageCropperModal from '../Components/ImageCropperModal'
+import {
   ALLOWED_IMAGE_TYPES,
   MAX_PROFILE_PICTURE_SIZE_BYTES,
   readFileAsDataUrl,
@@ -23,16 +29,23 @@ import '../styles/ProfilePage.css'
 const MINIMUM_AGE = 18
 
 function sanitizeText(input) {
-  if (!input) return ''
-  return String(input)
-    .split('')
-    .filter((character) => !'@#$^&*{}[]<>'.includes(character))
-    .join('')
-    .trim()
+  return sanitizeForbiddenInputChars(input).trim()
 }
 
 function isAdminRole(role) {
   return String(role || '').toLowerCase().includes('admin')
+}
+
+function formatDateDisplay(isoDate) {
+  if (!isoDate) return null
+  const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(isoDate)
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`
+  const d = new Date(isoDate)
+  if (Number.isNaN(d.getTime())) return isoDate
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
 }
 
 function ProfilePage({
@@ -308,9 +321,15 @@ function ProfilePage({
   const [roleModalStep, setRoleModalStep] = useState(null)
   const [roleConfirmInput, setRoleConfirmInput] = useState('')
   const [profileNotice, setProfileNotice] = useState('')
-  const [editFotoFile, setEditFotoFile] = useState(null)
+  const [editFotoData, setEditFotoData] = useState(null)
   const [editFotoPreview, setEditFotoPreview] = useState('')
+  const [editFotoFileName, setEditFotoFileName] = useState('')
+  const [isEditCropOpen, setIsEditCropOpen] = useState(false)
+  const [pendingEditFotoSrc, setPendingEditFotoSrc] = useState('')
+  const [pendingEditFotoName, setPendingEditFotoName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const editFotoInputRef = useRef(null)
+  const reportScreenshotInputRef = useRef(null)
 
   // Report user state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
@@ -329,6 +348,8 @@ function ProfilePage({
         nick: profileData.nick || '',
         fechaCumpleanos: profileData.fechaCumpleanos || '',
       })
+      setEditFotoData(null)
+      setEditFotoFileName('')
       setEditFotoPreview(profileData.fotoPerfil || '')
     }
   }, [profileData])
@@ -353,28 +374,81 @@ function ProfilePage({
   const handleStartEdit = () => setIsEditing(true)
   const handleCancelEdit = () => {
     setIsEditing(false)
-    setEditFotoFile(null)
-    if (profileData) setEditFotoPreview(profileData.fotoPerfil || '')
+    setEditFotoData(null)
+    setEditFotoFileName('')
+    setIsEditCropOpen(false)
+    setPendingEditFotoSrc('')
+    setPendingEditFotoName('')
+    if (profileData) {
+      setEditFotoPreview(profileData.fotoPerfil || '')
+      setEditForm({
+        nombre: profileData.nombre || '',
+        apellido: profileData.apellido || '',
+        nick: profileData.nick || '',
+        fechaCumpleanos: profileData.fechaCumpleanos || '',
+      })
+    }
+    if (editFotoInputRef.current) editFotoInputRef.current.value = ''
   }
 
-  const handleEditFotoChange = (e) => {
+  const handleEditFotoChange = async (e) => {
     const file = e.target.files?.[0] || null
 
-    if (editFotoPreview) {
-      try {
-        URL.revokeObjectURL(editFotoPreview)
-      } catch (error) {
-        void error
-      }
+    if (!file) {
+      setEditFotoData(null)
+      setEditFotoFileName('')
+      setEditFotoPreview(profileData?.fotoPerfil || '')
+      setPendingEditFotoSrc('')
+      setPendingEditFotoName('')
+      return
     }
 
-    if (file) {
-      setEditFotoFile(file)
-      setEditFotoPreview(URL.createObjectURL(file))
-    } else {
-      setEditFotoFile(null)
-      setEditFotoPreview(profileData?.fotoPerfil || '')
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setProfileError('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
+      if (editFotoInputRef.current) editFotoInputRef.current.value = ''
+      return
     }
+
+    if (file.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
+      setProfileError('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
+      if (editFotoInputRef.current) editFotoInputRef.current.value = ''
+      return
+    }
+
+    try {
+      const previewUrl = await readFileAsDataUrl(file)
+      setPendingEditFotoSrc(previewUrl)
+      setPendingEditFotoName(file.name)
+      setIsEditCropOpen(true)
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'No se pudo leer la foto seleccionada.')
+      if (editFotoInputRef.current) editFotoInputRef.current.value = ''
+    }
+  }
+
+  const handleEditCropCancel = () => {
+    setIsEditCropOpen(false)
+    setPendingEditFotoSrc('')
+    setPendingEditFotoName('')
+    if (editFotoInputRef.current) editFotoInputRef.current.value = ''
+  }
+
+  const handleEditCropConfirm = async (croppedDataUrl) => {
+    if (!croppedDataUrl) {
+      handleEditCropCancel()
+      return
+    }
+
+    setEditFotoData({
+      dataUrl: croppedDataUrl,
+      fileName: pendingEditFotoName || 'foto-recortada.jpg',
+    })
+    setEditFotoFileName(pendingEditFotoName || 'foto-recortada.jpg')
+    setEditFotoPreview(croppedDataUrl)
+    setIsEditCropOpen(false)
+    setPendingEditFotoSrc('')
+    setPendingEditFotoName('')
+    if (editFotoInputRef.current) editFotoInputRef.current.value = ''
   }
 
   const handleSaveProfile = async () => {
@@ -385,6 +459,10 @@ function ProfilePage({
       const safeNick = sanitizeText(nick)
       const safeNombre = sanitizeText(nombre)
       const safeApellido = sanitizeText(apellido)
+
+      if (containsNumbers(safeNombre) || containsNumbers(safeApellido)) {
+        throw new Error('Nombre y apellido no pueden contener números.')
+      }
 
       if (!safeNick) {
         throw new Error('El campo "Nick" es obligatorio.')
@@ -411,19 +489,14 @@ function ProfilePage({
       }
 
       let fotoPayload
-      if (editFotoFile) {
-        if (!ALLOWED_IMAGE_TYPES.includes(editFotoFile.type)) {
-          throw new Error('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
-        }
-        if (editFotoFile.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
-          throw new Error('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
-        }
-        const dataUrl = await readFileAsDataUrl(editFotoFile)
+      if (editFotoData) {
+        const response = await fetch(editFotoData.dataUrl)
+        const blob = await response.blob()
         fotoPayload = {
-          dataUrl,
-          fileName: editFotoFile.name,
-          contentType: editFotoFile.type,
-          sizeBytes: editFotoFile.size,
+          dataUrl: editFotoData.dataUrl,
+          fileName: editFotoData.fileName,
+          contentType: blob.type || 'image/jpeg',
+          sizeBytes: blob.size,
         }
       }
 
@@ -438,6 +511,8 @@ function ProfilePage({
 
       const refreshed = await getUserProfile(authUser.uid)
       setProfileData(refreshed)
+      setEditFotoData(null)
+      setEditFotoFileName('')
       setIsEditing(false)
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : 'No fue posible actualizar el perfil.')
@@ -654,7 +729,7 @@ function ProfilePage({
               <>
                 {!isEditing ? (
                   <button className="profile-back-button" onClick={handleStartEdit} type="button">
-                    Editar perfil
+                    Editar datos de usuario
                   </button>
                 ) : (
                   <>
@@ -704,10 +779,6 @@ function ProfilePage({
                 <>
                   <ul className="profile-list">
                     <li>
-                      <span>UID:</span>
-                      <strong>{profileData?.uid || authUser?.uid || 'N/A'}</strong>
-                    </li>
-                    <li>
                       <span>Nombre:</span>
                       <strong>{fullName || 'No definido'}</strong>
                     </li>
@@ -715,17 +786,15 @@ function ProfilePage({
                       <span>Nick:</span>
                       <strong>{profileData?.nick || 'No definido'}</strong>
                     </li>
+                    {!profileUid || profileUid === authUser?.uid ? (
+                      <li>
+                        <span>Correo:</span>
+                        <strong>{profileData?.email || authUser?.email || 'No definido'}</strong>
+                      </li>
+                    ) : null}
                     <li>
-                      <span>Email:</span>
-                      <strong>{profileData?.email || authUser?.email || 'No definido'}</strong>
-                    </li>
-                    <li>
-                      <span>Rol:</span>
-                      <strong>{profileData?.rol || 'usuario'}</strong>
-                    </li>
-                    <li>
-                      <span>Cumpleaños:</span>
-                      <strong>{profileData?.fechaCumpleanos || 'No definido'}</strong>
+                      <span>Fecha de nacimiento:</span>
+                      <strong>{formatDateDisplay(profileData?.fechaCumpleanos) || 'No definido'}</strong>
                     </li>
                     <li>
                       <span>Total cómics en biblioteca:</span>
@@ -758,7 +827,7 @@ function ProfilePage({
                   <input
                     type="text"
                     value={editForm.nombre}
-                    onChange={(e) => setEditForm((s) => ({ ...s, nombre: e.target.value }))}
+                    onChange={(e) => setEditForm((s) => ({ ...s, nombre: sanitizeNameInput(e.target.value) }))}
                     disabled={isSaving}
                   />
 
@@ -766,7 +835,7 @@ function ProfilePage({
                   <input
                     type="text"
                     value={editForm.apellido}
-                    onChange={(e) => setEditForm((s) => ({ ...s, apellido: e.target.value }))}
+                    onChange={(e) => setEditForm((s) => ({ ...s, apellido: sanitizeNameInput(e.target.value) }))}
                     disabled={isSaving}
                   />
 
@@ -774,11 +843,11 @@ function ProfilePage({
                   <input
                     type="text"
                     value={editForm.nick}
-                    onChange={(e) => setEditForm((s) => ({ ...s, nick: e.target.value }))}
+                    onChange={(e) => setEditForm((s) => ({ ...s, nick: sanitizeForbiddenInputChars(e.target.value) }))}
                     disabled={isSaving}
                   />
 
-                  <label>Fecha de cumpleaños</label>
+                  <label>Fecha de nacimiento</label>
                   <input
                     type="date"
                     value={editForm.fechaCumpleanos}
@@ -787,7 +856,27 @@ function ProfilePage({
                   />
 
                   <label>Foto de perfil (opcional)</label>
-                  <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleEditFotoChange} disabled={isSaving} />
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    onChange={handleEditFotoChange}
+                    disabled={isSaving}
+                    ref={editFotoInputRef}
+                    className="file-input-hidden"
+                  />
+                  <div className="file-input-control">
+                    <button
+                      type="button"
+                      className="file-input-trigger"
+                      onClick={() => editFotoInputRef.current?.click()}
+                      disabled={isSaving}
+                    >
+                      Seleccionar archivo
+                    </button>
+                    <span className={`file-input-name ${editFotoFileName ? 'has-file' : ''}`}>
+                      {editFotoFileName || 'Sin archivo seleccionado'}
+                    </span>
+                  </div>
 
                   {editFotoPreview && (
                     <div className="cover-preview-card">
@@ -851,7 +940,7 @@ function ProfilePage({
                 <input
                   type="text"
                   value={deleteConfirmNick}
-                  onChange={(event) => setDeleteConfirmNick(event.target.value)}
+                  onChange={(event) => setDeleteConfirmNick(sanitizeForbiddenInputChars(event.target.value))}
                   placeholder={`Escribe ${deleteTargetNick || 'el nick'} para confirmar`}
                   style={{ width: '100%', padding: '8px', marginTop: 12 }}
                 />
@@ -936,10 +1025,30 @@ function ProfilePage({
               </select>
 
               <label>Descripción</label>
-              <textarea value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
+              <textarea value={reportDescription} onChange={(e) => setReportDescription(sanitizeForbiddenInputChars(e.target.value))} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
 
               <label>Captura de pantalla (opcional)</label>
-              <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleReportScreenshotChange} disabled={isSubmittingReport} />
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                onChange={handleReportScreenshotChange}
+                disabled={isSubmittingReport}
+                ref={reportScreenshotInputRef}
+                className="file-input-hidden"
+              />
+              <div className="file-input-control">
+                <button
+                  type="button"
+                  className="file-input-trigger"
+                  onClick={() => reportScreenshotInputRef.current?.click()}
+                  disabled={isSubmittingReport}
+                >
+                  Seleccionar archivo
+                </button>
+                <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
+                  {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
+                </span>
+              </div>
 
               {reportScreenshotPreview ? (
                 <div className="report-screenshot-preview-card">
@@ -1090,6 +1199,16 @@ function ProfilePage({
           </div>
         </div>
       ) : null}
+
+      <ImageCropperModal
+        open={isEditCropOpen}
+        imageSrc={pendingEditFotoSrc}
+        title="Recortar foto de perfil"
+        subtitle="Ajusta la imagen antes de guardarla en tu perfil."
+        confirmLabel="Guardar recorte"
+        onCancel={handleEditCropCancel}
+        onConfirm={handleEditCropConfirm}
+      />
     </main>
   )
 }

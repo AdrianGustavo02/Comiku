@@ -73,7 +73,7 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
         }
       }
     }
-  }, [authUser?.uid])
+  }, [authUser?.uid, authUser?.nick, onClientReady, onClientError])
 
   if (!clientReady) {
     return <div className="chat-panel-loading">Cargando chat...</div>

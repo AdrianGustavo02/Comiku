@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import { deleteVolumeByAdmin } from '../firebase/comics'
 import {
@@ -20,6 +20,7 @@ import {
   toggleVolumeInLibrary,
   toggleVolumeInWishlist,
 } from '../firebase/volumeLists'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/VolumeDetailPage.css'
 
 function formatPublicationDate(publicationDate) {
@@ -75,6 +76,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
   const [reportError, setReportError] = useState('')
   const [reportNotice, setReportNotice] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const reportScreenshotInputRef = useRef(null)
 
   const sortedReadings = [...(Array.isArray(libraryData.readingEntries) ? libraryData.readingEntries : [])]
     .sort((a, b) => b.date.getTime() - a.date.getTime())
@@ -251,11 +253,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
   }, [authUser?.uid, comicId, volumeId])
 
   function sanitizeInput(text) {
-    if (!text) return ''
-    return String(text)
-      .split('')
-      .filter((character) => !'@#$^&*{}[]<>'.includes(character))
-      .join('')
+    return sanitizeForbiddenInputChars(text)
   }
 
   const canReportVolume = Boolean(authUser?.uid) && currentUserRole === 'usuario'
@@ -860,7 +858,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
                 <textarea
                   id="volume-report-description"
                   value={reportDescription}
-                  onChange={(event) => setReportDescription(event.target.value)}
+                  onChange={(event) => setReportDescription(sanitizeForbiddenInputChars(event.target.value))}
                   rows={4}
                   placeholder="Describe brevemente el problema."
                   disabled={isSubmittingReport}
@@ -873,7 +871,22 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
                   accept=".jpg,.jpeg,.png,.webp"
                   onChange={handleReportScreenshotChange}
                   disabled={isSubmittingReport}
+                  ref={reportScreenshotInputRef}
+                  className="file-input-hidden"
                 />
+                <div className="file-input-control">
+                  <button
+                    type="button"
+                    className="file-input-trigger"
+                    onClick={() => reportScreenshotInputRef.current?.click()}
+                    disabled={isSubmittingReport}
+                  >
+                    Seleccionar archivo
+                  </button>
+                  <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
+                    {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
+                  </span>
+                </div>
 
                 {reportScreenshotPreview ? (
                   <div className="report-screenshot-preview-card">

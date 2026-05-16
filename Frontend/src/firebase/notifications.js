@@ -2,14 +2,11 @@ import {
   Timestamp,
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDocs,
-  increment,
   limit,
   orderBy,
   query,
-  setDoc,
   startAfter,
   updateDoc,
   where,
@@ -40,9 +37,9 @@ function mapNotificationSnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    userId: data.userId || '',
+    userId: data.UserID || '',
     type: data.type || '',
-    actorUid: data.actorUid || '',
+    actorUid: data.ActorUserID || '',
     leido: data.leido || false,
     fecha: data.fecha || null,
     metadata: data.metadata || {},
@@ -97,9 +94,9 @@ export async function createNotification({ userId, type, actorUid, metadata = {}
 
   try {
     await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-      userId,
+      UserID: userId,
       type,
-      actorUid,
+      ActorUserID: actorUid,
       metadata,
       leido: false,
       fecha: Timestamp.now(),
@@ -124,7 +121,7 @@ export async function getNotificationsPage({ userId, pageSize = 15, cursor = nul
   try {
     let notificationQuery = query(
       collection(db, NOTIFICATIONS_COLLECTION),
-      where('userId', '==', userId),
+      where('UserID', '==', userId),
       orderBy('fecha', 'desc'),
       limit(pageSize),
     )
@@ -132,7 +129,7 @@ export async function getNotificationsPage({ userId, pageSize = 15, cursor = nul
     if (cursor?.fecha) {
       notificationQuery = query(
         collection(db, NOTIFICATIONS_COLLECTION),
-        where('userId', '==', userId),
+        where('UserID', '==', userId),
         orderBy('fecha', 'desc'),
         startAfter(cursor.fecha),
         limit(pageSize),
@@ -145,7 +142,7 @@ export async function getNotificationsPage({ userId, pageSize = 15, cursor = nul
     // Fallback sin orderBy para entornos sin indice compuesto userId+fecha.
     const fallbackQuery = query(
       collection(db, NOTIFICATIONS_COLLECTION),
-      where('userId', '==', userId),
+      where('UserID', '==', userId),
     )
 
     const fallbackSnapshots = await getDocs(fallbackQuery)
@@ -256,7 +253,7 @@ export async function markAllNotificationsAsRead(userId) {
 
   const unreadQuery = query(
     collection(db, NOTIFICATIONS_COLLECTION),
-    where('userId', '==', userId),
+    where('UserID', '==', userId),
     where('leido', '==', false),
   )
 
@@ -287,7 +284,7 @@ export async function getUnreadNotificationsCount(userId) {
 
   const unreadQuery = query(
     collection(db, NOTIFICATIONS_COLLECTION),
-    where('userId', '==', userId),
+    where('UserID', '==', userId),
     where('leido', '==', false),
   )
 
@@ -309,8 +306,8 @@ export async function deleteNotificationsByActorUid(userId, actorUid) {
 
   const notificationsQuery = query(
     collection(db, NOTIFICATIONS_COLLECTION),
-    where('userId', '==', userId),
-    where('actorUid', '==', actorUid),
+    where('UserID', '==', userId),
+    where('ActorUserID', '==', actorUid),
   )
 
   const snapshots = await getDocs(notificationsQuery)
@@ -345,7 +342,7 @@ export async function deleteNotificationsByMetadata({
 
   const notificationsQuery = query(
     collection(db, NOTIFICATIONS_COLLECTION),
-    where('userId', '==', userId),
+    where('UserID', '==', userId),
     where('type', '==', type),
   )
 
@@ -385,7 +382,7 @@ export async function deleteAllNotificationsForUser(userId) {
 
   const notificationsQuery = query(
     collection(db, NOTIFICATIONS_COLLECTION),
-    where('userId', '==', userId),
+    where('UserID', '==', userId),
   )
 
   const snapshots = await getDocs(notificationsQuery)
@@ -416,7 +413,7 @@ export async function deleteAllNotificationsFromActor(actorUid) {
 
   const notificationsQuery = query(
     collection(db, NOTIFICATIONS_COLLECTION),
-    where('actorUid', '==', actorUid),
+    where('ActorUserID', '==', actorUid),
   )
 
   const snapshots = await getDocs(notificationsQuery)

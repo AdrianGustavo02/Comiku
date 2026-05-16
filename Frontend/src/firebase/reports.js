@@ -14,6 +14,7 @@ import {
   startAfter,
   where,
 } from 'firebase/firestore'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import { db, isFirebaseConfigured } from './firebase'
 
 const REPORTS_COLLECTION = 'Reportes'
@@ -37,12 +38,7 @@ function ensureFirestoreReady() {
 }
 
 function sanitizeText(input) {
-  if (!input) return ''
-  return String(input)
-    .split('')
-    .filter((character) => !'@#$^&*{}[]<>'.includes(character))
-    .join('')
-    .trim()
+  return sanitizeForbiddenInputChars(input).trim()
 }
 
 function buildReportKey({ usuarioIdReporta, objetoReportadoId, nombreObjetoReportado, comicId }) {
@@ -181,8 +177,8 @@ export async function createReport({
   }
 
   const payload = {
-    UsuarioIdReporta: validatedPayload.usuarioIdReporta,
-    ObjetoReportadoId: validatedPayload.objetoReportadoId,
+    UserID: validatedPayload.usuarioIdReporta,
+    ObjetoReportadoID: validatedPayload.objetoReportadoId,
     NombreObjetoReportado: validatedPayload.nombreObjetoReportado,
     ClaveReporte: buildReportKey(validatedPayload),
     Motivo: validatedPayload.motivo,
@@ -217,8 +213,8 @@ function mapReportSnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    usuarioIdReporta: data.UsuarioIdReporta || '',
-    objetoReportadoId: data.ObjetoReportadoId || '',
+    usuarioIdReporta: data.UserID || '',
+    objetoReportadoId: data.ObjetoReportadoID || '',
     comicId: data.ComicId || '',
     nombreObjetoReportado: data.NombreObjetoReportado || '',
     motivo: data.Motivo || '',
@@ -311,7 +307,7 @@ async function archiveReport({ reportId, adminId, status }) {
   const archivedPayload = {
     ...reportData,
     Estado: status,
-    AdministradorId: adminId,
+    AdministratorUserID: adminId,
     FechaResolucion: status === REPORT_STATUS_RESOLVED ? Timestamp.now() : null,
     FechaDesestimacion: status === REPORT_STATUS_DISMISSED ? Timestamp.now() : null,
   }

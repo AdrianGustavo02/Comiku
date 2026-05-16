@@ -229,7 +229,7 @@ export async function enrichChannelWithFirestoreData(channel) {
   }
 
   try {
-    const { collection, doc, getDoc } = await import('firebase/firestore')
+    const { doc, getDoc } = await import('firebase/firestore')
     const channelDoc = await getDoc(doc(db, 'streamChannels', channel.id))
 
     if (channelDoc.exists()) {

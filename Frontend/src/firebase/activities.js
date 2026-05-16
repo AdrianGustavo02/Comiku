@@ -77,15 +77,15 @@ function mapActivitySnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    actorUid: data.actorUid || '',
+    actorUid: data.UserID || '',
     actorNick: data.actorNick || '',
     actorFotoPerfil: data.actorFotoPerfil || null,
     type: data.type || '',
     payload: data.payload || {},
     fecha: data.fecha || null,
     dayKey: data.dayKey || '',
-    likesCount: Number.isFinite(data.likesCount) ? data.likesCount : 0,
-    commentsCount: Number.isFinite(data.commentsCount) ? data.commentsCount : 0,
+    cantidadLikes: Number.isFinite(data.CantidadLikes) ? data.CantidadLikes : 0,
+    cantidadComentarios: Number.isFinite(data.CantidadComentarios) ? data.CantidadComentarios : 0,
   }
 }
 
@@ -94,7 +94,7 @@ function mapCommentSnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    uid: data.uid || '',
+    uid: data.UserID || '',
     nick: data.nick || '',
     fotoPerfil: data.fotoPerfil || null,
     texto: data.texto || '',
@@ -164,14 +164,19 @@ export async function getActivitiesPage({ friendUids, pageSize = 10, cursor = nu
 
   const pages = await Promise.all(
     chunks.map(async (uidsChunk) => {
-      const activitiesQuery = query(
+      const userIdQuery = query(
         collection(db, ACTIVITIES_COLLECTION),
-        where('actorUid', 'in', uidsChunk),
+        where('UserID', 'in', uidsChunk),
         limit(fetchSize),
       )
 
-      const snapshots = await getDocs(activitiesQuery)
-      return snapshots.docs.map(mapActivitySnapshot)
+        const userIdSnapshots = await getDocs(userIdQuery)
+
+      const combined = new Map()
+      userIdSnapshots.docs.forEach((docSnap) => combined.set(docSnap.id, mapActivitySnapshot(docSnap)))
+        // legacySnapshots.docs.forEach((docSnap) => combined.set(docSnap.id, mapActivitySnapshot(docSnap)))
+
+      return Array.from(combined.values())
     }),
   )
 
@@ -269,7 +274,7 @@ export async function toggleLikeActivity({ activityId, uid }) {
 
     try {
       await updateDoc(activityReference, {
-        likesCount: increment(-1),
+        CantidadLikes: increment(-1),
       })
     } catch (error) {
       void error
@@ -280,7 +285,7 @@ export async function toggleLikeActivity({ activityId, uid }) {
       const activitySnapshot = await getDoc(activityReference)
       if (activitySnapshot.exists()) {
         const activityData = activitySnapshot.data()
-        const actorUid = activityData.actorUid
+        const actorUid = activityData.UserID
 
         if (actorUid && actorUid !== uid) {
           try {
@@ -304,20 +309,20 @@ export async function toggleLikeActivity({ activityId, uid }) {
   }
 
   await setDoc(likeReference, {
-    uid,
+    UserID: uid,
     fecha: Timestamp.now(),
   })
 
   try {
     await updateDoc(activityReference, {
-      likesCount: increment(1),
+      CantidadLikes: increment(1),
     })
 
     // Crear notificación al propietario de la actividad
     const activitySnapshot = await getDoc(activityReference)
     if (activitySnapshot.exists()) {
       const activityData = activitySnapshot.data()
-      const actorUid = activityData.actorUid
+      const actorUid = activityData.UserID
 
       if (actorUid && actorUid !== uid) {
         await createNotification({
@@ -337,7 +342,7 @@ export async function toggleLikeActivity({ activityId, uid }) {
   return { liked: true }
 }
 
-export async function getLikesCount(activityId) {
+export async function getCantidadLikes(activityId) {
   ensureFirestoreReady()
 
   if (!activityId) {
@@ -351,9 +356,8 @@ export async function getLikesCount(activityId) {
     LIKES_SUBCOLLECTION,
   )
 
-  const likesCountSnapshot = await getCountFromServer(likesCollectionReference)
-
-  return likesCountSnapshot.data().count || 0
+  const cantidadLikesSnapshot = await getCountFromServer(likesCollectionReference)
+  return cantidadLikesSnapshot.data().count || 0
 }
 
 export async function getUserLikeStatus(activityId, uid) {
@@ -382,31 +386,32 @@ export async function addComment({ activityId, uid, texto }) {
   const activityReference = doc(db, ACTIVITIES_COLLECTION, activityId)
 
   await addDoc(collection(activityReference, COMMENTS_SUBCOLLECTION), {
-    uid,
+    UserID: uid,
     texto: cleanText,
     fecha: Timestamp.now(),
   })
-
   try {
     await updateDoc(activityReference, {
-      commentsCount: increment(1),
+      CantidadComentarios: increment(1),
     })
 
     // Crear notificación al propietario de la actividad
     const activitySnapshot = await getDoc(activityReference)
     if (activitySnapshot.exists()) {
       const activityData = activitySnapshot.data()
-      const actorUid = activityData.actorUid
+      const actorUid = activityData.UserID
 
       if (actorUid && actorUid !== uid) {
-        await createNotification({
-          userId: actorUid,
-          type: NOTIFICATION_TYPES.ACTIVITY_COMMENT,
-          actorUid: uid,
-          metadata: {
-            activityId,
-          },
-        })
+        try {
+          await createNotification({
+            userId: actorUid,
+            type: NOTIFICATION_TYPES.ACTIVITY_COMMENT,
+            actorUid: uid,
+            metadata: { activityId },
+          })
+        } catch (err) {
+          void err
+        }
       }
     }
   } catch (error) {
@@ -431,7 +436,7 @@ export async function deleteComment({ activityId, commentId, uid }) {
 
   const commentData = commentSnapshot.data()
 
-  if (commentData.uid !== uid) {
+  if (commentData.UserID !== uid) {
     throw new Error('Solo puedes eliminar tus propios comentarios.')
   }
 
@@ -439,17 +444,18 @@ export async function deleteComment({ activityId, commentId, uid }) {
 
   try {
     await updateDoc(activityReference, {
-      commentsCount: increment(-1),
+      CantidadComentarios: increment(-1),
     })
   } catch (error) {
     void error
   }
+
   try {
     // Eliminar notificación asociada al comentario (si existe)
     const activitySnapshot = await getDoc(activityReference)
     if (activitySnapshot.exists()) {
       const activityData = activitySnapshot.data()
-      const actorUid = activityData.actorUid
+      const actorUid = activityData.UserID
 
       if (actorUid && actorUid !== uid) {
         try {
@@ -522,27 +528,29 @@ export async function getCommentsPage({ activityId, pageSize = 10, cursor = null
 }
 
 async function findTodayActivity({ actorUid, type, dayKey }) {
-  const todayQuery = query(
-    collection(db, ACTIVITIES_COLLECTION),
-    where('actorUid', '==', actorUid),
-    where('type', '==', type),
-    where('dayKey', '==', dayKey),
-    limit(1),
-  )
+  const queries = [
+    query(
+      collection(db, ACTIVITIES_COLLECTION),
+      where('UserID', '==', actorUid),
+      where('type', '==', type),
+      where('dayKey', '==', dayKey),
+      limit(1),
+    ),
+  ]
 
-  const snapshots = await getDocs(todayQuery)
+  for (const todayQuery of queries) {
+    const snapshots = await getDocs(todayQuery)
 
-  if (snapshots.empty) {
-    return null
+    if (!snapshots.empty) {
+      return snapshots.docs[0]
+    }
   }
 
-  return snapshots.docs[0]
+  return null
 }
 
 export async function appendVolumeActivityForToday({
   actorUid,
-  actorNick,
-  actorFotoPerfil,
   type,
   volume,
 }) {
@@ -557,15 +565,15 @@ export async function appendVolumeActivityForToday({
 
   if (!existingSnapshot) {
     await addDoc(collection(db, ACTIVITIES_COLLECTION), {
-      actorUid,
+      UserID: actorUid,
       type,
       payload: {
         count: 1,
         volumes: [volume],
       },
       dayKey,
-      likesCount: 0,
-      commentsCount: 0,
+      CantidadLikes: 0,
+      CantidadComentarios: 0,
       fecha: Timestamp.now(),
     })
 
@@ -599,8 +607,6 @@ export async function appendVolumeActivityForToday({
 
 export async function appendThematicListActivityForToday({
   actorUid,
-  actorNick,
-  actorFotoPerfil,
   list,
 }) {
   ensureFirestoreReady()
@@ -615,15 +621,15 @@ export async function appendThematicListActivityForToday({
 
   if (!existingSnapshot) {
     await addDoc(collection(db, ACTIVITIES_COLLECTION), {
-      actorUid,
+      UserID: actorUid,
       type,
       payload: {
         count: 1,
         lists: [list],
       },
       dayKey,
-      likesCount: 0,
-      commentsCount: 0,
+      CantidadLikes: 0,
+      CantidadComentarios: 0,
       fecha: Timestamp.now(),
     })
 

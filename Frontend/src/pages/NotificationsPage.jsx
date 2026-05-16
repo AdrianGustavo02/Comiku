@@ -5,7 +5,6 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   NOTIFICATION_TYPES,
-  deleteNotificationsByActorUid,
 } from '../firebase/notifications'
 import { getActivityById } from '../firebase/activities'
 import '../styles/NotificationsPage.css'
@@ -61,7 +60,7 @@ export default function NotificationsPage({ authUser }) {
           )
 
           setNotifications(enriched)
-        } catch (err) {
+        } catch {
           // si falla el enriquecimiento, usar las notificaciones sin enriquecer
           setNotifications(result.notifications)
         }
@@ -112,7 +111,7 @@ export default function NotificationsPage({ authUser }) {
         )
 
         setNotifications((prev) => [...prev, ...enrichedNew])
-      } catch (err) {
+      } catch {
         setNotifications((prev) => [...prev, ...result.notifications])
       }
       setCursor(result.lastCursor)

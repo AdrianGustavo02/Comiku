@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAllThematicLists } from '../firebase/thematicLists'
 import { getUsersWhoBlockedUser } from '../firebase/user'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListsPage.css'
 
@@ -225,7 +226,7 @@ function ThematicListsPage({
             className="thematic-search-input"
             type="search"
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => setSearchTerm(sanitizeForbiddenInputChars(event.target.value))}
             placeholder="Escribe parte del nombre de la lista"
           />
         </div>

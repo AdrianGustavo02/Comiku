@@ -98,7 +98,7 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
                 getComicById(volumeEntry.comicId),
                 getComicVolumeById({
                   comicId: volumeEntry.comicId,
-                  volumeId: volumeEntry.volumeId,
+                  volumeId: volumeEntry.tomoId,
                 }),
               ])
 

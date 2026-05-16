@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   addComicVolume,
   createComic,
@@ -12,10 +12,26 @@ import {
   MAX_COVER_SIZE_BYTES,
   readFileAsDataUrl,
 } from '../constants/imageUpload'
+import { getComicById } from '../firebase/comics'
 import '../styles/ComicForm.css'
 
 function isFormEmpty({ numeroTomo, isbn, fechaPublicacion, coverFile }) {
   return !numeroTomo && !isbn && !fechaPublicacion && !coverFile
+}
+
+function estimateVolumeDocumentSize(portadaDataUrl, metadata = {}) {
+  // Estima el tamaño del documento en Firestore
+  // base64 es ~33% más grande que el binario original
+  const portadaSize = portadaDataUrl ? portadaDataUrl.length : 0
+  const metadataSize = JSON.stringify(metadata).length
+  const totalEstimatedSize = portadaSize + metadataSize
+  return totalEstimatedSize
+}
+
+function formatBytesForDisplay(bytes) {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)}MB`
 }
 
 function formatPublicationDate(publicationDate) {
@@ -34,6 +50,9 @@ function CreateComicVolumesPage({
   comicId,
   volumeId,
   onVolumeUpdated,
+  initialNotice,
+  showComicMetadata = false,
+  onCancel = null,
 }) {
   const [mode, setMode] = useState('numero')
   const [numeroTomo, setNumeroTomo] = useState('')
@@ -47,15 +66,38 @@ function CreateComicVolumesPage({
   const [formError, setFormError] = useState('')
   const [formNotice, setFormNotice] = useState('')
   const [saving, setSaving] = useState(false)
-  const [loadingInitial, setLoadingInitial] = useState(false)
+  const coverInputRef = useRef(null)
+  const [comicMetadata, setComicMetadata] = useState(null)
+  const isExistingComicMode = showComicMetadata
 
   useEffect(() => {
+    let cancelled = false
+
+    setFormNotice(initialNotice || '')
+
+    if (!showComicMetadata) {
+      setComicMetadata(null)
+    }
+
+    async function loadMetadata() {
+      if (!showComicMetadata || !comicId) return
+      try {
+        const data = await getComicById(comicId)
+        if (!cancelled) setComicMetadata(data)
+      } catch {
+        if (!cancelled) setComicMetadata(null)
+      }
+    }
+
+    loadMetadata()
+
     return () => {
+      cancelled = true
       if (coverPreviewUrl) {
         URL.revokeObjectURL(coverPreviewUrl)
       }
     }
-  }, [coverPreviewUrl])
+  }, [coverPreviewUrl, showComicMetadata, comicId, initialNotice])
 
   const updateCoverFile = (file) => {
     if (coverPreviewUrl) {
@@ -73,7 +115,6 @@ function CreateComicVolumesPage({
     async function loadInitial() {
       if (!comicId || !volumeId) return
       try {
-        setLoadingInitial(true)
         const data = await getComicVolumeById({ comicId, volumeId })
         if (cancelled || !data) return
 
@@ -90,7 +131,7 @@ function CreateComicVolumesPage({
       } catch {
         // ignore
       } finally {
-        if (!cancelled) setLoadingInitial(false)
+        if (!cancelled) null
       }
     }
 
@@ -109,7 +150,7 @@ function CreateComicVolumesPage({
     updateCoverFile(null)
   }
 
-  const validateForm = ({ requireComicDraft = true, requireCover = true } = {}) => {
+  const validateForm = ({ requireComicDraft = !isExistingComicMode, requireCover = true } = {}) => {
     if (requireComicDraft && !comicDraft) {
       return 'No se encontró el borrador del comic. Vuelve al inicio y créalo nuevamente.'
     }
@@ -159,7 +200,7 @@ function CreateComicVolumesPage({
 
   const buildVolumeDraft = async () => {
     const validationError = validateForm({
-      requireComicDraft: true,
+      requireComicDraft: !isExistingComicMode,
       requireCover: true,
     })
 
@@ -218,6 +259,25 @@ function CreateComicVolumesPage({
         return
       }
 
+      // Estimar tamaño del documento
+      const estimatedSize = estimateVolumeDocumentSize(volume.portada.dataUrl, {
+        NumeroTomo: volume.numeroTomo,
+        TomoUnico: volume.tomoUnico,
+        ISBN: volume.isbn,
+        FechaPublicacion: volume.fechaPublicacion,
+      })
+
+      // Firebase límite: 1 MB por documento
+      const MAX_DOCUMENT_SIZE = 1024 * 1024
+      if (estimatedSize > MAX_DOCUMENT_SIZE * 0.95) {
+        // 95% del límite como margen de seguridad
+        const sizeDisplay = formatBytesForDisplay(estimatedSize)
+        setFormError(
+          `La información del tomo es demasiado pesada (${sizeDisplay}). Intenta usar una portada más comprimida.`
+        )
+        return
+      }
+
       const nextVolumes = [...volumesAdded, volume]
       setVolumesAdded(nextVolumes)
       setShowAddedVolumesSummary(true)
@@ -236,11 +296,6 @@ function CreateComicVolumesPage({
   const handleFinalize = async () => {
     setFormError('')
     setFormNotice('')
-
-    if (!comicDraft) {
-      setFormError('No se encontró el borrador del comic. Vuelve al inicio y créalo nuevamente.')
-      return
-    }
 
     const thereIsDraftData = !isFormEmpty({
       numeroTomo,
@@ -269,11 +324,32 @@ function CreateComicVolumesPage({
         return
       }
 
-      const createdComicId = await createComic(comicDraft)
+      const targetComicId = isExistingComicMode ? comicId : await createComic(comicDraft)
+
+      if (!targetComicId) {
+        setFormError('No se encontró el comic para guardar los tomos.')
+        return
+      }
 
       for (const volume of finalVolumes) {
+        // Estimar tamaño antes de enviar
+        const estimatedSize = estimateVolumeDocumentSize(volume.portada.dataUrl, {
+          NumeroTomo: volume.numeroTomo,
+          TomoUnico: volume.tomoUnico,
+          ISBN: volume.isbn,
+          FechaPublicacion: volume.fechaPublicacion,
+        })
+
+        const MAX_DOCUMENT_SIZE = 1024 * 1024
+        if (estimatedSize > MAX_DOCUMENT_SIZE * 0.95) {
+          const sizeDisplay = formatBytesForDisplay(estimatedSize)
+          throw new Error(
+            `La información del tomo es demasiado pesada (${sizeDisplay}). Intenta usar una portada más comprimida.`
+          )
+        }
+
         await addComicVolume({
-          comicId: createdComicId,
+          comicId: targetComicId,
           numeroTomo: volume.numeroTomo,
           tomoUnico: volume.tomoUnico,
           isbn: volume.isbn,
@@ -284,8 +360,11 @@ function CreateComicVolumesPage({
 
       onFinishCreation(finalVolumes.length)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'No fue posible finalizar la carga.'
+      let message = error instanceof Error ? error.message : 'No fue posible finalizar la carga.'
+      // Mapear errores técnicos de Firebase a mensajes amigables
+      if (message.includes('Document too large') || message.includes('too large')) {
+        message = 'La información del tomo es demasiado pesada. Intenta usar una portada más comprimida.'
+      }
       setFormError(message)
     } finally {
       setSaving(false)
@@ -349,6 +428,25 @@ function CreateComicVolumesPage({
       const numeroTomoValue = mode === 'numero' ? Number.parseInt(numeroTomo, 10) : null
       const tomoUnicoValue = mode === 'unico'
 
+      // Estimar tamaño si se actualiza la portada
+      if (portadaPayload) {
+        const estimatedSize = estimateVolumeDocumentSize(portadaPayload.dataUrl, {
+          NumeroTomo: numeroTomoValue,
+          TomoUnico: tomoUnicoValue,
+          ISBN: Number.parseInt(isbn.trim(), 10),
+          FechaPublicacion: fechaPublicacion,
+        })
+
+        const MAX_DOCUMENT_SIZE = 1024 * 1024
+        if (estimatedSize > MAX_DOCUMENT_SIZE * 0.95) {
+          const sizeDisplay = formatBytesForDisplay(estimatedSize)
+          setFormError(
+            `La información del tomo es demasiado pesada (${sizeDisplay}). Intenta usar una portada más comprimida.`
+          )
+          return
+        }
+      }
+
       await updateComicVolume({
         comicId,
         volumeId,
@@ -361,13 +459,16 @@ function CreateComicVolumesPage({
 
       if (onVolumeUpdated) onVolumeUpdated()
     } catch (err) {
-      const rawMessage = err instanceof Error ? err.message : ''
-      const message =
-        /ERR_BLOCKED_BY_CLIENT|Failed to fetch|NetworkError/i.test(rawMessage)
-          ? 'El navegador o una extensión está bloqueando la conexión con Firebase. Desactiva el bloqueador y vuelve a intentar.'
-          : err instanceof Error
-            ? err.message
-            : 'No fue posible actualizar el tomo.'
+      let message = err instanceof Error ? err.message : ''
+      if (!message) {
+        message = 'No fue posible actualizar el tomo.'
+      }
+      // Mapear errores técnicos de Firebase a mensajes amigables
+      if (message.includes('Document too large') || message.includes('too large')) {
+        message = 'La información del tomo es demasiado pesada. Intenta usar una portada más comprimida.'
+      } else if (/ERR_BLOCKED_BY_CLIENT|Failed to fetch|NetworkError/i.test(message)) {
+        message = 'El navegador o una extensión está bloqueando la conexión con Firebase. Desactiva el bloqueador y vuelve a intentar.'
+      }
       setFormError(message)
     } finally {
       setSaving(false)
@@ -388,11 +489,45 @@ function CreateComicVolumesPage({
           </div>
 
           <div className="hero-actions">
-            <button className="back-button" onClick={onBackToHome} type="button">
-              Volver al inicio
-            </button>
+            {showComicMetadata && typeof onCancel === 'function' ? (
+              <button className="back-button" onClick={onCancel} type="button">
+                Cancelar
+              </button>
+            ) : (
+              <button className="back-button" onClick={onBackToHome} type="button">
+                Volver al inicio
+              </button>
+            )}
           </div>
         </div>
+
+        {showComicMetadata && comicMetadata ? (
+          <section className="comic-detail-metadata">
+            <p>
+              <strong>Comic:</strong> {comicMetadata.nombre || 'Sin nombre'}
+            </p>
+            <p>
+              <strong>Autores:</strong>{' '}
+              {comicMetadata.autores.length > 0 ? comicMetadata.autores.join(', ') : 'No definidos'}
+            </p>
+            <p>
+              <strong>Editorial:</strong> {comicMetadata.editorial || 'No definida'}
+            </p>
+            <p>
+              <strong>País:</strong> {comicMetadata.paisEditorial || 'No definido'}
+            </p>
+            <p>
+              <strong>Estado:</strong> {comicMetadata.estado || 'No definido'}
+            </p>
+            <p>
+              <strong>Géneros:</strong>{' '}
+              {comicMetadata.generos.length > 0 ? comicMetadata.generos.join(', ') : 'No definidos'}
+            </p>
+            <p>
+              <strong>Formato:</strong> {comicMetadata.formato || 'No definido'}
+            </p>
+          </section>
+        ) : null}
 
         {showAddedVolumesSummary ? (
           <div className="counter-chip">Tomos cargados: {volumesAdded.length}</div>
@@ -464,10 +599,22 @@ function CreateComicVolumesPage({
             }}
             required={!volumeId}
             type="file"
+            ref={coverInputRef}
+            className="file-input-hidden"
           />
-          {coverFileName ? (
-            <p className="helper-text">Archivo seleccionado: {coverFileName}</p>
-          ) : null}
+          <div className="file-input-control">
+            <button
+              type="button"
+              className="file-input-trigger"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={saving}
+            >
+              Seleccionar archivo
+            </button>
+            <span className={`file-input-name ${coverFileName ? 'has-file' : ''}`}>
+              {coverFileName || 'Sin archivo seleccionado'}
+            </span>
+          </div>
 
           {coverPreviewUrl ? (
             <div className="cover-preview-card">

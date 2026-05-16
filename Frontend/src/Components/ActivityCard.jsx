@@ -34,14 +34,16 @@ function ActivityCard({ activity, onOpen }) {
       ? `${actorNick} creó ${payload?.count || payload?.lists?.length || 0} lista/s temática.`
       : `${actorNick} realizó una actividad.`
 
-  const likesCount = typeof activity.likesCount === 'number' ? activity.likesCount : 0
-  const commentsCount = typeof activity.commentsCount === 'number' ? activity.commentsCount : 0
+  const cantidadLikes =
+    typeof activity.cantidadLikes === 'number' ? activity.cantidadLikes : 0
+  const cantidadComentarios =
+    typeof activity.cantidadComentarios === 'number' ? activity.cantidadComentarios : 0
 
   return (
     <article className="activity-card" onClick={() => onOpen(activity)} role="button">
       <div className="activity-card-header">
         <strong>{text}</strong>
-        <time className="activity-time">{new Date(fecha?.toDate ? fecha.toDate() : fecha || Date.now()).toLocaleString('es-ES')}</time>
+        <time className="activity-time">{fecha ? new Date(fecha?.toDate ? fecha.toDate() : fecha).toLocaleString('es-ES') : ''}</time>
       </div>
 
       {type === 'thematic_list_create' ? (
@@ -56,8 +58,8 @@ function ActivityCard({ activity, onOpen }) {
       )}
 
       <div className="activity-card-footer">
-        <span>❤️ {likesCount}</span>
-        <span>💬 {commentsCount}</span>
+        <span>❤️ {cantidadLikes}</span>
+        <span>💬 {cantidadComentarios}</span>
       </div>
     </article>
   )

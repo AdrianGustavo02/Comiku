@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import ChatPanel from '../Components/ChatPanel'
 import { createGroupChannel, createOrGet1to1Channel } from '../firebase/stream'
 import { getAllUsers, getUserFriends, isUserBlocked } from '../firebase/user'
@@ -150,15 +150,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
     }
   }
 
-  useEffect(() => {
-    if (!isChatReady || !pendingFriendUid) {
-      return
-    }
-
-    void handleStartChatWithFriend(pendingFriendUid, { skipReadyCheck: true })
-  }, [isChatReady, pendingFriendUid])
-
-  async function handleStartChatWithFriend(friendUid, options = {}) {
+  const handleStartChatWithFriend = useCallback(async (friendUid, options = {}) => {
     const { skipReadyCheck = false } = options
 
     if (!authUser?.uid || !friendUid) {
@@ -186,7 +178,17 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
     } finally {
       setCreatingChatForUid('')
     }
-  }
+  }, [authUser?.uid, isChatReady])
+
+  useEffect(() => {
+    if (!isChatReady || !pendingFriendUid) {
+      return
+    }
+
+    void handleStartChatWithFriend(pendingFriendUid, { skipReadyCheck: true })
+  }, [isChatReady, pendingFriendUid, handleStartChatWithFriend])
+
+  
 
   function handleToggleGroupFriend(friendUid) {
     setSelectedGroupFriendUids((prev) => {
@@ -227,7 +229,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
         imagePreview: dataUrl,
       }))
       setGroupFormErrors({ ...groupFormErrors, image: null })
-    } catch (err) {
+    } catch {
       setGroupFormErrors({ ...groupFormErrors, image: 'No se pudo leer la imagen.' })
     }
   }

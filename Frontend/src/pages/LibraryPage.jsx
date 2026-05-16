@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { COMIC_GENRES } from '../constants/comicGenres'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import { getUserLibraryItems } from '../firebase/volumeLists'
 import '../styles/LibraryPage.css'
 
@@ -172,7 +173,7 @@ function LibraryPage({ authUser, onOpenComic }) {
             type="text"
             placeholder="Escribe el nombre del comic, autor o editorial"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => setSearchQuery(sanitizeForbiddenInputChars(event.target.value))}
           />
         </div>
 

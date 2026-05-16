@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { updateGroupChannel, addGroupMembers, makeGroupAdmin, leaveGroupChannel, removeGroupMember, adminDeleteChannel } from '../firebase/stream'
 import { createReport, hasPendingObjectReport, REPORT_REASON_OPTIONS_FOR_GROUP } from '../firebase/reports'
 import { ALLOWED_IMAGE_TYPES, MAX_COVER_SIZE_BYTES, createCompressedImageDataUrl, readFileAsDataUrl } from '../constants/imageUpload'
@@ -32,6 +32,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   const [reportScreenshotPreview, setReportScreenshotPreview] = useState(null)
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [reportError, setReportError] = useState('')
+  const reportScreenshotInputRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -378,7 +379,27 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
               <textarea value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
 
               <label>Captura de pantalla (opcional)</label>
-              <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleReportScreenshotChange} disabled={isSubmittingReport} />
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                onChange={handleReportScreenshotChange}
+                disabled={isSubmittingReport}
+                ref={reportScreenshotInputRef}
+                className="file-input-hidden"
+              />
+              <div className="file-input-control">
+                <button
+                  type="button"
+                  className="file-input-trigger"
+                  onClick={() => reportScreenshotInputRef.current?.click()}
+                  disabled={isSubmittingReport}
+                >
+                  Seleccionar archivo
+                </button>
+                <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
+                  {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
+                </span>
+              </div>
 
               {reportScreenshotPreview ? (
                 <div className="report-screenshot-preview-card"><img src={reportScreenshotPreview} alt="Vista previa" className="report-screenshot-preview-image" /></div>

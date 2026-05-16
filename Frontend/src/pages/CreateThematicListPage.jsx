@@ -13,6 +13,7 @@ import {
   updateThematicList,
 } from '../firebase/thematicLists'
 import { createThumbnailFromDataUrl } from '../constants/imageUpload'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
 import '../styles/ComicForm.css'
 import '../styles/Navbar.css'
@@ -118,7 +119,6 @@ function CreateThematicListPage({
   const [descripcion, setDescripcion] = useState('')
   const [esGuiaDeLectura, setEsGuiaDeLectura] = useState(false)
 
-  // Paso 2: Tomos
   const [allComics, setAllComics] = useState([])
   const [allComicVolumes, setAllComicVolumes] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -174,19 +174,20 @@ function CreateThematicListPage({
                 const { getComicVolumeById } = await import('../firebase/comics')
                 const volumeData = await getComicVolumeById({
                   comicId: v.comicId,
-                  volumeId: v.volumeId,
+                  volumeId: v.tomoId,
                 })
+
                 return {
                   id: v.id,
                   comicId: v.comicId,
-                  volumeId: v.volumeId,
+                  tomoId: v.tomoId,
                   volumenData: volumeData,
                 }
               } catch {
                 return {
                   id: v.id,
                   comicId: v.comicId,
-                  volumeId: v.volumeId,
+                  tomoId: v.tomoId,
                   volumenData: null,
                 }
               }
@@ -378,14 +379,14 @@ function CreateThematicListPage({
   }
 
   const handleSearchChange = (value) => {
-    setSearchQuery(value)
+    setSearchQuery(sanitizeForbiddenInputChars(value))
     setError('')
     setNotice('')
     setIsSearchOpen(true)
   }
 
   const handleSelectComic = (comic) => {
-    setSearchQuery(comic.nombre)
+    setSearchQuery(sanitizeForbiddenInputChars(comic.nombre))
     setIsSearchOpen(false)
     setError('')
     setNotice('')
@@ -397,7 +398,7 @@ function CreateThematicListPage({
     const alreadyAdded = selectedVolumes.some(
       (selectedVolume) =>
         selectedVolume.comicId === result.comicId &&
-        selectedVolume.volumeId === volume.id,
+        selectedVolume.tomoId === volume.id,
     )
 
     if (alreadyAdded) {
@@ -408,7 +409,7 @@ function CreateThematicListPage({
     const newVolume = {
       id: `temp-${Date.now()}`,
       comicId: result.comicId,
-      volumeId: volume.id,
+      tomoId: volume.id,
       volumenData: volume,
     }
 
@@ -448,13 +449,13 @@ function CreateThematicListPage({
         const currentVolumes = await getListVolumes({ listId })
 
         // Eliminar tomos removidos y agregar nuevos (evitar duplicados)
-        const currentVolumeIds = new Set(currentVolumes.map((v) => v.volumeId))
-        const selectedVolumeIds = new Set(selectedVolumes.map((v) => v.volumeId))
+        const currentVolumeIds = new Set(currentVolumes.map((v) => v.tomoId))
+        const selectedVolumeIds = new Set(selectedVolumes.map((v) => v.tomoId))
 
         // Borrar los que estaban en BD pero el usuario removió
         for (const currentVolume of currentVolumes) {
-          if (!selectedVolumeIds.has(currentVolume.volumeId)) {
-            await removeVolumeFromList({ listId, volumeId: currentVolume.volumeId })
+          if (!selectedVolumeIds.has(currentVolume.tomoId)) {
+            await removeVolumeFromList({ listId, tomoId: currentVolume.tomoId })
           }
         }
 
@@ -462,11 +463,11 @@ function CreateThematicListPage({
         for (let i = 0; i < selectedVolumes.length; i++) {
           const volume = selectedVolumes[i]
 
-          if (!currentVolumeIds.has(volume.volumeId)) {
+          if (!currentVolumeIds.has(volume.tomoId)) {
             await addVolumeToList({
               listId,
               comicId: volume.comicId,
-              volumeId: volume.volumeId,
+              tomoId: volume.tomoId,
               orden: i,
             })
           }
@@ -503,7 +504,7 @@ function CreateThematicListPage({
           await addVolumeToList({
             listId: newListId,
             comicId: volume.comicId,
-            volumeId: volume.volumeId,
+            tomoId: volume.tomoId,
             orden: i,
           })
         }
@@ -568,7 +569,7 @@ function CreateThematicListPage({
             <input
               id="list-name"
               maxLength={120}
-              onChange={(event) => setNombre(event.target.value)}
+              onChange={(event) => setNombre(sanitizeForbiddenInputChars(event.target.value))}
               placeholder="Ejemplo: Manga que cambió mi vida"
               type="text"
               value={nombre}
@@ -578,7 +579,7 @@ function CreateThematicListPage({
             <textarea
               id="list-description"
               maxLength={500}
-              onChange={(event) => setDescripcion(event.target.value)}
+              onChange={(event) => setDescripcion(sanitizeForbiddenInputChars(event.target.value))}
               placeholder="Describe el propósito de esta lista..."
               rows={4}
               value={descripcion}

@@ -17,7 +17,7 @@ import { db, isFirebaseConfigured } from './firebase'
 
 const COMICS_COLLECTION = 'comics'
 const VOLUMES_SUBCOLLECTION = 'tomos'
-const REVIEWS_SUBCOLLECTION = 'Reseñas'
+const REVIEWS_SUBCOLLECTION = 'Resenas'
 
 function ensureFirestoreReady() {
   if (!isFirebaseConfigured || !db) {
@@ -200,7 +200,7 @@ function mapReviewSnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    usuarioId: data.UsuarioId || '',
+    usuarioId: data.UserID || '',
     descripcion: data.Descripcion || '',
     calificacion: data.Calificacion ?? null,
     fecha: data.Fecha && data.Fecha.toDate ? data.Fecha.toDate() : null,
@@ -214,7 +214,7 @@ export async function getUserReview(comicId, usuarioId) {
 
   const q = query(
     collection(db, COMICS_COLLECTION, comicId, REVIEWS_SUBCOLLECTION),
-    where('UsuarioId', '==', usuarioId),
+    where('UserID', '==', usuarioId),
     limit(1),
   )
 
@@ -271,7 +271,7 @@ export async function addReview({ comicId, usuarioId, descripcion, calificacion 
   }
 
   const payload = {
-    UsuarioId: usuarioId,
+    UserID: usuarioId,
     Descripcion: descripcion,
     Calificacion: calificacion,
     Fecha: serverTimestamp(),

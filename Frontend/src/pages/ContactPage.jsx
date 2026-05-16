@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { createMessage, MENSAJE_TYPES } from '../firebase/userMessages';
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters';
 import '../styles/ContactPage.css';
 
 export default function ContactPage({ authUser, onBack }) {
@@ -17,7 +18,7 @@ export default function ContactPage({ authUser, onBack }) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'descripcion' ? sanitizeForbiddenInputChars(value) : value,
     }));
     setError('');
   };

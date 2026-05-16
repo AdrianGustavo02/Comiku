@@ -96,7 +96,7 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
     }
   }
 
-  const handleActivityStatsChange = ({ activityId, likesCount, commentsCount }) => {
+  const handleActivityStatsChange = ({ activityId, cantidadLikes, cantidadComentarios }) => {
     setActivities((currentActivities) =>
       currentActivities.map((activityItem) => {
         if (activityItem.id !== activityId) {
@@ -105,9 +105,12 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
 
         return {
           ...activityItem,
-          likesCount: typeof likesCount === 'number' ? likesCount : activityItem.likesCount,
-          commentsCount:
-            typeof commentsCount === 'number' ? commentsCount : activityItem.commentsCount,
+          cantidadLikes:
+            typeof cantidadLikes === 'number' ? cantidadLikes : activityItem.cantidadLikes,
+          cantidadComentarios:
+            typeof cantidadComentarios === 'number'
+              ? cantidadComentarios
+              : activityItem.cantidadComentarios,
         }
       }),
     )
@@ -119,10 +122,14 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
 
       return {
         ...currentSelected,
-        likesCount:
-          typeof likesCount === 'number' ? likesCount : currentSelected.likesCount,
-        commentsCount:
-          typeof commentsCount === 'number' ? commentsCount : currentSelected.commentsCount,
+        cantidadLikes:
+          typeof cantidadLikes === 'number'
+            ? cantidadLikes
+            : currentSelected.cantidadLikes,
+        cantidadComentarios:
+          typeof cantidadComentarios === 'number'
+            ? cantidadComentarios
+            : currentSelected.cantidadComentarios,
       }
     })
   }

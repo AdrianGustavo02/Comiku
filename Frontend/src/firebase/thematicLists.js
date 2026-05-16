@@ -38,7 +38,7 @@ function mapThematicListSnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    userId: data.UserId || '',
+    userId: data.UserID || '',
     nombre: data.Nombre || '',
     descripcion: data.Descripcion || '',
     cantidadLikes: data.CantidadLikes ?? 0,
@@ -55,7 +55,7 @@ function mapThematicListVolumeSnapshot(snapshot) {
   return {
     id: snapshot.id,
     comicId: data.ComicId || '',
-    volumeId: data.VolumeId || '',
+    tomoId: data.TomoId || '',
     orden: data.Orden ?? 0,
   }
 }
@@ -65,7 +65,7 @@ function mapCommentSnapshot(snapshot) {
 
   return {
     id: snapshot.id,
-    userId: data.UserId || '',
+    userId: data.UserID || '',
     comentario: data.Comentario || '',
     fechaComentario: data.FechaComentario || null,
   }
@@ -84,7 +84,7 @@ export async function createThematicList({
   }
 
   const listPayload = {
-    UserId: userId,
+    UserID: userId,
     Nombre: nombre,
     Descripcion: descripcion || '',
     CantidadLikes: 0,
@@ -173,7 +173,7 @@ export async function getUserThematicLists({ userId }) {
 
   const q = query(
     collection(db, THEMATIC_LISTS_COLLECTION),
-    where('UserId', '==', userId),
+    where('UserID', '==', userId),
   )
 
   const snapshots = await getDocs(q)
@@ -202,10 +202,10 @@ export async function getAllThematicLists() {
     .slice(0, 20)
 }
 
-export async function addVolumeToList({ listId, comicId, volumeId, orden }) {
+export async function addVolumeToList({ listId, comicId, tomoId, orden }) {
   ensureFirestoreReady()
 
-  if (!listId || !comicId || !volumeId) {
+  if (!listId || !comicId || !tomoId) {
     throw new Error('ID de lista, comic y tomo son obligatorios.')
   }
   const listReference = doc(db, THEMATIC_LISTS_COLLECTION, listId)
@@ -213,7 +213,7 @@ export async function addVolumeToList({ listId, comicId, volumeId, orden }) {
   // Evitar duplicados: buscar si ya existe un documento con ese VolumeId
   const existingQ = query(
     collection(listReference, VOLUMES_SUBCOLLECTION),
-    where('VolumeId', '==', volumeId),
+    where('TomoId', '==', tomoId),
   )
   const existingSnapshots = await getDocs(existingQ)
 
@@ -223,7 +223,7 @@ export async function addVolumeToList({ listId, comicId, volumeId, orden }) {
 
   const volumePayload = {
     ComicId: comicId,
-    VolumeId: volumeId,
+    TomoId: tomoId,
     Orden: orden ?? 0,
   }
 
@@ -232,7 +232,7 @@ export async function addVolumeToList({ listId, comicId, volumeId, orden }) {
   // Mantener un índice de tomos en el documento raíz para accesos rápidos
   try {
     await updateDoc(listReference, {
-      tomosDeLista: arrayUnion(volumeId),
+      tomosDeLista: arrayUnion(tomoId),
     })
   } catch {
     // ignorar errores de actualización de índice
@@ -241,19 +241,19 @@ export async function addVolumeToList({ listId, comicId, volumeId, orden }) {
   return addedRef.id
 }
 
-export async function removeVolumeFromList({ listId, volumeId }) {
+export async function removeVolumeFromList({ listId, tomoId }) {
   ensureFirestoreReady()
 
-  if (!listId || !volumeId) {
+  if (!listId || !tomoId) {
     throw new Error('ID de lista y tomo son obligatorios.')
   }
 
   const listReference = doc(db, THEMATIC_LISTS_COLLECTION, listId)
 
-  // volumeId puede ser el id del documento subcolección o el VolumeId almacenado
+  // tomoId puede ser el id del documento subcolección o el TomoId almacenado
   // Intentamos borrar por id de documento primero
   try {
-    const candidateRef = doc(listReference, VOLUMES_SUBCOLLECTION, volumeId)
+    const candidateRef = doc(listReference, VOLUMES_SUBCOLLECTION, tomoId)
     const candidateSnap = await getDoc(candidateRef)
 
     if (candidateSnap.exists()) {
@@ -262,7 +262,7 @@ export async function removeVolumeFromList({ listId, volumeId }) {
 
       try {
         await updateDoc(listReference, {
-          tomosDeLista: arrayRemove(data.VolumeId),
+          tomosDeLista: arrayRemove(data.TomoId),
         })
       } catch (error) {
         void error
@@ -274,10 +274,10 @@ export async function removeVolumeFromList({ listId, volumeId }) {
     void error
   }
 
-  // Si no existe, buscamos documentos donde VolumeId == volumeId
+  // Si no existe, buscamos documentos donde TomoId == tomoId
   const q = query(
     collection(listReference, VOLUMES_SUBCOLLECTION),
-    where('VolumeId', '==', volumeId),
+    where('TomoId', '==', tomoId),
   )
 
   const snapshots = await getDocs(q)
@@ -288,7 +288,7 @@ export async function removeVolumeFromList({ listId, volumeId }) {
 
     try {
       await updateDoc(listReference, {
-        tomosDeLista: arrayRemove(data.VolumeId),
+        tomosDeLista: arrayRemove(data.TomoId),
       })
     } catch (error) {
       void error
@@ -334,7 +334,7 @@ export async function addCommentToList({ listId, userId, comentario }) {
 
   const listReference = doc(db, THEMATIC_LISTS_COLLECTION, listId)
   const commentPayload = {
-    UserId: userId,
+    UserID: userId,
     Comentario: comentario,
     FechaComentario: Timestamp.now(),
   }
@@ -349,7 +349,7 @@ export async function addCommentToList({ listId, userId, comentario }) {
     const listSnapshot = await getDoc(listReference)
     if (listSnapshot.exists()) {
       const listData = listSnapshot.data()
-      const listOwnerId = listData.UserId
+        const listOwnerId = listData.UserID
 
       if (listOwnerId && listOwnerId !== userId) {
         await createNotification({
@@ -397,7 +397,7 @@ export async function deleteCommentFromList({ listId, commentId, userId }) {
 
   const data = snapshot.data()
 
-  if (data.UserId !== userId) {
+  if (data.UserID !== userId) {
     throw new Error('Solo puedes eliminar tus propios comentarios.')
   }
 
@@ -412,7 +412,7 @@ export async function deleteCommentFromList({ listId, commentId, userId }) {
     const listSnapshot = await getDoc(listReference)
     if (listSnapshot.exists()) {
       const listData = listSnapshot.data()
-      const listOwnerId = listData.UserId
+      const listOwnerId = listData.UserID
 
       if (listOwnerId && listOwnerId !== userId) {
         try {
@@ -455,7 +455,7 @@ export async function toggleLikeForList({ listId, userId }) {
       const listSnapshot = await getDoc(listReference)
       if (listSnapshot.exists()) {
         const listData = listSnapshot.data()
-        const listOwnerId = listData.UserId
+          const listOwnerId = listData.UserID
 
         if (listOwnerId && listOwnerId !== userId) {
           try {
@@ -476,7 +476,7 @@ export async function toggleLikeForList({ listId, userId }) {
 
   // agregar like
   await setDoc(likeDocRef, {
-    UserId: userId,
+      UserID: userId,
     FechaLike: Timestamp.now(),
   })
 
@@ -488,7 +488,7 @@ export async function toggleLikeForList({ listId, userId }) {
     const listSnapshot = await getDoc(listReference)
     if (listSnapshot.exists()) {
       const listData = listSnapshot.data()
-      const listOwnerId = listData.UserId
+        const listOwnerId = listData.UserID
 
       if (listOwnerId && listOwnerId !== userId) {
         await createNotification({

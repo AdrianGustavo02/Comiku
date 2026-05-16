@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import { getUserWishlistItems } from '../firebase/volumeLists'
 import '../styles/WishlistPage.css'
 
@@ -130,7 +131,7 @@ function WishlistPage({ authUser, onOpenVolume }) {
               type="text"
               placeholder="Escribe el nombre del comic, autor o editorial"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => setSearchQuery(sanitizeForbiddenInputChars(event.target.value))}
             />
           </div>
         </div>

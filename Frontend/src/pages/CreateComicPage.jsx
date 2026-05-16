@@ -1,35 +1,14 @@
 import { useMemo, useState, useEffect } from 'react'
 import { COMIC_GENRES } from '../constants/comicGenres'
+import { COUNTRIES } from '../constants/countries'
+import {
+  containsForbiddenInputChars,
+  sanitizeForbiddenInputChars,
+} from '../constants/forbiddenInputCharacters'
 import '../styles/ComicForm.css'
 import { getComicById, updateComic } from '../firebase/comics'
 
-const FORBIDDEN_INPUT_CHARACTERS = /[@#$^&*{}[\]<>]/
-
-const COUNTRIES = [
-  'Argentina',
-  'Brasil',
-  'México',
-  'Chile',
-  'Reino Unido',
-  'Canadá',
-  'Alemania',
-  'Corea del Sur',
-  'China',
-  'Italia',
-  'España',
-  'Japón',
-  'Estados Unidos',
-  'Francia',
-  'Bélgica',
-  'Peru',
-  'Rusia',
-]
-
 const STATUS_OPTIONS = ['En curso', 'Finalizado']
-
-function hasForbiddenCharacters(value) {
-  return FORBIDDEN_INPUT_CHARACTERS.test(value)
-}
 
 function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
   const [nombre, setNombre] = useState('')
@@ -41,7 +20,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
   const [descripcion, setDescripcion] = useState('')
   const [formato, setFormato] = useState('')
   const [formError, setFormError] = useState('')
-  const [loadingInitial, setLoadingInitial] = useState(false)
+  
 
   const sortedCountries = useMemo(
     () => [...COUNTRIES].sort((a, b) => a.localeCompare(b, 'es')),
@@ -90,7 +69,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
         return `${field.label} es obligatorio.`
       }
 
-      if (hasForbiddenCharacters(field.value)) {
+      if (containsForbiddenInputChars(field.value)) {
         return `${field.label} contiene caracteres no permitidos.`
       }
     }
@@ -108,7 +87,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
     }
 
     for (const author of cleanAuthors) {
-      if (hasForbiddenCharacters(author)) {
+      if (containsForbiddenInputChars(author)) {
         return 'Un autor contiene caracteres no permitidos.'
       }
     }
@@ -180,7 +159,6 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
     async function loadInitial() {
       if (!comicId) return
       try {
-        setLoadingInitial(true)
         const data = await getComicById(comicId)
         if (cancelled || !data) return
 
@@ -195,7 +173,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
       } catch {
         // ignore
       } finally {
-        if (!cancelled) setLoadingInitial(false)
+        if (!cancelled) null
       }
     }
 
@@ -234,7 +212,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
           <input
             id="comic-name"
             maxLength={120}
-            onChange={(event) => setNombre(event.target.value)}
+            onChange={(event) => setNombre(sanitizeForbiddenInputChars(event.target.value))}
             placeholder="Ejemplo: One Piece"
             required
             type="text"
@@ -247,7 +225,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
               <div className="dynamic-row" key={`autor-${index + 1}`}>
                 <input
                   maxLength={100}
-                  onChange={(event) => updateAuthor(index, event.target.value)}
+                  onChange={(event) => updateAuthor(index, sanitizeForbiddenInputChars(event.target.value))}
                   placeholder={`Autor ${index + 1}`}
                   required={index === 0}
                   type="text"
@@ -276,7 +254,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
           <input
             id="comic-editorial"
             maxLength={120}
-            onChange={(event) => setEditorial(event.target.value)}
+            onChange={(event) => setEditorial(sanitizeForbiddenInputChars(event.target.value))}
             required
             type="text"
             value={editorial}
@@ -349,7 +327,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
           <textarea
             id="comic-description"
             maxLength={1000}
-            onChange={(event) => setDescripcion(event.target.value)}
+            onChange={(event) => setDescripcion(sanitizeForbiddenInputChars(event.target.value))}
             required
             rows={4}
             value={descripcion}
@@ -359,7 +337,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
           <input
             id="comic-format"
             maxLength={80}
-            onChange={(event) => setFormato(event.target.value)}
+            onChange={(event) => setFormato(sanitizeForbiddenInputChars(event.target.value))}
             placeholder="Ejemplo: Tankobon"
             required
             type="text"

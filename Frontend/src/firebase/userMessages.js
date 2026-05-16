@@ -1,4 +1,5 @@
 import { db, isFirebaseConfigured } from './firebase';
+import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters';
 import {
   collection,
   addDoc,
@@ -19,12 +20,7 @@ const MAX_DESCRIPTION_LENGTH = 300;
  * Sanitiza texto eliminando caracteres especiales no permitidos
  */
 export const sanitizeText = (text) => {
-  if (!text) return '';
-  return text
-    .split('')
-    .filter((char) => !'@#$^&*{}[]<>'.includes(char))
-    .join('')
-    .trim();
+  return sanitizeForbiddenInputChars(text).trim();
 };
 
 /**
@@ -43,7 +39,7 @@ export const mapMessageSnapshot = (doc) => {
     id: doc.id,
     tipo: data.TipoMensaje || 'Otros',
     descripcion: data.Descripcion || '',
-    usuarioId: data.UsuarioId || '',
+    usuarioId: data.UserID || '',
     fecha: data.Fecha ? data.Fecha.toDate() : new Date(),
     leido: data.Leido || false,
     fechaLectura: data.FechaLectura ? data.FechaLectura.toDate() : null,
@@ -84,7 +80,7 @@ export const createMessage = async ({
     const docRef = await addDoc(collection(db, 'mensajesUsuarios'), {
       TipoMensaje: tipo,
       Descripcion: sanitizedDescripcion,
-      UsuarioId: usuarioId,
+      UserID: usuarioId,
       Fecha: serverTimestamp(),
       Leido: false,
       FechaLectura: null,
