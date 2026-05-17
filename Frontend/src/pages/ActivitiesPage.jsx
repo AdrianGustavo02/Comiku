@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import ActivityCard from '../Components/ActivityCard'
 import ActivityModal from '../Components/ActivityModal'
+import Button from '../Components/Button'
 import { getActivitiesPage, getActivityById } from '../firebase/activities'
 import { getBlockedUsers, getUserFriends, getUsersWhoBlockedUser } from '../firebase/user'
 import '../styles/ActivitiesPage.css'
@@ -144,7 +145,7 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
             <p className="lead">Aquí verás las actividades recientes de tus amigos.</p>
           </div>
           <div className="hero-actions">
-            <button className="profile-back-button" onClick={onBack} type="button">Volver</button>
+            <Button className="profile-back-button" onClick={onBack} type="button" variant="secondary">Volver</Button>
           </div>
         </div>
 
@@ -159,7 +160,7 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
 
           {cursor ? (
             <div style={{ textAlign: 'center', marginTop: 12 }}>
-              <button type="button" className="profile-back-button" onClick={loadMore} disabled={loading}>{loading ? 'Cargando...' : 'Ver más actividades'}</button>
+              <Button type="button" className="profile-back-button" onClick={loadMore} disabled={loading} variant="secondary">{loading ? 'Cargando...' : 'Ver más actividades'}</Button>
             </div>
           ) : null}
         </div>

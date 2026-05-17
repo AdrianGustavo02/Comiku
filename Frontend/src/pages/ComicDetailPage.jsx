@@ -25,8 +25,19 @@ import { getUserLibraryItems } from '../firebase/volumeLists'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/ComicDetailPage.css'
+import FileInput from '../Components/FileInput'
+import Button from '../Components/Button'
 
-function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDeleteComic, onCreateVolume }) {
+function ComicDetailPage({
+  authUser,
+  comicId,
+  onOpenVolume,
+  onEditComic,
+  onDeleteComic,
+  onCreateVolume,
+  globalNotice = '',
+  globalError = '',
+}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [comic, setComic] = useState(null)
@@ -55,7 +66,6 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deletingComic, setDeletingComic] = useState(false)
-  const reportScreenshotInputRef = useRef(null)
   const volumeGridRef = useRef(null)
   const volumeGridLeftRef = useRef(null)
   const volumeGridRightRef = useRef(null)
@@ -525,6 +535,8 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
   return (
     <main className="app-shell">
       <section className="app-card comic-detail-card">
+        {globalNotice ? <p className="form-message success">{globalNotice}</p> : null}
+        {globalError ? <p className="form-message error">{globalError}</p> : null}
         {error ? <p className="form-message error">{error}</p> : null}
         {reportNotice ? <p className="form-message success">{reportNotice}</p> : null}
 
@@ -921,28 +933,13 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
                 />
 
                 <label htmlFor="comic-report-screenshot">Captura de pantalla (opcional)</label>
-                <input
+                <FileInput
                   id="comic-report-screenshot"
-                  type="file"
                   accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleReportScreenshotChange}
+                  onFileChange={(file) => handleReportScreenshotChange({ target: { files: file ? [file] : [] } })}
                   disabled={isSubmittingReport}
-                  ref={reportScreenshotInputRef}
-                  className="file-input-hidden"
+                  initialFileName={reportScreenshotFile?.name}
                 />
-                <div className="file-input-control">
-                  <button
-                    type="button"
-                    className="file-input-trigger"
-                    onClick={() => reportScreenshotInputRef.current?.click()}
-                    disabled={isSubmittingReport}
-                  >
-                    Seleccionar archivo
-                  </button>
-                  <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
-                    {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
-                  </span>
-                </div>
 
                 {reportScreenshotPreview ? (
                   <div className="report-screenshot-preview-card">
@@ -955,21 +952,8 @@ function ComicDetailPage({ authUser, comicId, onOpenVolume, onEditComic, onDelet
                 ) : null}
 
                 <div className="report-modal-actions">
-                  <button
-                    type="button"
-                    className="report-modal-button secondary"
-                    onClick={closeReportModal}
-                    disabled={isSubmittingReport}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="report-modal-button"
-                    disabled={isSubmittingReport}
-                  >
-                    {isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}
-                  </button>
+                  <Button variant="secondary" className="report-modal-button secondary" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
+                  <Button variant="primary" className="report-modal-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
                 </div>
               </form>
             </div>

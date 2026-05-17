@@ -40,13 +40,20 @@
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  font-weight: 500;
+  white-space: nowrap;
+  font-weight: 600;
+  display: block;
 }
 
-.volume-cover-meta span:not(.volume-cover-comic-name) {
+.volume-cover-tomo,
+.volume-cover-isbn,
+.volume-cover-authors,
+.volume-cover-genres {
   color: #94a3b8;
-  font-size: 0.86rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
 }

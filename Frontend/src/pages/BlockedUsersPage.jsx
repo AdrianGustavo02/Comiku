@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getBlockedUsers, unblockUser } from '../firebase/user'
 import '../styles/ThematicListsShared.css'
+import Button from '../Components/Button'
 
 function BlockedUsersPage({ authUser, onBack }) {
   const [blockedUsers, setBlockedUsers] = useState([])
@@ -59,9 +60,9 @@ function BlockedUsersPage({ authUser, onBack }) {
         {error ? <p className="form-message error">{error}</p> : null}
 
         <div style={{ marginBottom: 12 }}>
-          <button className="profile-back-button" onClick={onBack} type="button">
+          <Button className="profile-back-button" onClick={onBack} type="button" variant="secondary">
             Volver a mi perfil
-          </button>
+          </Button>
         </div>
 
         {loading ? (
@@ -102,14 +103,15 @@ function BlockedUsersPage({ authUser, onBack }) {
                         </p>
                       )}
                     </div>
-                    <button
+                    <Button
                       type="button"
                       className="profile-back-button"
                       onClick={() => handleUnblock(user.uid)}
                       disabled={processingUid === user.uid}
+                      variant="secondary"
                     >
                       {processingUid === user.uid ? 'Desbloqueando...' : 'Desbloquear'}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

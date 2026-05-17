@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import { deleteVolumeByAdmin } from '../firebase/comics'
 import {
@@ -22,6 +22,8 @@ import {
 } from '../firebase/volumeLists'
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/VolumeDetailPage.css'
+import FileInput from '../Components/FileInput'
+import Button from '../Components/Button'
 
 function formatPublicationDate(publicationDate) {
   if (!publicationDate || !/^\d{4}-\d{2}$/.test(publicationDate)) {
@@ -76,8 +78,6 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
   const [reportError, setReportError] = useState('')
   const [reportNotice, setReportNotice] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
-  const reportScreenshotInputRef = useRef(null)
-
   const sortedReadings = [...(Array.isArray(libraryData.readingEntries) ? libraryData.readingEntries : [])]
     .sort((a, b) => b.date.getTime() - a.date.getTime())
 
@@ -525,6 +525,15 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
     const [year, month, day] = readingDate.split('-').map(Number)
     const readingDateValue = new Date(year, month - 1, day)
 
+    // Validar que la fecha no sea futura
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Comparar solo fechas, sin horas
+
+    if (readingDateValue > today) {
+      setListError('No puedes guardar una lectura con una fecha futura.')
+      return
+    }
+
     try {
       setIsAddingReading(true)
       setListError('')
@@ -865,28 +874,13 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
                 />
 
                 <label htmlFor="volume-report-screenshot">Captura de pantalla (opcional)</label>
-                <input
+                <FileInput
                   id="volume-report-screenshot"
-                  type="file"
                   accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleReportScreenshotChange}
+                  onFileChange={(file) => handleReportScreenshotChange({ target: { files: file ? [file] : [] } })}
                   disabled={isSubmittingReport}
-                  ref={reportScreenshotInputRef}
-                  className="file-input-hidden"
+                  initialFileName={reportScreenshotFile?.name}
                 />
-                <div className="file-input-control">
-                  <button
-                    type="button"
-                    className="file-input-trigger"
-                    onClick={() => reportScreenshotInputRef.current?.click()}
-                    disabled={isSubmittingReport}
-                  >
-                    Seleccionar archivo
-                  </button>
-                  <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
-                    {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
-                  </span>
-                </div>
 
                 {reportScreenshotPreview ? (
                   <div className="report-screenshot-preview-card">
@@ -899,21 +893,8 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
                 ) : null}
 
                 <div className="report-modal-actions">
-                  <button
-                    type="button"
-                    className="report-modal-button secondary"
-                    onClick={closeReportModal}
-                    disabled={isSubmittingReport}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="report-modal-button"
-                    disabled={isSubmittingReport}
-                  >
-                    {isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}
-                  </button>
+                  <Button variant="secondary" className="report-modal-button secondary" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
+                  <Button variant="primary" className="report-modal-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
                 </div>
               </form>
             </div>
@@ -936,23 +917,25 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
               </p>
 
               <div className="reading-modal-actions">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   className="reading-modal-button secondary"
                   onClick={() => setReadingToDelete(null)}
                   disabled={isMutatingList}
+                  type="button"
                 >
                   Cancelar
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="danger"
                   className="reading-modal-button destructive"
                   onClick={confirmDeleteReading}
                   disabled={isMutatingList}
+                  type="button"
                 >
                   Eliminar lectura
-                </button>
+                </Button>
               </div>
             </div>
           </div>

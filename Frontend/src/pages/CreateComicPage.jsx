@@ -7,6 +7,7 @@ import {
 } from '../constants/forbiddenInputCharacters'
 import '../styles/ComicForm.css'
 import { getComicById, updateComic } from '../firebase/comics'
+import Button from '../Components/Button'
 
 const STATUS_OPTIONS = ['En curso', 'Finalizado']
 
@@ -199,9 +200,9 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
           </div>
 
           <div className="hero-actions">
-            <button className="back-button" onClick={onBack} type="button">
+            <Button className="back-button" onClick={onBack} type="button" variant="secondary">
               Volver al inicio
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -231,23 +232,25 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
                   type="text"
                   value={author}
                 />
-                <button
+                <Button
                   className="small-button"
                   disabled={autores.length === 1}
                   onClick={() => removeAuthor(index)}
                   type="button"
+                  variant="secondary"
                 >
                   Quitar
-                </button>
+                </Button>
               </div>
             ))}
-            <button
+            <Button
               className="small-button secondary"
               onClick={() => setAutores((current) => [...current, ''])}
               type="button"
+              variant="secondary"
             >
               Agregar autor
-            </button>
+            </Button>
           </fieldset>
 
           <label htmlFor="comic-editorial">Editorial</label>
@@ -304,23 +307,25 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
                     </option>
                   ))}
                 </select>
-                <button
+                <Button
                   className="small-button"
                   disabled={generos.length === 1}
                   onClick={() => removeGenre(index)}
                   type="button"
+                  variant="secondary"
                 >
                   Quitar
-                </button>
+                </Button>
               </div>
             ))}
-            <button
+            <Button
               className="small-button secondary"
               onClick={() => setGeneros((current) => [...current, ''])}
               type="button"
+              variant="secondary"
             >
               Agregar género
-            </button>
+            </Button>
           </fieldset>
 
           <label htmlFor="comic-description">Descripción</label>
@@ -344,9 +349,9 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
             value={formato}
           />
 
-          <button className="primary-button" type="submit">
+          <Button className="primary-button" type="submit" variant="primary">
             {comicId ? 'Guardar cambios' : 'Siguiente'}
-          </button>
+          </Button>
         </form>
       </section>
     </main>

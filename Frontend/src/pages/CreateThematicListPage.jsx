@@ -119,7 +119,7 @@ function CreateThematicListPage({
   const [descripcion, setDescripcion] = useState('')
   const [esGuiaDeLectura, setEsGuiaDeLectura] = useState(false)
 
-  const [allComics, setAllComics] = useState([])
+  
   const [allComicVolumes, setAllComicVolumes] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -230,10 +230,6 @@ function CreateThematicListPage({
         setLoadingComics(true)
         const comics = await getAllComics()
 
-        if (!cancelled) {
-          setAllComics(comics)
-        }
-
         const comicsWithVolumes = await Promise.all(
           comics.map(async (comic) => {
             try {
@@ -243,6 +239,7 @@ function CreateThematicListPage({
                 comicId: comic.id,
                 comicNombre: comic.nombre,
                 comicEditorial: comic.editorial,
+                comicPaisEditorial: comic.paisEditorial,
                 comicAutores: comic.autores,
                 volume,
               }))
@@ -283,29 +280,7 @@ function CreateThematicListPage({
     }
   }, [step])
 
-  const filteredComics = useMemo(() => {
-    const { comicQuery } = parseComicSearchQuery(searchQuery)
-
-    if (!comicQuery) {
-      return []
-    }
-
-    return allComics
-      .map((comic) => ({
-        comic,
-        score: getSearchScore(normalizeText(comic.nombre), comicQuery),
-      }))
-      .filter((entry) => Number.isFinite(entry.score))
-      .sort((a, b) => {
-        if (a.score !== b.score) {
-          return a.score - b.score
-        }
-
-        return a.comic.nombre.localeCompare(b.comic.nombre, 'es')
-      })
-      .map((entry) => entry.comic)
-      .slice(0, 8)
-  }, [allComics, searchQuery])
+  
 
   const parsedSearch = useMemo(() => parseComicSearchQuery(searchQuery), [searchQuery])
 
@@ -358,7 +333,7 @@ function CreateThematicListPage({
 
         return a.comicNombre.localeCompare(b.comicNombre, 'es')
       })
-      .slice(0, 8)
+          .slice(0, 20)
   }, [allComicVolumes, parsedSearch.comicQuery, parsedSearch.volumeNumber])
 
   useEffect(() => {
@@ -385,12 +360,6 @@ function CreateThematicListPage({
     setIsSearchOpen(true)
   }
 
-  const handleSelectComic = (comic) => {
-    setSearchQuery(sanitizeForbiddenInputChars(comic.nombre))
-    setIsSearchOpen(false)
-    setError('')
-    setNotice('')
-  }
 
   const handleSelectVolume = (result) => {
     const volume = result.volume
@@ -414,8 +383,6 @@ function CreateThematicListPage({
     }
 
     setSelectedVolumes([...selectedVolumes, newVolume])
-    setSearchQuery('')
-    setIsSearchOpen(false)
     setError('')
     setNotice('')
   }
@@ -617,37 +584,15 @@ function CreateThematicListPage({
                   onFocus={() => setIsSearchOpen(true)}
                   className="search-input"
                 />
-
-                {isSearchOpen && filteredComics.length > 0 ? (
-                  <ul className="search-suggestion-list" role="listbox">
-                    {filteredComics.map((comic) => (
-                      <li key={comic.id}>
-                        <button
-                          type="button"
-                          className="search-suggestion-button"
-                          onClick={() => handleSelectComic(comic)}
-                        >
-                          <strong>{comic.nombre}</strong>
-                          <span>{comic.editorial || 'Sin editorial'}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                {isSearchOpen && normalizeText(searchQuery) && filteredComics.length === 0 ? (
-                  <p className="search-empty-state">No se encontraron comics con ese nombre.</p>
-                ) : null}
+                
               </div>
             </div>
 
-            {normalizeText(searchQuery) ? (
+            {isSearchOpen && normalizeText(searchQuery) ? (
               <p className="helper-text">Busca un comic para ver sus tomos y agregarlos.</p>
             ) : null}
 
-            {loadingComics ? (
-              <p className="helper-text">Cargando comics...</p>
-            ) : normalizeText(searchQuery) ? (
+            {isSearchOpen && normalizeText(searchQuery) ? (
               filteredVolumes.length === 0 ? (
                 <p className="helper-text">No se encontró ese tomo para este comic.</p>
               ) : (
@@ -658,12 +603,14 @@ function CreateThematicListPage({
                         <button
                           type="button"
                           className="search-suggestion-button"
+                          onMouseDown={(e) => e.stopPropagation()}
                           onClick={() => handleSelectVolume(result)}
                         >
                           <strong>{formatSearchResultTitle(result.comicNombre, result.volume)}</strong>
                           <span>
                             {result.comicEditorial || 'Sin editorial'}
-                            {' · '}
+                            {result.comicPaisEditorial ? ` (${result.comicPaisEditorial})` : ''}
+                            {' | '}
                             {result.comicAutores?.join(', ') || 'Sin autor'}
                           </span>
                         </button>

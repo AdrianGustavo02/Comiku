@@ -206,7 +206,7 @@ function LibraryPage({ authUser, onOpenComic }) {
                       <strong>{item.comic.nombre}</strong>
                       <span>{item.comic.editorial || 'Sin editorial'}</span>
                       <span>
-                        {featuredVolume ? getFeaturedVolumeTitle(featuredVolume) : 'Sin tomo destacado'}
+                        {item.comic.paisEditorial || 'País desconocido'}
                       </span>
                       <span>Tomos guardados: {item.volumes.length}</span>
                     </div>

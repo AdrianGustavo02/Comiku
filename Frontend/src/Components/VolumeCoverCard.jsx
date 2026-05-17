@@ -25,9 +25,9 @@ function VolumeCoverCard({ volume, onOpen, comicName }) {
       )}
 
       <div className="volume-cover-meta">
-        {comicName && <span className="volume-cover-comic-name">{comicName}</span>}
-        <strong>{formatVolumeTitle(volume)}</strong>
-        <span>ISBN: {volume.isbn || 'No definido'}</span>
+        {comicName && <strong className="volume-cover-comic-name">{comicName}</strong>}
+        <span className="volume-cover-tomo">{formatVolumeTitle(volume)}</span>
+        <span className="volume-cover-isbn">ISBN: {volume.isbn || 'No definido'}</span>
       </div>
     </button>
   )

@@ -21,6 +21,8 @@ import {
 } from '../constants/imageUpload'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 import '../styles/RegisterPage.css'
+import FileInput from '../Components/FileInput'
+import Button from '../Components/Button'
 
 const MINIMUM_AGE = 18
 
@@ -395,29 +397,14 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       />
 
       <label htmlFor="register-foto-perfil">Foto de perfil (opcional)</label>
-      <input
+      <FileInput
         id="register-foto-perfil"
         name="fotoPerfil"
-        type="file"
         accept=".jpg,.jpeg,.png,.webp"
-        onChange={handleFotoPerfilChange}
+        onFileChange={(file) => handleFotoPerfilChange({ target: { files: file ? [file] : [] } })}
         disabled={isSubmitting}
-        ref={fotoInputRef}
-        className="file-input-hidden"
+        initialFileName={fotoPerfilFileName}
       />
-      <div className="file-input-control">
-        <button
-          type="button"
-          className="file-input-trigger"
-          onClick={() => fotoInputRef.current?.click()}
-          disabled={isSubmitting}
-        >
-          Seleccionar archivo
-        </button>
-        <span className={`file-input-name ${fotoPerfilFileName ? 'has-file' : ''}`}>
-          {fotoPerfilFileName || 'Sin archivo seleccionado'}
-        </span>
-      </div>
       <div className="cover-preview-card">
         <p className="helper-text">
           {fotoPerfilFileName ? 'Tu foto de perfil' : 'Foto de perfil por defecto'}

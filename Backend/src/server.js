@@ -583,7 +583,16 @@ async function deleteVolumeCascade(adminDb, comicId, volumeId) {
 
   await volumeRef.delete();
 
-  return true;
+  // Si el cómic no tiene más tomos, eliminar el cómic también
+  const remainingVolumesSnapshot = await comicRef.collection('tomos').limit(1).get();
+
+  if (remainingVolumesSnapshot.empty) {
+    // eliminar el cómic y todo su contenido relacionado
+    await deleteComicCascade(adminDb, comicId);
+    return { comicDeleted: true };
+  }
+
+  return { comicDeleted: false };
 }
 
 async function deleteThematicListCascade(adminDb, listId) {
@@ -930,9 +939,13 @@ app.delete('/api/admin/comics/:comicId/volumes/:volumeId', async (req, res) => {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     await assertAdminRequest(adminDb, decodedToken.uid);
 
-    await deleteVolumeCascade(adminDb, req.params.comicId, req.params.volumeId);
+    const result = await deleteVolumeCascade(adminDb, req.params.comicId, req.params.volumeId);
 
-    return res.json({ ok: true, message: 'Tomo eliminado correctamente.' });
+    if (result && result.comicDeleted) {
+      return res.json({ ok: true, comicDeleted: true, message: 'Tomo eliminado. El cómic quedó sin tomos y fue eliminado automáticamente.' });
+    }
+
+    return res.json({ ok: true, comicDeleted: false, message: 'Tomo eliminado correctamente.' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No fue posible eliminar el tomo.';
     return res.status(500).json({ ok: false, message });

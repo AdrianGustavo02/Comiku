@@ -35,6 +35,7 @@ function Navbar({
   onOpenActivities,
   onOpenNotifications,
   onOpenReports,
+  onOpenCreationsReview,
   onOpenContacto,
   onOpenMensajesUsuarios,
   activePage,
@@ -155,6 +156,17 @@ function Navbar({
               Reportes
             </button>
           ) : null}
+          {canSeeReports ? (
+            <button
+              type="button"
+              className={`navbar-link-button ${activePage === 'creations-review' ? 'active' : ''}`}
+              onClick={() => {
+                if (typeof onOpenCreationsReview === 'function') onOpenCreationsReview()
+              }}
+            >
+              Creations
+            </button>
+          ) : null}
           {!canSeeReports && onOpenContacto ? (
             <button
               type="button"
@@ -205,7 +217,11 @@ function Navbar({
                   }}
                 >
                   <strong>{comic.nombre}</strong>
-                  <span>{comic.editorial || 'Sin editorial'}</span>
+                  <span className="suggestion-meta">
+                    {(comic.editorial || 'Sin editorial') + (comic.paisEditorial ? ` (${comic.paisEditorial})` : '')}
+                    {' | '}
+                    {(Array.isArray(comic.autores) && comic.autores.length > 0) ? comic.autores.join(', ') : 'Autores desconocidos'}
+                  </span>
                 </button>
               </li>
             ))}

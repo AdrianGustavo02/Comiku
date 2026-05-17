@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   addComicVolume,
   createComic,
@@ -7,6 +7,12 @@ import {
   getComicVolumeById,
   updateComicVolume,
 } from '../firebase/comics'
+import { auth } from '../firebase/firebase'
+import { getUserProfile } from '../firebase/user'
+import { addPendingCreation } from '../firebase/pendingCreations'
+import FileInput from '../Components/FileInput'
+import CoverPreview from '../Components/CoverPreview'
+import Button from '../Components/Button'
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_COVER_SIZE_BYTES,
@@ -66,7 +72,6 @@ function CreateComicVolumesPage({
   const [formError, setFormError] = useState('')
   const [formNotice, setFormNotice] = useState('')
   const [saving, setSaving] = useState(false)
-  const coverInputRef = useRef(null)
   const [comicMetadata, setComicMetadata] = useState(null)
   const isExistingComicMode = showComicMetadata
 
@@ -324,6 +329,36 @@ function CreateComicVolumesPage({
         return
       }
 
+      // Decide if we must create immediately or store as pending depending on user role
+      const currentUser = auth.currentUser
+      let userRole = 'usuario'
+
+      try {
+        if (currentUser?.uid) {
+          const profile = await getUserProfile(currentUser.uid)
+          userRole = profile?.rol || 'usuario'
+        }
+      } catch {
+        // ignore
+      }
+
+      if (userRole && String(userRole).toLowerCase() === 'usuario') {
+        // Save as pending creation instead of writing to Firestore directly
+          const pendingPayload = {
+            tipo: isExistingComicMode ? 'tomos' : 'comic_y_tomos',
+            UserID: currentUser?.uid || null,
+            metadata: isExistingComicMode ? null : comicDraft,
+            comicId: isExistingComicMode ? comicId : null,
+            tomos: finalVolumes,
+          }
+
+          await addPendingCreation(pendingPayload)
+        setFormNotice('Creación enviada para revisión por un administrador.')
+        // don't write anything yet
+        if (onFinishCreation) onFinishCreation(finalVolumes.length, true)
+        return
+      }
+
       const targetComicId = isExistingComicMode ? comicId : await createComic(comicDraft)
 
       if (!targetComicId) {
@@ -358,7 +393,7 @@ function CreateComicVolumesPage({
         })
       }
 
-      onFinishCreation(finalVolumes.length)
+      if (onFinishCreation) onFinishCreation(finalVolumes.length, false)
     } catch (error) {
       let message = error instanceof Error ? error.message : 'No fue posible finalizar la carga.'
       // Mapear errores técnicos de Firebase a mensajes amigables
@@ -590,42 +625,16 @@ function CreateComicVolumesPage({
           />
 
           <label htmlFor="volume-cover">Portada</label>
-          <input
-            accept=".jpg,.jpeg,.png,.webp"
+          <FileInput
             id="volume-cover"
-            onChange={(event) => {
-              const file = event.target.files?.[0] || null
-              updateCoverFile(file)
-            }}
+            accept=".jpg,.jpeg,.png,.webp"
             required={!volumeId}
-            type="file"
-            ref={coverInputRef}
-            className="file-input-hidden"
+            onFileChange={(file) => updateCoverFile(file)}
+            disabled={saving}
+            initialFileName={coverFileName}
           />
-          <div className="file-input-control">
-            <button
-              type="button"
-              className="file-input-trigger"
-              onClick={() => coverInputRef.current?.click()}
-              disabled={saving}
-            >
-              Seleccionar archivo
-            </button>
-            <span className={`file-input-name ${coverFileName ? 'has-file' : ''}`}>
-              {coverFileName || 'Sin archivo seleccionado'}
-            </span>
-          </div>
 
-          {coverPreviewUrl ? (
-            <div className="cover-preview-card">
-              <p className="helper-text">Vista previa de portada</p>
-              <img
-                className="cover-preview-image"
-                src={coverPreviewUrl}
-                alt="Vista previa de portada"
-              />
-            </div>
-          ) : null}
+          <CoverPreview src={coverPreviewUrl} alt="Vista previa de portada" />
 
           <div className="volume-actions">
             {!volumeId ? (

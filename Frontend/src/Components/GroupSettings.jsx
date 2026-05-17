@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { updateGroupChannel, addGroupMembers, makeGroupAdmin, leaveGroupChannel, removeGroupMember, adminDeleteChannel } from '../firebase/stream'
 import { createReport, hasPendingObjectReport, REPORT_REASON_OPTIONS_FOR_GROUP } from '../firebase/reports'
 import { ALLOWED_IMAGE_TYPES, MAX_COVER_SIZE_BYTES, createCompressedImageDataUrl, readFileAsDataUrl } from '../constants/imageUpload'
 import { getUserFriends, getUsersNicksByUids } from '../firebase/user'
+import FileInput from './FileInput'
+import CoverPreview from './CoverPreview'
+import Button from './Button'
 
 export default function GroupSettings({ channel, authUser, onClose = () => {}, onUpdated = () => {} }) {
   const members = channel?.data?.members || []
@@ -32,7 +35,6 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   const [reportScreenshotPreview, setReportScreenshotPreview] = useState(null)
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [reportError, setReportError] = useState('')
-  const reportScreenshotInputRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -379,35 +381,21 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
               <textarea value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
 
               <label>Captura de pantalla (opcional)</label>
-              <input
-                type="file"
+              <FileInput
+                id="report-screenshot"
                 accept=".jpg,.jpeg,.png,.webp"
-                onChange={handleReportScreenshotChange}
+                onFileChange={(file) => handleReportScreenshotChange({ target: { files: file ? [file] : [] } })}
                 disabled={isSubmittingReport}
-                ref={reportScreenshotInputRef}
-                className="file-input-hidden"
+                initialFileName={reportScreenshotFile?.name}
               />
-              <div className="file-input-control">
-                <button
-                  type="button"
-                  className="file-input-trigger"
-                  onClick={() => reportScreenshotInputRef.current?.click()}
-                  disabled={isSubmittingReport}
-                >
-                  Seleccionar archivo
-                </button>
-                <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
-                  {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
-                </span>
-              </div>
 
               {reportScreenshotPreview ? (
                 <div className="report-screenshot-preview-card"><img src={reportScreenshotPreview} alt="Vista previa" className="report-screenshot-preview-image" /></div>
               ) : null}
 
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-                <button type="button" className="profile-back-button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</button>
-                <button type="submit" className="delete-account-button" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</button>
+                <Button variant="secondary" className="profile-back-button" type="button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
+                <Button variant="primary" className="delete-account-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
               </div>
             </form>
           </div>
@@ -656,12 +644,12 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
                     Eliminar foto
                   </button>
                 </div>
-                <input
+                <FileInput
                   id="group-settings-image"
-                  type="file"
                   accept={ALLOWED_IMAGE_TYPES.join(',')}
-                  onChange={handleImageSelect}
-                  style={{ display: 'none' }}
+                  onFileChange={(file) => handleImageSelect({ target: { files: file ? [file] : [] } })}
+                  disabled={loading || deletingGroup}
+                  initialFileName={groupImagePreview ? 'Imagen seleccionada' : ''}
                 />
                 {errors.image && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{errors.image}</p>}
                 <div style={{ marginTop: 12, textAlign: 'center' }}>

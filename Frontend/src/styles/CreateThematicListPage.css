@@ -116,6 +116,12 @@
   gap: 1rem;
 }
 
+/* Limitar la altura visible de la lista de resultados temáticos para mostrar ~5 items y permitir scroll */
+.search-suggestion-list.thematic-volume-suggestions {
+  max-height: 240px;
+  overflow: auto;
+}
+
 .comic-search-card {
   background: #f9f9f9;
   border: 1px solid #ddd;

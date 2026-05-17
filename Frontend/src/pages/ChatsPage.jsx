@@ -5,6 +5,8 @@ import { getAllUsers, getUserFriends, isUserBlocked } from '../firebase/user'
 import { ALLOWED_IMAGE_TYPES, MAX_COVER_SIZE_BYTES, createCompressedImageDataUrl, readFileAsDataUrl } from '../constants/imageUpload'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListsPage.css'
+import FileInput from '../Components/FileInput'
+import Button from '../Components/Button'
 
 function normalizeText(value) {
   return (value || '').toLowerCase().trim()
@@ -301,32 +303,35 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
         </header>
 
         <div style={{ marginBottom: 12 }}>
-          <button
-            type="button"
+          <Button
+            variant="primary"
             className="delete-account-button"
+            type="button"
             onClick={handleStartConversationClick}
             disabled={loadingFriends}
             style={{ marginRight: 8 }}
           >
             {loadingFriends ? 'Cargando amigos...' : 'Iniciar conversacion'}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
             className="profile-back-button"
+            type="button"
             onClick={handleStartGroupConversationClick}
             disabled={loadingFriends}
             style={{ marginRight: 8 }}
           >
             Iniciar chat grupal
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
             className="profile-back-button"
+            type="button"
             onClick={onOpenFriends}
             style={{ marginRight: 8 }}
           >
             Mis amigos
-          </button>
+          </Button>
         </div>
 
         {error ? <p className="form-message error">{error}</p> : null}
@@ -396,18 +401,20 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                 </ul>
 
                 <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
                     className="delete-account-button"
+                    type="button"
                     onClick={handleGroupFormNextStep}
                     disabled={selectedGroupFriendUids.length < 2 || creatingGroupChat}
                   >
                     {selectedGroupFriendUids.length < 2 ? 'Selecciona al menos 2 amigos' : 'Continuar'}
-                  </button>
+                  </Button>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     className="profile-back-button"
+                    type="button"
                     onClick={() => {
                       setShowGroupFriendsList(false)
                       setSelectedGroupFriendUids([])
@@ -415,7 +422,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                     disabled={creatingGroupChat}
                   >
                     Cancelar
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -455,44 +462,36 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Foto del grupo (opcional)</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  type="button"
-                  className="profile-back-button"
-                  onClick={() => document.getElementById('group-image-input')?.click()}
-                  disabled={creatingGroupChat}
-                >
-                  Seleccionar imagen
-                </button>
-                <input
-                  id="group-image-input"
-                  type="file"
-                  accept={ALLOWED_IMAGE_TYPES.join(',')}
-                  onChange={handleGroupImageSelect}
-                  style={{ display: 'none' }}
-                />
-                {groupFormData.imagePreview && (
-                  <div style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden' }}>
-                    <img src={groupFormData.imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                )}
-              </div>
+              <FileInput
+                id="group-image-input"
+                accept={ALLOWED_IMAGE_TYPES.join(',')}
+                onFileChange={(file) => handleGroupImageSelect({ target: { files: file ? [file] : [] } })}
+                disabled={creatingGroupChat}
+                initialFileName={groupFormData.imagePreview ? 'Imagen seleccionada' : ''}
+              />
+              {groupFormData.imagePreview && (
+                <div style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
+                  <img src={groupFormData.imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
               {groupFormErrors.image && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{groupFormErrors.image}</p>}
             </div>
 
             <div style={{ marginTop: 20, display: 'flex', gap: 8 }}>
-              <button
-                type="button"
+              <Button
+                variant="primary"
                 className="delete-account-button"
+                type="button"
                 onClick={handleCreateGroupChat}
                 disabled={creatingGroupChat}
               >
                 {creatingGroupChat ? 'Creando grupo...' : 'Crear grupo'}
-              </button>
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 className="profile-back-button"
+                type="button"
                 onClick={() => {
                   setShowGroupFormStep(false)
                   setGroupFormData({ name: '', description: '', imageUrl: null, imagePreview: null })
@@ -501,7 +500,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                 disabled={creatingGroupChat}
               >
                 Atrás
-              </button>
+              </Button>
             </div>
           </section>
         ) : null}

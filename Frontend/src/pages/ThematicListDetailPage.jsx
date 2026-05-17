@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import VolumeCoverCard from '../Components/VolumeCoverCard'
+import Button from '../Components/Button'
 import {
   getThematicListById,
   getListVolumes,
@@ -35,6 +36,7 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deletingList, setDeletingList] = useState(false)
+  const [processingComment, setProcessingComment] = useState(false)
 
   const loadCommentsWithAuthors = async (currentListId) => {
     const comms = await getListComments({ listId: currentListId })
@@ -235,12 +237,17 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
     if (!commentText.trim()) return
 
     try {
+      if (processingComment) return
+      setProcessingComment(true)
       await addCommentToList({ listId, userId: authUser.uid, comentario: commentText.trim() })
       const comms = await loadCommentsWithAuthors(listId)
       setCommentText('')
       setList((prev) => ({ ...prev, cantidadComentarios: comms.length }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al agregar comentario')
+    }
+    finally {
+      setProcessingComment(false)
     }
   }
 
@@ -341,11 +348,11 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
           </div>
 
           <div className="hero-actions">
-            <button className="back-button" onClick={onBack} type="button">Volver</button>
+            <Button className="back-button" onClick={onBack} type="button" variant="secondary">Volver</Button>
             {canDeleteList ? (
-              <button className="danger-button" onClick={openDeleteListModal} type="button">
+              <Button className="danger-button" onClick={openDeleteListModal} type="button" variant="danger">
                 Eliminar lista
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>
@@ -353,17 +360,17 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
         {error ? <p className="form-message error">{error}</p> : null}
 
         <div className="thematic-list-detail-meta">
-          <button className="primary-button" onClick={handleToggleLike} disabled={processingLike} type="button">
+          <Button className="primary-button" onClick={handleToggleLike} disabled={processingLike} type="button" variant="primary">
             {liked ? '💙' : '🤍'} {list.cantidadLikes} 
-          </button>
+          </Button>
 
-          <button className="secondary-button" onClick={() => {}} type="button">
+          <Button className="secondary-button" onClick={() => {}} type="button" variant="secondary">
             🗨️ {list.cantidadComentarios}
-          </button>
+          </Button>
 
-          <button className="secondary-button" onClick={handleToggleSave} disabled={processingSave || list.userId === authUser?.uid} type="button">
+          <Button className="secondary-button" onClick={handleToggleSave} disabled={processingSave || list.userId === authUser?.uid} type="button" variant="secondary">
             {processingSave ? '...' : saved ? 'Guardada' : 'Guardar'}
-          </button>
+          </Button>
         </div>
 
         <div className="section-divider">
@@ -401,14 +408,15 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
                   </div>
                   <p>{c.comentario}</p>
                   {authUser?.uid === c.userId ? (
-                    <button
+                    <Button
                       type="button"
                       className="danger-button"
                       onClick={() => handleDeleteComment(c.id)}
                       disabled={deletingCommentId === c.id}
+                      variant="danger"
                     >
                       {deletingCommentId === c.id ? 'Eliminando...' : 'Eliminar comentario'}
-                    </button>
+                    </Button>
                   ) : null}
                 </li>
               ))}
@@ -418,7 +426,9 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
           <div className="comment-form">
             <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Deja un comentario..." rows={3} />
             <div className="form-actions">
-              <button className="primary-button" onClick={handleAddComment} type="button">Comentar</button>
+              <Button className="primary-button" onClick={handleAddComment} type="button" variant="primary" disabled={processingComment}>
+                {processingComment ? 'Comentando...' : 'Comentar'}
+              </Button>
             </div>
           </div>
         </div>

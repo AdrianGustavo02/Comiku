@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAllThematicLists } from '../firebase/thematicLists'
 import { getUsersWhoBlockedUser } from '../firebase/user'
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
+import Button from '../Components/Button'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListsPage.css'
 
@@ -198,22 +199,24 @@ function ThematicListsPage({
         {error ? <p className="form-message error">{error}</p> : null}
 
         <div className="thematic-lists-controls">
-          <button
+          <Button
             className="primary-button"
             onClick={onCreateList}
             type="button"
+            variant="primary"
           >
             Crear lista temática
-          </button>
+          </Button>
 
           {authUser?.uid && (
-            <button
+            <Button
               className="secondary-button"
               onClick={onOpenMyLists}
               type="button"
+              variant="secondary"
             >
               Mis listas temáticas
-            </button>
+            </Button>
           )}
         </div>
 

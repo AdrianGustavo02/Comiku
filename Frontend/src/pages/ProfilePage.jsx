@@ -25,6 +25,8 @@ import {
   readFileAsDataUrl,
 } from '../constants/imageUpload'
 import '../styles/ProfilePage.css'
+import FileInput from '../Components/FileInput'
+import Button from '../Components/Button'
 
 const MINIMUM_AGE = 18
 
@@ -329,8 +331,6 @@ function ProfilePage({
   const [pendingEditFotoName, setPendingEditFotoName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editFotoInputRef = useRef(null)
-  const reportScreenshotInputRef = useRef(null)
-
   // Report user state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_USER[0])
@@ -856,27 +856,13 @@ function ProfilePage({
                   />
 
                   <label>Foto de perfil (opcional)</label>
-                  <input
-                    type="file"
+                  <FileInput
+                    id="edit-foto"
                     accept=".jpg,.jpeg,.png,.webp"
-                    onChange={handleEditFotoChange}
+                    onFileChange={(file) => handleEditFotoChange({ target: { files: file ? [file] : [] } })}
                     disabled={isSaving}
-                    ref={editFotoInputRef}
-                    className="file-input-hidden"
+                    initialFileName={editFotoFileName}
                   />
-                  <div className="file-input-control">
-                    <button
-                      type="button"
-                      className="file-input-trigger"
-                      onClick={() => editFotoInputRef.current?.click()}
-                      disabled={isSaving}
-                    >
-                      Seleccionar archivo
-                    </button>
-                    <span className={`file-input-name ${editFotoFileName ? 'has-file' : ''}`}>
-                      {editFotoFileName || 'Sin archivo seleccionado'}
-                    </span>
-                  </div>
 
                   {editFotoPreview && (
                     <div className="cover-preview-card">
@@ -1028,27 +1014,13 @@ function ProfilePage({
               <textarea value={reportDescription} onChange={(e) => setReportDescription(sanitizeForbiddenInputChars(e.target.value))} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
 
               <label>Captura de pantalla (opcional)</label>
-              <input
-                type="file"
+              <FileInput
+                id="profile-report-screenshot"
                 accept=".jpg,.jpeg,.png,.webp"
-                onChange={handleReportScreenshotChange}
+                onFileChange={(file) => handleReportScreenshotChange({ target: { files: file ? [file] : [] } })}
                 disabled={isSubmittingReport}
-                ref={reportScreenshotInputRef}
-                className="file-input-hidden"
+                initialFileName={reportScreenshotFile?.name}
               />
-              <div className="file-input-control">
-                <button
-                  type="button"
-                  className="file-input-trigger"
-                  onClick={() => reportScreenshotInputRef.current?.click()}
-                  disabled={isSubmittingReport}
-                >
-                  Seleccionar archivo
-                </button>
-                <span className={`file-input-name ${reportScreenshotFile?.name ? 'has-file' : ''}`}>
-                  {reportScreenshotFile?.name || 'Sin archivo seleccionado'}
-                </span>
-              </div>
 
               {reportScreenshotPreview ? (
                 <div className="report-screenshot-preview-card">
@@ -1056,10 +1028,10 @@ function ProfilePage({
                 </div>
               ) : null}
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-                <button type="button" className="profile-back-button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</button>
-                <button type="submit" className="delete-account-button" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</button>
-              </div>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
+                  <Button variant="secondary" className="profile-back-button" type="button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
+                  <Button variant="primary" className="delete-account-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
+                </div>
             </form>
           </div>
         </div>

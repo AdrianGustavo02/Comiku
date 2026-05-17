@@ -9,6 +9,8 @@ import ComicDetailPage from './ComicDetailPage'
 import CreateComicPage from './CreateComicPage'
 import CreateComicVolumesPage from './CreateComicVolumesPage'
 import CreateThematicListPage from './CreateThematicListPage'
+import CreationsReviewPage from './CreationsReviewPage'
+import CreationDetailPage from './CreationDetailPage'
 import LibraryPage from './LibraryPage'
 import MyThematicListsPage from './MyThematicListsPage'
 import ProfilePage from './ProfilePage'
@@ -107,6 +109,18 @@ function parseRoute(pathname) {
 
   if (pathname === '/notificaciones') {
     return { page: 'notifications', comicId: '', volumeId: '' }
+  }
+
+  const creationsListMatch = pathname.match(/^\/admin\/creations$/)
+
+  if (creationsListMatch) {
+    return { page: 'creations-review', comicId: '', volumeId: '' }
+  }
+
+  const creationDetailMatch = pathname.match(/^\/admin\/creations\/([^/]+)$/)
+
+  if (creationDetailMatch) {
+    return { page: 'creation-detail', comicId: decodeURIComponent(creationDetailMatch[1]), volumeId: '' }
   }
 
   if (pathname === '/mensajes-usuarios') {
@@ -339,6 +353,13 @@ function Home() {
   const goToReports = () => {
     window.history.pushState({}, '', '/reportes')
     setActivePage('reports')
+    setActiveComicId('')
+    setActiveVolumeId('')
+  }
+
+  const goToCreationsReview = () => {
+    window.history.pushState({}, '', '/admin/creations')
+    setActivePage('creations-review')
     setActiveComicId('')
     setActiveVolumeId('')
   }
@@ -680,6 +701,7 @@ function Home() {
               return {
                 comicId: comic.id,
                 comicNombre: comic.nombre,
+                comicAutores: comic.autores || [],
                 comicGeneros: comic.generos,
                 matchedGenres,
                 score,
@@ -689,6 +711,7 @@ function Home() {
               return {
                 comicId: comic.id,
                 comicNombre: comic.nombre,
+                comicAutores: comic.autores || [],
                 comicGeneros: comic.generos,
                 matchedGenres,
                 score,
@@ -791,6 +814,7 @@ function Home() {
           onOpenMensajesUsuarios={goToMensajesUsuarios}
           onOpenActivities={goToActivities}
           onOpenNotifications={goToNotifications}
+          onOpenCreationsReview={goToCreationsReview}
           activePage={activePage}
           currentUserRole={currentUserRole}
         />
@@ -1013,12 +1037,12 @@ function Home() {
             setActivePage('comic-detail')
             goToComicDetail(activeComicId)
           }}
-          onFinishCreation={(volumeCount) => {
+          onFinishCreation={(volumeCount, pending) => {
             setAuthError('')
             setAuthNotice(
               createVolumesFromDetail
-                ? `Tomos agregados correctamente. Tomos cargados: ${volumeCount}.`
-                : `Comic y tomos creados correctamente. Tomos cargados: ${volumeCount}.`,
+                ? `Tomos agregados correctamente. Tomos cargados: ${volumeCount}.${pending ? ' Enviado para revisión por un administrador.' : ''}`
+                : `Comic y tomos creados correctamente. Tomos cargados: ${volumeCount}.${pending ? ' Enviado para revisión por un administrador.' : ''}`,
             )
             setActivePage(createVolumesFromDetail ? 'comic-detail' : 'home')
             setActiveComicDraft(null)
@@ -1085,6 +1109,8 @@ function Home() {
         <ComicDetailPage
           authUser={authUser}
           comicId={activeComicId}
+          globalNotice={authNotice}
+          globalError={authError}
           onOpenVolume={(volume) => {
             goToVolumeDetail({ comicId: activeComicId, volumeId: volume.id })
           }}
@@ -1097,7 +1123,7 @@ function Home() {
                 setActiveComicDraft(comic)
                 setActivePage('create-comic-volumes')
                 goToCreateComicVolumes()
-              } catch (error) {
+              } catch {
                 setAuthError('No fue posible cargar los datos del cómic para crear tomos.')
               }
             })()
@@ -1105,6 +1131,40 @@ function Home() {
           onDeleteComic={() => {
             setAuthNotice('Comic eliminado correctamente.')
             goToLibrary()
+          }}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'creations-review') {
+    return (
+      <>
+        {renderNavbar()}
+        <CreationsReviewPage
+          onBack={() => {
+            setActivePage('home')
+            goToHome()
+          }}
+        />
+      </>
+    )
+  }
+
+  if (activePage === 'creation-detail') {
+    return (
+      <>
+        {renderNavbar()}
+        <CreationDetailPage
+          creationId={activeComicId}
+          onBack={() => {
+            setActivePage('creations-review')
+            goToCreationsReview()
+          }}
+          onApproved={() => {
+            setAuthNotice('Creación aprobada correctamente.')
+            setActivePage('creations-review')
+            goToCreationsReview()
           }}
         />
       </>
@@ -1453,9 +1513,13 @@ function Home() {
                           )}
 
                           <div className="volume-cover-meta">
-                            <span className="volume-cover-comic-name">{comic.comicNombre}</span>
-                            <strong>{getFeaturedRecommendationLabel(featuredVolume)}</strong>
-                            <span>
+                            <strong className="volume-cover-comic-name">{comic.comicNombre}</strong>
+                            <span className="volume-cover-authors">
+                              {Array.isArray(comic.comicAutores) && comic.comicAutores.length > 0
+                                ? comic.comicAutores.join(', ')
+                                : 'Autores desconocidos'}
+                            </span>
+                            <span className="volume-cover-genres">
                               {comic.matchedGenres.length > 0
                                 ? comic.matchedGenres.join(', ')
                                 : 'Sugerencia general'}
