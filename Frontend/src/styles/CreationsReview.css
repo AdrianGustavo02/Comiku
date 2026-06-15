@@ -1,3 +1,25 @@
+.app-shell.creations-review-page {
+  min-height: auto;
+  place-items: start center;
+  padding-top: 0;
+}
+
+.creations-review-page .app-card.creations-review-page-card {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.creations-review-page-card {
+  display: grid;
+  gap: 22px;
+}
+
+.creations-review-loading {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  margin: 0;
+}
+
 .creations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -11,17 +33,19 @@
   gap: 14px;
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
 }
 
 .creation-card header h3 {
   margin: 0 0 4px;
+  color: #f8f3ff;
+  font-family: var(--font-sans);
 }
 
 .creation-card header small {
-  color: #64748b;
+  color: #cdbfe3;
 }
 
 .creation-card .metadata {
@@ -29,7 +53,7 @@
   gap: 6px;
   padding: 12px;
   border-radius: 14px;
-  background: rgba(248, 250, 252, 0.9);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .creation-card .metadata p {
@@ -48,8 +72,8 @@
   height: 96px;
   object-fit: cover;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .more-indicator {
@@ -60,10 +84,10 @@
   height: 96px;
   padding: 0 12px;
   border-radius: 12px;
-  border: 1px dashed rgba(100, 116, 139, 0.45);
-  color: #475569;
+  border: 1px dashed rgba(255, 138, 31, 0.35);
+  color: #ffd2a6;
   font-weight: 700;
-  background: rgba(248, 250, 252, 0.9);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .creation-card footer {
@@ -82,6 +106,7 @@
   }
 
   .creation-card footer > button {
+    flex: none;
     width: 100%;
   }
 }

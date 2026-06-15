@@ -1,0 +1,103 @@
+.image-cropper-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.image-cropper-card {
+  width: min(920px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  border-radius: 20px;
+  background: rgb(25, 14, 42);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  overflow-y: auto;
+}
+
+.image-cropper-header {
+  padding: 20px 20px 12px;
+}
+
+.image-cropper-title {
+  margin: 6px 0 8px;
+}
+
+.image-cropper-subtitle {
+  margin: 0;
+}
+
+.image-cropper-crop-area {
+  position: relative;
+  width: 100%;
+  height: min(64vh, 560px);
+  background: #0f172a;
+}
+
+.image-cropper-footer {
+  padding: 16px 20px 20px;
+}
+
+.image-cropper-zoom-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.image-cropper-zoom-input {
+  width: 100%;
+}
+
+.image-cropper-error {
+  margin-top: 12px;
+}
+
+.image-cropper-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.image-cropper-button {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.image-cropper-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.image-cropper-button-cancel {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.7);
+  color: #ffffff;
+}
+
+.image-cropper-button-cancel:hover:not(:disabled) {
+  background: rgba(157, 44, 44, 0.8);
+}
+
+.image-cropper-button-confirm {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
+}
+
+.image-cropper-button-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffbf75, #ff952f);
+}

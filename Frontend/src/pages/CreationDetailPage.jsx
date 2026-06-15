@@ -32,7 +32,7 @@ function formatPendingPublicationDate(value) {
   return `${month}-${year}`
 }
 
-function CreationDetailPage({ creationId, onBack, onApproved }) {
+function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -121,7 +121,10 @@ function CreationDetailPage({ creationId, onBack, onApproved }) {
       } catch {
         if (!cancelled) setError('No fue posible cargar la creación.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
+        }
       }
     }
 
@@ -450,21 +453,17 @@ function CreationDetailPage({ creationId, onBack, onApproved }) {
     }
   }
 
-  if (loading) return <main className="app-shell"><section className="app-card"><p className="status-message">Cargando...</p></section></main>
+  if (loading) return <main className="app-shell"><section className="app-card loading-card"><p className="status-message">Cargando detalles de creacion...</p></section></main>
 
   if (!item) return <main className="app-shell"><section className="app-card"><p className="status-message">No se encontró la creación.</p></section></main>
 
   return (
-    <main className="app-shell">
-      <section className="app-card">
-        <div className="app-hero">
+    <main className="app-shell creations-review-page">
+      <section className="app-card creations-review-page-card">
+        <div className="creation-page-hero">
           <div>
-            <p className="eyebrow">Admin / Creation</p>
             <h1>{item.tipo === 'tomos' ? 'Tomos' : 'Comic y tomos'}</h1>
-            <p className="lead">Enviado por: {remitenteNick || item.UserID || item.remitenteUid}</p>
-          </div>
-          <div className="hero-actions">
-            <Button className="back-button" onClick={onBack} type="button" variant="secondary">Volver</Button>
+            <p className="">Enviado por: {remitenteNick || item.UserID || item.remitenteUid}</p>
           </div>
         </div>
 
@@ -476,6 +475,7 @@ function CreationDetailPage({ creationId, onBack, onApproved }) {
           <p><strong>Estado:</strong> {localData.metadata?.estado || 'No definido'}</p>
           <p><strong>Géneros:</strong> {localData.metadata?.generos?.join(', ') || 'No definidos'}</p>
           <p><strong>Descripción:</strong> {localData.metadata?.descripcion || 'Sin descripción'}</p>
+          <p><strong>Formato:</strong> {localData.metadata?.formato || 'No definido'}</p>
           {item.tipo === 'comic_y_tomos' ? (
             <div>
               <Button className="secondary-button" onClick={openComicEditModal} type="button" variant="secondary">
@@ -510,10 +510,10 @@ function CreationDetailPage({ creationId, onBack, onApproved }) {
           )}
         </section>
 
-        <div style={{marginTop:20}}>
+        <div className="creation-detail-actions creation-detail-main-actions">
           <Button className="secondary-button" onClick={onBack} variant="secondary">Cancelar</Button>
-          <Button className="primary-button" onClick={handleApprove} style={{marginLeft:8}} variant="primary">Aprobar creación</Button>
-          <Button className="danger-button" onClick={() => setConfirmingDismiss(true)} style={{marginLeft:8}} variant="danger">Desestimar</Button>
+          <Button className="primary-button" onClick={handleApprove} variant="primary">Aprobar creación</Button>
+          <Button className="danger-button" onClick={() => setConfirmingDismiss(true)} variant="danger">Desestimar</Button>
         </div>
         {confirmingDismiss ? (
           <ConfirmModal
@@ -525,13 +525,11 @@ function CreationDetailPage({ creationId, onBack, onApproved }) {
         ) : null}
 
         {isComicEditOpen ? (
-          <div className="modal-backdrop" role="presentation" onClick={closeComicEditModal}>
-            <section className="app-card" style={{ width: 'min(780px, 92vw)', maxHeight: '90vh', overflow: 'auto' }} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-backdrop creation-detail-modal" role="presentation" onClick={closeComicEditModal} style={{ overflowY: 'auto' }}>
+            <section className="app-card creation-detail-modal-card creation-detail-modal-card-comic" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="app-hero">
                 <div>
-                  <p className="eyebrow">Admin / Edición</p>
                   <h2>Editar datos de comic</h2>
-                  <p className="lead">Ajusta metadata con las mismas validaciones de creación.</p>
                 </div>
               </div>
 
@@ -653,13 +651,11 @@ function CreationDetailPage({ creationId, onBack, onApproved }) {
         ) : null}
 
         {editingVolumeIndex !== null ? (
-          <div className="modal-backdrop" role="presentation" onClick={closeVolumeEditModal}>
-            <section className="app-card" style={{ width: 'min(680px, 92vw)', maxHeight: '90vh', overflow: 'auto' }} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-backdrop creation-detail-modal" role="presentation" onClick={closeVolumeEditModal} style={{ overflowY: 'auto' }}>
+            <section className="app-card creation-detail-modal-card creation-detail-modal-card-volume" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="app-hero">
                 <div>
-                  <p className="eyebrow">Admin / Edición</p>
                   <h2>Editar datos del tomo</h2>
-                  <p className="lead">Actualiza la metadata del tomo con validaciones de creación.</p>
                 </div>
               </div>
 

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { deleteThematicList, getUserThematicLists } from '../firebase/thematicLists'
+import ConfirmModal from '../Components/ConfirmModal'
 import '../styles/ThematicListsShared.css'
 import '../styles/MyThematicListsPage.css'
 
-function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
+function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList, onPageReady }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lists, setLists] = useState([])
   const [deletingId, setDeletingId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -16,6 +18,7 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
       if (!authUser?.uid) {
         if (!cancelled) {
           setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
         return
       }
@@ -40,6 +43,7 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
       } finally {
         if (!cancelled) {
           setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
@@ -52,9 +56,7 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
   }, [authUser?.uid])
 
   const handleDeleteList = async (listId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta lista?')) {
-      return
-    }
+    if (!listId) return
 
     try {
       setDeletingId(listId)
@@ -71,12 +73,13 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
       )
     } finally {
       setDeletingId(null)
+      setDeleteTarget(null)
     }
   }
 
   if (loading) {
     return (
-      <main className="app-shell">
+      <main className="app-shell my-thematic-lists-page loading">
         <section className="app-card loading-card">
           <p className="status-message">Cargando tus listas...</p>
         </section>
@@ -85,21 +88,20 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell my-thematic-lists-page">
       <section className="app-card user-list-page">
-        <header>
-          <p className="eyebrow">Comiku / Mis listas temáticas</p>
-          <h1>Mis listas temáticas</h1>
-          <p className="lead">Gestiona y personaliza tus listas temáticas.</p>
-        </header>
+        <header className="my-lists-page-header">
+          <div className="my-lists-page-header-text">
+            <h1>Mis listas temáticas</h1>
+            <p className="lead">Gestiona tus listas temáticas.</p>
+          </div>
 
-        {error ? <p className="form-message error">{error}</p> : null}
-
-        <div className="my-lists-actions">
           <button className="back-button" onClick={onBack} type="button">
             Volver
           </button>
-        </div>
+        </header>
+
+        {error ? <p className="form-message error">{error}</p> : null}
 
         {lists.length === 0 ? (
           <p className="user-empty-state">
@@ -136,9 +138,7 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
                   <strong>{list.nombre}</strong>
                   <p>{list.descripcion || 'Sin descripción'}</p>
                   <div className="thematic-list-meta">
-                    <span>
-                      {list.esGuiaDeLectura ? '📖 Guía de lectura' : '⭐ Destacados'}
-                    </span>
+                    {list.esGuiaDeLectura ? <span>📖 Guía de lectura</span> : null}
                   </div>
                 </div>
 
@@ -152,7 +152,7 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
                   </button>
                   <button
                     className="danger-button"
-                    onClick={() => handleDeleteList(list.id)}
+                    onClick={() => setDeleteTarget(list)}
                     disabled={deletingId === list.id}
                     type="button"
                   >
@@ -163,6 +163,17 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList }) {
             ))}
           </div>
         )}
+
+        {deleteTarget ? (
+          <ConfirmModal
+            title="Eliminar lista temática"
+            message={`Esta acción eliminará la lista "${deleteTarget.nombre}". No se puede deshacer esta acción.`}
+            confirmLabel={deletingId === deleteTarget.id ? 'Eliminando...' : 'Eliminar'}
+            confirmDisabled={deletingId === deleteTarget.id}
+            onCancel={() => setDeleteTarget(null)}
+            onConfirm={() => handleDeleteList(deleteTarget.id)}
+          />
+        ) : null}
       </section>
     </main>
   )

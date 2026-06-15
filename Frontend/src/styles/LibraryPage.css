@@ -1,6 +1,17 @@
+.app-shell.library-page-shell {
+  min-height: auto;
+  place-items: start center;
+  padding-top: 0;
+}
+
+.lead{
+  color: rgb(35, 35, 35);
+}
+
 .user-list-page {
   display: grid;
   gap: 14px;
+  color: rgb(35, 35, 35);
 }
 
 .user-list-filter {
@@ -10,65 +21,87 @@
 }
 
 .user-list-filter label {
-  color: #dbeafe;
+  color: rgb(35, 35, 35);
   font-weight: 700;
   font-size: 0.9rem;
 }
 
 .user-list-filter select {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.5);
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(35, 35, 35);
   padding: 10px 12px;
+}
+
+#library-genre-filter {
+  background: rgb(25, 14, 42);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+#library-genre-filter:focus {
+    outline: 3px solid rgba(255, 138, 31, 0.42);
+    outline-offset: 2px;
+    border-color: rgba(255, 138, 31, 0.58);
 }
 
 .user-list-search {
   display: grid;
   gap: 6px;
   max-width: 400px;
+  margin-bottom: 14px;
 }
 
 .user-list-search label {
-  color: #dbeafe;
+  color: rgb(35, 35, 35);
   font-weight: 700;
   font-size: 0.9rem;
 }
 
 .user-list-search input {
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 12px;
-  background: rgba(2, 6, 23, 0.5);
-  color: #f8fafc;
-  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgb(25, 14, 42);
+  color: white;
+  padding: 10px 12px 10px;
   font-size: 0.95rem;
   transition: all 0.2s ease;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 
 .user-list-search input:focus {
   outline: none;
-  border-color: rgba(96, 165, 250, 0.5);
-  background: rgba(2, 6, 23, 0.7);
+}
+
+.user-list-search input:focus-visible {
+  outline: 3px solid rgba(255, 138, 31, 0.42);
+  outline-offset: 2px;
+  border-color: rgba(255, 138, 31, 0.58);
+  box-shadow: 0 0 0 4px rgba(255, 138, 31, 0.12);
 }
 
 .user-comic-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .user-comic-card {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
 
 .user-comic-toggle {
   width: 100%;
   border: 0;
-  background: transparent;
-  color: #e2e8f0;
+  background: rgb(25, 14, 42);
+  color: #f8f3ff;
   text-align: left;
   padding: 14px;
   display: grid;
@@ -79,11 +112,11 @@
 }
 
 .user-comic-toggle:hover {
-  background: rgba(30, 64, 175, 0.18);
+  background: rgb(114, 60, 8);
 }
 
 .user-comic-toggle:focus-visible {
-  outline: 2px solid rgba(96, 165, 250, 0.95);
+  outline: 2px solid rgba(255, 139, 31, 0.305);
   outline-offset: -2px;
 }
 
@@ -92,8 +125,8 @@
   aspect-ratio: 3 / 4;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .user-comic-cover img,
@@ -106,7 +139,7 @@
 .user-comic-placeholder {
   display: grid;
   place-items: center;
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.88rem;
 }
 
@@ -121,24 +154,29 @@
 }
 
 .user-comic-toggle span {
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.88rem;
 }
 
 .user-empty-state {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.45);
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(35, 35, 35);
   padding: 14px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
+  .user-comic-list {
+    grid-template-columns: 1fr;
+  }
+
   .user-comic-toggle {
     grid-template-columns: 1fr;
   }
 
   .user-comic-cover {
-    max-width: 160px;
+    width: 100%;
+    max-width: none;
   }
 }

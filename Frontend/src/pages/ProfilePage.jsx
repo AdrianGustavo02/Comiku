@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   getUserProfile,
   updateUserProfile,
+  updateUserFeaturedComicIds,
   sendFriendRequest,
+  cancelSentFriendRequest,
   areFriends,
   removeFriend,
   getFriendRequests,
@@ -27,9 +29,9 @@ import {
 import '../styles/ProfilePage.css'
 import FileInput from '../Components/FileInput'
 import Button from '../Components/Button'
+import { getUserLibraryItems } from '../firebase/volumeLists'
 
 const MINIMUM_AGE = 18
-
 function sanitizeText(input) {
   return sanitizeForbiddenInputChars(input).trim()
 }
@@ -50,15 +52,55 @@ function formatDateDisplay(isoDate) {
   return `${dd}-${mm}-${yyyy}`
 }
 
+function getFeaturedLibraryVolume(volumes) {
+  if (!Array.isArray(volumes) || volumes.length === 0) {
+    return null
+  }
+
+  const sortedVolumes = [...volumes].sort((a, b) => {
+    if (a.tomoUnico && !b.tomoUnico) return -1
+    if (!a.tomoUnico && b.tomoUnico) return 1
+
+    if (a.numeroTomo === null && b.numeroTomo === null) return 0
+    if (a.numeroTomo === null) return 1
+    if (b.numeroTomo === null) return -1
+
+    return a.numeroTomo - b.numeroTomo
+  })
+
+  return (
+    sortedVolumes.find((volume) => volume.numeroTomo === 1) ??
+    sortedVolumes.find((volume) => volume.tomoUnico) ??
+    sortedVolumes[0]
+  )
+}
+
+function getFeaturedActionLabel({ isSelected, selectedCount }) {
+  if (isSelected) {
+    return 'Quitar destacado'
+  }
+
+  if (selectedCount >= 10) {
+    return 'Límite alcanzado'
+  }
+
+  return 'Agregar destacado'
+}
+
 function ProfilePage({
   authUser,
+  onLogout,
   onBack,
+  onUserBlocked,
   onDeleteAccount,
   onAccountDeleted,
   isDeletingAccount,
   globalError,
   profileUid,
+  onOpenComic,
+  onOpenLibrary,
   onGoToBlockedUsers,
+  onPageReady,
 }) {
   const [profileLoading, setProfileLoading] = useState(true)
   const [profileError, setProfileError] = useState('')
@@ -75,6 +117,10 @@ function ProfilePage({
   const [isBlockingProfileUser, setIsBlockingProfileUser] = useState(false)
   const [blockModalOpen, setBlockModalOpen] = useState(false)
   const [processingBlock, setProcessingBlock] = useState(false)
+  const [libraryItems, setLibraryItems] = useState([])
+  const [editFeaturedComicIds, setEditFeaturedComicIds] = useState([])
+  const [featuredComicSearch, setFeaturedComicSearch] = useState('')
+  const [visibleFeaturedComicCount, setVisibleFeaturedComicCount] = useState(12)
 
   useEffect(() => {
     let cancelled = false
@@ -98,13 +144,16 @@ function ProfilePage({
         }
 
         if (authUser?.uid && profileUid && profileUid !== authUser.uid) {
-          const blocked = await isUserBlocked(authUser.uid, profileUid)
+          const blockedByProfileUser = await isUserBlocked(authUser.uid, profileUid)
+          const blockedByMe = await isUserBlocked(profileUid, authUser.uid)
 
           if (!cancelled) {
-            setIsBlockedByProfileUser(blocked)
+            setIsBlockedByProfileUser(blockedByProfileUser)
+            setIsBlockingProfileUser(blockedByMe)
           }
         } else if (!cancelled) {
           setIsBlockedByProfileUser(false)
+          setIsBlockingProfileUser(false)
         }
       } catch (error) {
         if (!cancelled) {
@@ -117,6 +166,7 @@ function ProfilePage({
       } finally {
         if (!cancelled) {
           setProfileLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
@@ -133,7 +183,7 @@ function ProfilePage({
     let cancelled = false
 
     async function loadFriendshipStatus() {
-      if (!profileUid || profileUid === authUser?.uid) {
+      if (isOwnProfile) {
         setFriendshipStatus('none')
         return
       }
@@ -187,6 +237,22 @@ function ProfilePage({
     }
   }
 
+  const handleCancelSentFriendRequest = async () => {
+    if (!profileUid) return
+
+    try {
+      setProcessingFriendship(true)
+      await cancelSentFriendRequest(authUser.uid, profileUid)
+      setFriendshipStatus('none')
+    } catch (error) {
+      setProfileError(
+        error instanceof Error ? error.message : 'No fue posible cancelar la solicitud.'
+      )
+    } finally {
+      setProcessingFriendship(false)
+    }
+  }
+
   const handleRemoveFriend = async () => {
     if (!profileUid) return
 
@@ -211,7 +277,12 @@ function ProfilePage({
       await blockUser(authUser.uid, profileUid)
       setIsBlockingProfileUser(true)
       setBlockModalOpen(false)
-      setProfileError('Usuario bloqueado exitosamente.')
+      if (typeof onUserBlocked === 'function') {
+        onUserBlocked({ uid: profileUid, nick: profileData?.nick || '' })
+      } else {
+        setProfileNotice('Usuario bloqueado exitosamente.')
+        onBack?.()
+      }
     } catch (error) {
       setProfileError(
         error instanceof Error ? error.message : 'No fue posible bloquear el usuario.'
@@ -316,12 +387,13 @@ function ProfilePage({
     nombre: '',
     apellido: '',
     nick: '',
-    fechaCumpleanos: '',
+    fechaNacimiento: '',
   })
   const [currentUserRole, setCurrentUserRole] = useState('')
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [roleModalStep, setRoleModalStep] = useState(null)
   const [roleConfirmInput, setRoleConfirmInput] = useState('')
+  const isRevokingRole = isAdminRole(profileData?.rol)
   const [profileNotice, setProfileNotice] = useState('')
   const [editFotoData, setEditFotoData] = useState(null)
   const [editFotoPreview, setEditFotoPreview] = useState('')
@@ -339,6 +411,7 @@ function ProfilePage({
   const [reportScreenshotPreview, setReportScreenshotPreview] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [reportError, setReportError] = useState('')
+  const isOwnProfile = !profileUid || profileUid === authUser?.uid
 
   useEffect(() => {
     if (profileData) {
@@ -346,13 +419,40 @@ function ProfilePage({
         nombre: profileData.nombre || '',
         apellido: profileData.apellido || '',
         nick: profileData.nick || '',
-        fechaCumpleanos: profileData.fechaCumpleanos || '',
+        fechaNacimiento: profileData.fechaNacimiento || '',
       })
+      setEditFeaturedComicIds(Array.isArray(profileData.featuredComicIds) ? profileData.featuredComicIds.slice(0, 10) : [])
       setEditFotoData(null)
       setEditFotoFileName('')
       setEditFotoPreview(profileData.fotoPerfil || '')
     }
   }, [profileData])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadLibraryItems() {
+      const uidToLoad = profileUid || authUser?.uid
+
+      if (!uidToLoad) {
+        if (!cancelled) setLibraryItems([])
+        return
+      }
+
+      try {
+        const items = await getUserLibraryItems({ uid: uidToLoad })
+        if (!cancelled) setLibraryItems(items)
+      } catch {
+        if (!cancelled) setLibraryItems([])
+      }
+    }
+
+    loadLibraryItems()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authUser?.uid, profileUid])
 
   useEffect(() => {
     let cancelled = false
@@ -374,6 +474,7 @@ function ProfilePage({
   const handleStartEdit = () => setIsEditing(true)
   const handleCancelEdit = () => {
     setIsEditing(false)
+    setEditFeaturedComicIds(Array.isArray(profileData?.featuredComicIds) ? profileData.featuredComicIds.slice(0, 10) : [])
     setEditFotoData(null)
     setEditFotoFileName('')
     setIsEditCropOpen(false)
@@ -385,7 +486,7 @@ function ProfilePage({
         nombre: profileData.nombre || '',
         apellido: profileData.apellido || '',
         nick: profileData.nick || '',
-        fechaCumpleanos: profileData.fechaCumpleanos || '',
+        fechaNacimiento: profileData.fechaNacimiento || '',
       })
     }
     if (editFotoInputRef.current) editFotoInputRef.current.value = ''
@@ -454,7 +555,7 @@ function ProfilePage({
   const handleSaveProfile = async () => {
     setIsSaving(true)
     try {
-      const { nombre, apellido, nick, fechaCumpleanos } = editForm
+      const { nombre, apellido, nick, fechaNacimiento } = editForm
 
       const safeNick = sanitizeText(nick)
       const safeNombre = sanitizeText(nombre)
@@ -468,11 +569,11 @@ function ProfilePage({
         throw new Error('El campo "Nick" es obligatorio.')
       }
 
-      if (!fechaCumpleanos) {
+      if (!fechaNacimiento) {
         throw new Error('Ingresa una fecha de cumpleaños válida.')
       }
 
-      const birthDate = new Date(`${fechaCumpleanos}T00:00:00`)
+      const birthDate = new Date(`${fechaNacimiento}T00:00:00`)
       if (Number.isNaN(birthDate.getTime())) {
         throw new Error('Ingresa una fecha de cumpleaños válida.')
       }
@@ -505,8 +606,15 @@ function ProfilePage({
         nombre: safeNombre,
         apellido: safeApellido,
         nick: safeNick,
-        fechaCumpleanos,
+        fechaNacimiento,
         fotoPerfil: typeof fotoPayload === 'undefined' ? undefined : fotoPayload,
+      })
+
+      await updateUserFeaturedComicIds({
+        uid: authUser.uid,
+        comicIds: editFeaturedComicIds.filter((comicId) =>
+          libraryItems.some((item) => item.comicId === comicId),
+        ),
       })
 
       const refreshed = await getUserProfile(authUser.uid)
@@ -520,6 +628,54 @@ function ProfilePage({
       setIsSaving(false)
     }
   }
+
+  const handleToggleFeaturedComic = (comicId) => {
+    setEditFeaturedComicIds((prev) => {
+      if (prev.includes(comicId)) {
+        return prev.filter((value) => value !== comicId)
+      }
+
+      if (prev.length >= 10) {
+        setProfileError('Solo puedes destacar hasta 10 comics.')
+        return prev
+      }
+
+      return [...prev, comicId]
+    })
+  }
+
+  const featuredComicItems = useMemo(() => {
+    const selectedIds = Array.isArray(profileData?.featuredComicIds)
+      ? profileData.featuredComicIds
+      : []
+
+    const itemMap = new Map(libraryItems.map((item) => [item.comicId, item]))
+    const sourceIds = isEditing ? editFeaturedComicIds : selectedIds
+
+    return sourceIds
+      .map((comicId) => itemMap.get(comicId))
+      .filter(Boolean)
+      .slice(0, 10)
+  }, [editFeaturedComicIds, isEditing, libraryItems, profileData?.featuredComicIds])
+
+  const filteredLibraryItems = useMemo(() => {
+    const query = featuredComicSearch.trim().toLowerCase()
+
+    if (!query) {
+      return libraryItems
+    }
+
+    return libraryItems.filter((item) => {
+      const comicName = String(item?.comic?.nombre ?? '').toLowerCase()
+      const nick = String(item?.comic?.nick ?? '').toLowerCase()
+
+      return comicName.includes(query) || nick.includes(query)
+    })
+  }, [featuredComicSearch, libraryItems])
+
+  useEffect(() => {
+    setVisibleFeaturedComicCount(12)
+  }, [featuredComicSearch, libraryItems])
 
   const openReportModal = async () => {
     setReportError('')
@@ -617,6 +773,28 @@ function ProfilePage({
     setRoleConfirmInput('')
   }
 
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const toggleOptions = () => setOptionsOpen((s) => !s)
+  const optionsOpenRef = useRef(false)
+
+  useEffect(() => {
+    optionsOpenRef.current = optionsOpen
+  }, [optionsOpen])
+
+  useEffect(() => {
+    function handleOutsideClick(ev) {
+      if (!optionsOpenRef.current) return
+      const wrappers = Array.from(document.querySelectorAll('.other-options-wrapper'))
+      const clickedInsideAny = wrappers.some((w) => w.contains(ev.target))
+      if (!clickedInsideAny) {
+        setOptionsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
   const handleCancelChangeRole = () => {
     setRoleModalOpen(false)
     setRoleModalStep(null)
@@ -625,16 +803,18 @@ function ProfilePage({
 
   const handlePerformChangeRole = async () => {
     if (!profileUid) return
+    const isRevoking = isAdminRole(profileData?.rol)
 
     try {
       setIsSaving(true)
       setProfileError('')
       setProfileNotice('')
-      // call firebase
-      await setUserRole(profileUid, 'admin')
+      // call firebase: toggle role based on current role
+      const nextRole = isRevoking ? 'usuario' : 'admin'
+      await setUserRole(profileUid, nextRole)
       const refreshed = await getUserProfile(profileUid)
       setProfileData(refreshed)
-      setProfileNotice('Rol actualizado a admin correctamente.')
+      setProfileNotice(isRevoking ? 'Rol revocado correctamente.' : 'Rol otorgado correctamente.')
       setRoleModalOpen(false)
       setRoleModalStep(null)
     } catch (error) {
@@ -644,44 +824,173 @@ function ProfilePage({
     }
   }
 
+  if (profileLoading) {
+    return (
+      <main className="app-shell">
+        <section className="app-card loading-card">
+          <p className="status-message">Cargando datos del perfil...</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (isBlockedByProfileUser && !isOwnProfile) {
+    return (
+      <main className="app-shell profile-page-shell">
+        <section className="app-card profile-card">
+          <section className="info-card">
+            <p className="form-message error" style={{ textAlign: 'center', padding: '20px' }}>
+              Este usuario te bloqueó. No puedes ver su perfil.
+            </p>
+            <div className="profile-blocked-actions profile-blocked-actions-single">
+              <button className="profile-back-button" onClick={onBack} type="button">
+                Volver atrás
+              </button>
+            </div>
+          </section>
+        </section>
+      </main>
+    )
+  }
+
+  if (isBlockingProfileUser && !isOwnProfile) {
+    return (
+      <main className="app-shell profile-page-shell">
+        <section className="app-card profile-card">
+          <section className="info-card">
+            <p className="form-message error" style={{ textAlign: 'center', padding: '20px' }}>
+              Tienes bloqueado a este usuario. No puedes acceder a su perfil.
+            </p>
+            <div className="profile-blocked-actions">
+              <button className="profile-back-button" onClick={onBack} type="button">
+                Volver a inicio
+              </button>
+              <button className="delete-account-button" onClick={onGoToBlockedUsers} type="button">
+                Ir a usuarios bloqueados
+              </button>
+            </div>
+          </section>
+        </section>
+      </main>
+    )
+  }
+
   return (
-    <main className="app-shell">
+    <main className="app-shell profile-page-shell">
       <section className="app-card profile-card">
-        <div className="app-hero profile-hero">
-          <div>
-            <p className="eyebrow">Comiku / Perfil</p>
-            <h1>Perfil de usuario</h1>
-            <p className="lead">Aquí puedes revisar tus datos y eliminar tu cuenta.</p>
+          <div className="app-hero profile-hero">
+          <div className="profile-header">
+            <div className="profile-header-media">
+              {(isEditing ? (editFotoPreview || profileData?.fotoPerfil) : profileData?.fotoPerfil) ? (
+                <img
+                  className="profile-header-image"
+                  src={isEditing ? (editFotoPreview || profileData.fotoPerfil) : profileData.fotoPerfil}
+                  alt={`Foto de ${profileData.nick || 'usuario'}`}
+                />
+              ) : (
+                <div className="profile-header-placeholder">Sin foto</div>
+              )}
+
+              {isEditing ? (
+                <div className="profile-header-file-input">
+                  <FileInput
+                    id="edit-foto"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    onFileChange={(file) => handleEditFotoChange({ target: { files: file ? [file] : [] } })}
+                    disabled={isSaving}
+                    initialFileName={editFotoFileName}
+                  />
+
+                </div>
+              ) : null}
+            </div>
+
+            <div className="profile-header-body">
+              {isEditing ? (
+                <input
+                  className="profile-nick-input"
+                  type="text"
+                  value={editForm.nick}
+                  onChange={(e) => setEditForm((s) => ({ ...s, nick: sanitizeForbiddenInputChars(e.target.value) }))}
+                  disabled={isSaving}
+                  aria-label="Nick"
+                />
+              ) : (
+                <h1 className="profile-nick">{profileData?.nick || 'Usuario'}</h1>
+              )}
+
+              <div className="profile-stats">
+                <button
+                  type="button"
+                  className="profile-stat profile-stat-highlight"
+                  onClick={() => onOpenLibrary ? onOpenLibrary(profileUid || authUser?.uid, profileData?.nick) : window.history.pushState({}, '', '/biblioteca')}
+                >
+                  <strong>{profileData?.totalComics ?? 0}</strong>
+                  <span>Comics</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="profile-stat profile-stat-highlight"
+                  onClick={() => onOpenLibrary ? onOpenLibrary(profileUid || authUser?.uid, profileData?.nick) : window.history.pushState({}, '', '/biblioteca')}
+                >
+                  <strong>{profileData?.totalTomos ?? 0}</strong>
+                  <span>Tomos</span>
+                </button>
+              </div>
+
+            </div>
           </div>
 
           <div className="hero-actions profile-actions">
-            <button className="profile-back-button" onClick={onBack} type="button">
-              Volver al inicio
-            </button>
-                {profileUid &&
-                profileUid !== authUser?.uid &&
-                isAdminRole(currentUserRole) &&
-                !isAdminRole(profileData?.rol) ? (
-                  <button
-                    className="profile-back-button"
-                    onClick={() => {
-                      setProfileError('')
-                      setProfileNotice('')
-                      setRoleConfirmInput('')
-                      setRoleModalStep(1)
-                      setRoleModalOpen(true)
-                    }}
-                    type="button"
-                  >
-                    Cambiar rol
+            {isOwnProfile ? (
+              <>
+                {isEditing ? (
+                  <div className="profile-header-edit-actions profile-header-edit-actions-right">
+                    <Button className="delete-account-button" type="button" onClick={handleCancelEdit} disabled={isSaving} variant="secondary">
+                      Cancelar
+                    </Button>
+                    <Button className="profile-back-button profile-save-button" type="button" onClick={handleSaveProfile} disabled={isSaving} variant="primary">
+                      {isSaving ? 'Guardando...' : 'Guardar cambios'}
+                    </Button>
+                  </div>
+                ) : (
+                  <button className="profile-back-button" type="button" onClick={handleStartEdit}>
+                    Editar datos
                   </button>
-                ) : null}
+                )}
 
-            {profileUid && profileUid !== authUser?.uid ? (
+                <div className="other-options-wrapper">
+                  <button className="dropdown-toggle" onClick={toggleOptions} aria-expanded={optionsOpen} type="button">
+                    Otras opciones <span className={`dropdown-arrow ${optionsOpen ? 'open' : ''}`}></span>
+                  </button>
+
+                  {optionsOpen ? (
+                    <div className="dropdown-menu" role="menu">
+                      <button className="dropdown-item" type="button" onClick={() => { onGoToBlockedUsers(); setOptionsOpen(false); }}>
+                        Usuarios bloqueados
+                      </button>
+
+                      {typeof onLogout === 'function' ? (
+                        <button className="dropdown-item logout-item" type="button" onClick={() => { setOptionsOpen(false); onLogout(); }}>
+                          Cerrar sesión
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : (
               <>
                 <button
-                  className={friendshipStatus === 'friends' ? 'delete-account-button' : 'profile-back-button'}
-                  onClick={friendshipStatus === 'friends' ? handleRemoveFriend : handleSendFriendRequest}
+                  className={friendshipStatus === 'friends' ? 'danger-button' : 'profile-back-button'}
+                  onClick={
+                    friendshipStatus === 'friends'
+                      ? handleRemoveFriend
+                      : friendshipStatus === 'requested'
+                        ? handleCancelSentFriendRequest
+                        : handleSendFriendRequest
+                  }
                   type="button"
                   disabled={processingFriendship || isBlockedByProfileUser || isBlockingProfileUser}
                 >
@@ -694,57 +1003,59 @@ function ProfilePage({
                         : 'Agregar amigo'}
                 </button>
 
-                <button
-                  className={isBlockingProfileUser ? 'delete-account-button' : 'profile-back-button'}
-                  onClick={isBlockingProfileUser ? handleUnblockUser : () => setBlockModalOpen(true)}
-                  type="button"
-                  disabled={processingBlock}
-                >
-                  {processingBlock
-                    ? 'Procesando...'
-                    : isBlockingProfileUser
-                      ? 'Desbloquear usuario'
-                      : 'Bloquear usuario'}
-                </button>
-                {isAdminRole(currentUserRole) ? (
-                  <button
-                    className="delete-account-button"
-                    onClick={handleDeleteClick}
-                    type="button"
-                    disabled={isBlockingProfileUser}
-                  >
-                    Eliminar cuenta
+                <div className="other-options-wrapper">
+                  <button className="dropdown-toggle" onClick={toggleOptions} aria-expanded={optionsOpen} type="button">
+                    Otras opciones <span className={`dropdown-arrow ${optionsOpen ? 'open' : ''}`}></span>
                   </button>
-                ) : null}
-                <button
-                  className="profile-back-button"
-                  onClick={openReportModal}
-                  type="button"
-                  disabled={isBlockingProfileUser}
-                >
-                  Reportar usuario
-                </button>
-              </>
-            ) : (
-              <>
-                {!isEditing ? (
-                  <button className="profile-back-button" onClick={handleStartEdit} type="button">
-                    Editar datos de usuario
-                  </button>
-                ) : (
-                  <>
-                    <button className="profile-back-button" onClick={handleCancelEdit} type="button">
-                      Cancelar
-                    </button>
-                    <button className="delete-account-button" onClick={handleSaveProfile} type="button" disabled={isSaving}>
-                      {isSaving ? 'Guardando...' : 'Guardar cambios'}
-                    </button>
-                  </>
-                )}
 
-                <button className="profile-back-button" onClick={onGoToBlockedUsers} type="button">
-                  Usuarios bloqueados
-                </button>
+                  {optionsOpen ? (
+                    <div className="dropdown-menu" role="menu">
+                      {isAdminRole(currentUserRole) ? (
+                        <button
+                          className="dropdown-item"
+                          type="button"
+                          onClick={() => {
+                            setProfileError('')
+                            setProfileNotice('')
+                            setRoleConfirmInput('')
+                            setRoleModalStep(1)
+                            setRoleModalOpen(true)
+                            setOptionsOpen(false)
+                          }}
+                        >
+                          {isAdminRole(profileData?.rol) ? 'Revocar administrador' : 'Otorgar administrador'}
+                        </button>
+                      ) : null}
+
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => {
+                          setOptionsOpen(false)
+                          setBlockModalOpen(true)
+                        }}
+                      >
+                        {isBlockingProfileUser ? 'Desbloquear usuario' : 'Bloquear usuario'}
+                      </button>
+
+                      <button className="dropdown-item" type="button" onClick={() => { setOptionsOpen(false); openReportModal(); }}>
+                        Reportar usuario
+                      </button>
+
+                      {isAdminRole(currentUserRole) ? (
+                        <button className="dropdown-item delete-account-item" type="button" onClick={() => { setOptionsOpen(false); handleDeleteClick(); }}>
+                          Eliminar cuenta
+                        </button>
+                      ) : null}
+
+                      {typeof onLogout === 'function' ? (
+                        <button className="dropdown-item logout-item" type="button" onClick={() => { setOptionsOpen(false); onLogout(); }}>
+                          Cerrar sesión
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </>
             )}
           </div>
@@ -759,21 +1070,10 @@ function ProfilePage({
           <section className="info-card">
             <p className="status-message">Cargando datos del perfil...</p>
           </section>
-        ) : isBlockedByProfileUser && profileUid && profileUid !== authUser?.uid ? (
-          <section className="info-card">
-            <p className="form-message error" style={{ textAlign: 'center', padding: '20px' }}>
-              Este usuario te bloqueó. No puedes ver su perfil.
-            </p>
-            <div style={{ marginTop: 12, textAlign: 'center' }}>
-              <button className="profile-back-button" onClick={onBack} type="button">
-                Volver atrás
-              </button>
-            </div>
-          </section>
         ) : (
           <div className="content-grid profile-grid">
             <section className="info-card">
-              <h2>Datos básicos</h2>
+              <h2>Datos de usuario</h2>
 
               {!isEditing ? (
                 <>
@@ -782,11 +1082,7 @@ function ProfilePage({
                       <span>Nombre:</span>
                       <strong>{fullName || 'No definido'}</strong>
                     </li>
-                    <li>
-                      <span>Nick:</span>
-                      <strong>{profileData?.nick || 'No definido'}</strong>
-                    </li>
-                    {!profileUid || profileUid === authUser?.uid ? (
+                    {isOwnProfile ? (
                       <li>
                         <span>Correo:</span>
                         <strong>{profileData?.email || authUser?.email || 'No definido'}</strong>
@@ -794,32 +1090,13 @@ function ProfilePage({
                     ) : null}
                     <li>
                       <span>Fecha de nacimiento:</span>
-                      <strong>{formatDateDisplay(profileData?.fechaCumpleanos) || 'No definido'}</strong>
-                    </li>
-                    <li>
-                      <span>Total cómics en biblioteca:</span>
-                      <strong>{profileData?.totalComics ?? 0}</strong>
-                    </li>
-                    <li>
-                      <span>Total tomos en biblioteca:</span>
-                      <strong>{profileData?.totalTomos ?? 0}</strong>
+                      <strong>{formatDateDisplay(profileData?.fechaNacimiento) || 'No definido'}</strong>
                     </li>
                     <li>
                       <span>Amigos:</span>
                       <strong>{profileData?.cantidadAmigos ?? 0}</strong>
                     </li>
                   </ul>
-
-                  {profileData?.fotoPerfil && (
-                    <div className="profile-picture-section">
-                      <p className="profile-picture-label">Foto de perfil:</p>
-                      <img
-                        className="profile-picture"
-                        src={profileData.fotoPerfil}
-                        alt="Foto de perfil del usuario"
-                      />
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="profile-edit-form">
@@ -850,54 +1127,160 @@ function ProfilePage({
                   <label>Fecha de nacimiento</label>
                   <input
                     type="date"
-                    value={editForm.fechaCumpleanos}
-                    onChange={(e) => setEditForm((s) => ({ ...s, fechaCumpleanos: e.target.value }))}
+                    value={editForm.fechaNacimiento}
+                    onChange={(e) => setEditForm((s) => ({ ...s, fechaNacimiento: e.target.value }))}
                     disabled={isSaving}
                   />
-
-                  <label>Foto de perfil (opcional)</label>
-                  <FileInput
-                    id="edit-foto"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    onFileChange={(file) => handleEditFotoChange({ target: { files: file ? [file] : [] } })}
-                    disabled={isSaving}
-                    initialFileName={editFotoFileName}
-                  />
-
-                  {editFotoPreview && (
-                    <div className="cover-preview-card">
-                      <p className="helper-text">Vista previa</p>
-                      <img className="cover-preview-image" src={editFotoPreview} alt="Preview" />
-                    </div>
-                  )}
                 </div>
               )}
             </section>
-
-            {(!profileUid || profileUid === authUser?.uid) && (
-              <section className="info-card danger-zone">
-                <h2>Zona de peligro</h2>
-                <p>
-                  Al eliminar la cuenta, se borrará tu usuario de autenticación y tus
-                  documentos de Firestore asociados por UID.
-                </p>
-                <p>
-                  El sistema aplica doble confirmación para evitar eliminaciones
-                  accidentales.
-                </p>
-
-                <button
-                  className="delete-account-button"
-                  onClick={handleDeleteClick}
-                  type="button"
-                  disabled={isDeletingAccount}
-                >
-                  {isDeletingAccount ? 'Eliminando cuenta...' : 'Eliminar cuenta'}
-                </button>
-              </section>
-            )}
           </div>
         )}
+
+        {!profileLoading ? (
+          <section className="info-card featured-comics-card">
+            <div className="featured-comics-header">
+              <div>
+                <h2>Comics destacados</h2>
+                <p className="helper-text">
+                  {isOwnProfile
+                    ? 'Estos son los comics destacados por este usuario.'
+                    : 'Selecciona hasta 10 comics de tu biblioteca para destacarlos en tu perfil.'}
+                </p>
+              </div>
+
+              {isEditing ? (
+                <p className="featured-comics-count">{editFeaturedComicIds.length}/10 seleccionados</p>
+              ) : null}
+            </div>
+
+            {isOwnProfile && isEditing ? (
+              <div className="featured-comics-picker">
+                <div className="featured-comics-search">
+                  <label htmlFor="featured-comics-search-input">Buscar en tu biblioteca</label>
+                  <input
+                    id="featured-comics-search-input"
+                    type="search"
+                    value={featuredComicSearch}
+                    onChange={(e) => setFeaturedComicSearch(e.target.value)}
+                    placeholder="Escribe el nombre del comic"
+                  />
+                </div>
+
+                {filteredLibraryItems.length === 0 ? (
+                  <p className="search-empty-state">
+                    {libraryItems.length === 0
+                      ? 'No tienes comics en tu biblioteca para destacar.'
+                      : 'No hay comics que coincidan con la búsqueda.'}
+                  </p>
+                ) : (
+                  <>
+                    <div className="featured-comics-grid selectable">
+                      {filteredLibraryItems.slice(0, visibleFeaturedComicCount).map((item) => {
+                      const isSelected = editFeaturedComicIds.includes(item.comicId)
+                      const featuredVolume = getFeaturedLibraryVolume(item.volumes)
+                      const actionLabel = getFeaturedActionLabel({
+                        isSelected,
+                        selectedCount: editFeaturedComicIds.length,
+                      })
+
+                      return (
+                        <button
+                          key={item.comicId}
+                          type="button"
+                          className={`featured-comic-card selectable ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleToggleFeaturedComic(item.comicId)}
+                          aria-pressed={isSelected}
+                        >
+                          <div className="featured-comic-cover">
+                            {featuredVolume?.portada?.dataUrl ? (
+                              <img
+                                src={featuredVolume.portada.dataUrl}
+                                alt={`Portada de ${item.comic.nombre}`}
+                              />
+                            ) : (
+                              <div className="featured-comic-placeholder">Sin portada</div>
+                            )}
+                          </div>
+
+                          <div className="featured-comic-info">
+                            <strong>{item.comic.nombre}</strong>
+                            <span>{item.volumes.length} tomos en biblioteca</span>
+                            <span>{isSelected ? 'Destacado' : 'Disponible para destacar'}</span>
+                            <span className="featured-comic-action">{actionLabel}</span>
+                          </div>
+                        </button>
+                      )
+                      })}
+                    </div>
+
+                    {filteredLibraryItems.length > visibleFeaturedComicCount ? (
+                      <div className="featured-comics-footer">
+                        <p className="featured-comics-footer-text">
+                          Mostrando {Math.min(visibleFeaturedComicCount, filteredLibraryItems.length)} de {filteredLibraryItems.length} comics
+                        </p>
+
+                        <button
+                          type="button"
+                          className="profile-back-button featured-comics-load-more"
+                          onClick={() => setVisibleFeaturedComicCount((prev) => prev + 12)}
+                        >
+                          Ver más comics
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            ) : featuredComicItems.length === 0 ? (
+              <p className="search-empty-state">Este perfil todavía no tiene comics destacados.</p>
+            ) : (
+              <div className="featured-comics-grid">
+                {featuredComicItems.map((item) => {
+                  const featuredVolume = getFeaturedLibraryVolume(item.volumes)
+
+                  return (
+                    <button
+                      key={item.comicId}
+                      type="button"
+                      className="featured-comic-card"
+                      onClick={() => onOpenComic?.(item.comicId)}
+                    >
+                      <div className="featured-comic-cover">
+                        {featuredVolume?.portada?.dataUrl ? (
+                          <img
+                            src={featuredVolume.portada.dataUrl}
+                            alt={`Portada de ${item.comic.nombre}`}
+                          />
+                        ) : (
+                          <div className="featured-comic-placeholder">Sin portada</div>
+                        )}
+                      </div>
+
+                      <div className="featured-comic-info">
+                        <strong>{item.comic.nombre}</strong>
+                        <span>{item.volumes.length} tomos guardados</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        ) : null}
+
+        {isOwnProfile ? (
+          <div className="profile-delete-footer">
+            <button
+              className="delete-account-button"
+              onClick={handleDeleteClick}
+              type="button"
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? 'Eliminando cuenta...' : 'Eliminar cuenta'}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {deleteModalStep ? (
@@ -997,7 +1380,6 @@ function ProfilePage({
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="eyebrow">Comiku / Reportar usuario</p>
             <h2>Reportar usuario</h2>
 
             {reportError ? <p className="form-message error">{reportError}</p> : null}
@@ -1039,38 +1421,28 @@ function ProfilePage({
 
       {blockModalOpen ? (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}
+          className="confirm-modal-backdrop"
+          role="presentation"
+          onClick={() => setBlockModalOpen(false)}
         >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              padding: '24px',
-              maxWidth: '400px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            }}
+          <section
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="block-user-modal-title"
+            onClick={(event) => event.stopPropagation()}
           >
-            <h2>Confirmar bloqueo</h2>
-            <p>
-              ¿Estás seguro de que deseas bloquear a <strong>{profileData?.nick}</strong>?
+            <p className="confirm-modal-eyebrow">ATENCION</p>
+            <h2 id="block-user-modal-title">Confirmar bloqueo</h2>
+            <p className="confirm-modal-text">
+              ¿Estas seguro de que deseas bloquear a <strong>{profileData?.nick}</strong>?
             </p>
             {friendshipStatus === 'friends' && (
-              <p style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
+              <p className="profile-block-warning-text">
                 Se eliminará la amistad entre ustedes.
               </p>
             )}
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <div className="confirm-modal-actions">
               <button
                 type="button"
                 className="profile-back-button"
@@ -1088,7 +1460,7 @@ function ProfilePage({
                 {processingBlock ? 'Bloqueando...' : 'Bloquear'}
               </button>
             </div>
-          </div>
+          </section>
         </div>
       ) : null}
 
@@ -1123,12 +1495,15 @@ function ProfilePage({
             onClick={(e) => e.stopPropagation()}
           >
             <p className="confirm-modal-eyebrow">ATENCIÓN — Cambio de rol</p>
-            <h2>Vas a otorgar permisos de administrador</h2>
+            <h2>{isRevokingRole ? 'Vas a revocar permisos de administrador' : 'Vas a otorgar permisos de administrador'}</h2>
             {roleModalStep === 1 ? (
               <>
                 <p className="confirm-modal-text">
-                  Estás a punto de convertir a <strong>{profileData?.nick}</strong> en administrador.
-                  Esta acción le dará acceso a funciones sensibles.
+                  {isRevokingRole ? (
+                    <>Estás a punto de <strong>revocar</strong> los permisos de administrador de <strong>{profileData?.nick}</strong>. Esta acción le quitará acceso a funciones de administración.</>
+                  ) : (
+                    <>Estás a punto de convertir a <strong>{profileData?.nick}</strong> en administrador. Esta acción le dará acceso a funciones sensibles.</>
+                  )}
                 </p>
                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
                   <button className="profile-back-button" type="button" onClick={handleCancelChangeRole}>
@@ -1142,8 +1517,11 @@ function ProfilePage({
             ) : (
               <>
                 <p className="confirm-modal-text">
-                  Confirma por favor escribiendo el nick del usuario (<strong>{profileData?.nick}</strong>)
-                  en el campo de abajo y presiona "Confirmar cambio".
+                  {isRevokingRole ? (
+                    <>Para confirmar la <strong>revocación</strong>, escribe el nick de <strong>{profileData?.nick}</strong> en el campo de abajo y presiona "Confirmar cambio".</>
+                  ) : (
+                    <>Confirma por favor escribiendo el nick del usuario (<strong>{profileData?.nick}</strong>) en el campo de abajo y presiona "Confirmar cambio".</>
+                  )}
                 </p>
                 <input
                   type="text"

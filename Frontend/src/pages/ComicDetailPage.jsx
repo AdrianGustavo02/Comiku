@@ -27,6 +27,7 @@ import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacte
 import '../styles/ComicDetailPage.css'
 import FileInput from '../Components/FileInput'
 import Button from '../Components/Button'
+import ConfirmModal from '../Components/ConfirmModal'
 
 function ComicDetailPage({
   authUser,
@@ -35,8 +36,10 @@ function ComicDetailPage({
   onEditComic,
   onDeleteComic,
   onCreateVolume,
+  onOpenProfile,
   globalNotice = '',
   globalError = '',
+  onPageReady,
 }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,6 +56,7 @@ function ComicDetailPage({
   const [userRating, setUserRating] = useState(0)
   const [userComment, setUserComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [reviewFormError, setReviewFormError] = useState('')
   const [currentUserRole, setCurrentUserRole] = useState('')
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_CONTENT[0])
@@ -66,6 +70,9 @@ function ComicDetailPage({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deletingComic, setDeletingComic] = useState(false)
+  const [deleteReviewModalOpen, setDeleteReviewModalOpen] = useState(false)
+  const [deleteReviewError, setDeleteReviewError] = useState('')
+  const [deletingReview, setDeletingReview] = useState(false)
   const volumeGridRef = useRef(null)
   const volumeGridLeftRef = useRef(null)
   const volumeGridRightRef = useRef(null)
@@ -194,6 +201,7 @@ function ComicDetailPage({
       } finally {
         if (!cancelled) {
           setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
@@ -295,7 +303,11 @@ function ComicDetailPage({
   function formatDate(date) {
     if (!date) return ''
     try {
-      return new Date(date).toLocaleString()
+      const d = new Date(date)
+      const datePart = d.toLocaleDateString()
+      const hours = String(d.getHours()).padStart(2, '0')
+      const minutes = String(d.getMinutes()).padStart(2, '0')
+      return `${datePart} ${hours}:${minutes}`
     } catch {
       return ''
     }
@@ -346,7 +358,7 @@ function ComicDetailPage({
     e && e.preventDefault()
     if (!authUser?.uid) return
     if (!userRating || userRating < 1) {
-      alert('Debes seleccionar una calificación entre 1 y 5.')
+      setReviewFormError('Debes seleccionar una calificación entre 1 y 5.')
       return
     }
 
@@ -354,6 +366,7 @@ function ComicDetailPage({
 
     try {
       setSubmittingReview(true)
+      setReviewFormError('')
 
       if (userReview) {
         await updateReview({
@@ -374,17 +387,32 @@ function ComicDetailPage({
     }
   }
 
+  const openDeleteReviewModal = () => {
+    setDeleteReviewError('')
+    setDeleteReviewModalOpen(true)
+  }
+
+  const closeDeleteReviewModal = () => {
+    if (deletingReview) {
+      return
+    }
+    setDeleteReviewModalOpen(false)
+  }
+
   async function handleDeleteReview() {
     if (!authUser?.uid || !userReview) return
-    if (!confirm('¿Eliminar reseña?')) return
     try {
-      setSubmittingReview(true)
+      setDeletingReview(true)
+      setDeleteReviewError('')
       await deleteReview({ comicId, reviewId: userReview.id })
       await refreshReviewsAndUserReview()
+      setDeleteReviewModalOpen(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'No fue posible eliminar la reseña.')
+      setDeleteReviewError(
+        err instanceof Error ? err.message : 'No fue posible eliminar la reseña.'
+      )
     } finally {
-      setSubmittingReview(false)
+      setDeletingReview(false)
     }
   }
   // ---- fin reseñas ----
@@ -526,7 +554,7 @@ function ComicDetailPage({
     return (
       <main className="app-shell">
         <section className="app-card loading-card">
-          <p className="status-message">Cargando detalle del comic...</p>
+          <p className="status-message">Cargando informacion del comic...</p>
         </section>
       </main>
     )
@@ -543,7 +571,6 @@ function ComicDetailPage({
         {!comic ? null : (
           <>
             <header className="comic-detail-header">
-              <p className="eyebrow">Comiku / Detalle comic</p>
               <h1>{comic.nombre}</h1>
               <p className="lead">{comic.descripcion || 'Sin descripción.'}</p>
               <div className="hero-actions">
@@ -604,7 +631,7 @@ function ComicDetailPage({
 
             {canReportComic ? (
               <section className="report-content-panel">
-                <h2>Reportes</h2>
+                <h2 style={{ color: 'black' }}>Reportes</h2>
                 {hasPendingComicReport ? (
                   <p className="helper-text">
                     Ya tienes un reporte pendiente para este comic. Podrás volver a reportarlo cuando se resuelva.
@@ -612,7 +639,7 @@ function ComicDetailPage({
                 ) : (
                   <button
                     type="button"
-                    className="report-content-button"
+                    className="danger-button"
                     onClick={openReportModal}
                   >
                     Reportar comic
@@ -630,8 +657,8 @@ function ComicDetailPage({
               ) : hasComicInLibrary ? (
                 <>
                   {missingVolumes.length > 0 && (
-                    <div>
-                      <h2>Me faltan</h2>
+                    <div className="missing-volumes">
+                      <h2>Tomos que me faltan</h2>
                       <div className="volume-carousel">
                         <button
                           type="button"
@@ -665,8 +692,8 @@ function ComicDetailPage({
                   )}
 
                   {ownedVolumes.length > 0 && (
-                    <div>
-                      <h2>Tengo</h2>
+                    <div className="owned-volumes">
+                      <h2>Tomos en mi biblioteca</h2>
                       <div className="volume-carousel">
                         <button
                           type="button"
@@ -760,13 +787,18 @@ function ComicDetailPage({
                           key={n}
                           type="button"
                           className={`star-button ${userRating >= n ? 'selected' : ''}`}
-                          onClick={() => setUserRating(n)}
+                          onClick={() => {
+                            setUserRating(n)
+                            setReviewFormError('')
+                          }}
                           aria-label={`Puntuar ${n} estrellas`}
                         >
                           {userRating >= n ? '★' : '☆'}
                         </button>
                       ))}
                     </div>
+
+                    {reviewFormError ? <p className="form-message error">{reviewFormError}</p> : null}
 
                     <div>
                       <textarea
@@ -778,11 +810,11 @@ function ComicDetailPage({
                     </div>
 
                     <div className="review-actions">
-                      <button type="submit" disabled={submittingReview}>
+                      <button type="submit" className="primary-button" disabled={submittingReview}>
                         {userReview ? 'Actualizar reseña' : 'Publicar reseña'}
                       </button>
                       {userReview ? (
-                        <button type="button" onClick={handleDeleteReview} disabled={submittingReview}>
+                        <button type="button" className="danger-button" onClick={openDeleteReviewModal} disabled={submittingReview}>
                           Eliminar
                         </button>
                       ) : null}
@@ -799,7 +831,7 @@ function ComicDetailPage({
                 {reviewsLoading ? (
                   <p>Cargando opiniones...</p>
                 ) : reviews.length === 0 ? (
-                  <p className="helper-text">Aun no hay opiniones sobre este cómic.</p>
+                  <p className="status-message">Aun no hay opiniones sobre este cómic.</p>
                 ) : (
                   <ul className="reviews-list">
                     {reviews.map((r) => {
@@ -813,7 +845,13 @@ function ComicDetailPage({
                               className="avatar"
                             />
                             <div>
-                              <strong>{profile?.nombre || profile?.nick || 'Usuario'}</strong>
+                              <button
+                                type="button"
+                                onClick={() => onOpenProfile?.(r.usuarioId)}
+                                className="profile-link-button"
+                              >
+                                <strong>{profile?.nick || profile?.nombre || 'Usuario'}</strong>
+                              </button>
                               <div className="review-meta">
                                 <span className="review-stars">{'★'.repeat(r.calificacion || 0)}</span>
                                 <span className="review-date">{formatDate(r.fecha)}</span>
@@ -843,66 +881,30 @@ function ComicDetailPage({
         )}
 
         {deleteModalOpen ? (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.55)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999,
-            }}
-            role="presentation"
-            onClick={closeDeleteComicModal}
-          >
-            <section
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 24,
-                maxWidth: 520,
-                width: 'calc(100% - 32px)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.24)',
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="delete-comic-modal-title"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="eyebrow">ATENCION</p>
-              <h2 id="delete-comic-modal-title">Eliminar comic</h2>
-              <p className="confirm-modal-text">
-                Esta acción eliminará el comic, todos sus tomos y sus referencias asociadas.
-              </p>
-              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
+          <ConfirmModal
+            title="Eliminar comic"
+            message={deleteError ? `${deleteError}\n\nEsta acción eliminará el comic, todos sus tomos y sus referencias asociadas.` : 'Esta acción eliminará el comic, todos sus tomos y sus referencias asociadas.'}
+            confirmLabel={deletingComic ? 'Eliminando...' : 'Eliminar comic'}
+            confirmDisabled={deletingComic}
+            onConfirm={handleDeleteComic}
+            onCancel={closeDeleteComicModal}
+          />
+        ) : null}
 
-              <div className="confirm-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={closeDeleteComicModal}
-                  disabled={deletingComic}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={handleDeleteComic}
-                  disabled={deletingComic}
-                >
-                  {deletingComic ? 'Eliminando...' : 'Eliminar comic'}
-                </button>
-              </div>
-            </section>
-          </div>
+        {deleteReviewModalOpen ? (
+          <ConfirmModal
+            title="Eliminar reseña"
+            message={deleteReviewError ? `${deleteReviewError}\n\nEsta acción eliminará permanentemente tu reseña y valoración.` : 'Esta acción eliminará permanentemente tu reseña y valoración.'}
+            confirmLabel={deletingReview ? 'Eliminando...' : 'Eliminar reseña'}
+            confirmDisabled={deletingReview}
+            onConfirm={handleDeleteReview}
+            onCancel={closeDeleteReviewModal}
+          />
         ) : null}
 
         {isReportModalOpen ? (
           <div className="report-modal-backdrop" role="presentation">
             <div className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-comic-modal-title">
-              <p className="eyebrow">Comiku / Reportar comic</p>
               <h2 id="report-comic-modal-title">Reportar comic</h2>
 
               {reportError ? <p className="form-message error">{reportError}</p> : null}
@@ -952,8 +954,8 @@ function ComicDetailPage({
                 ) : null}
 
                 <div className="report-modal-actions">
-                  <Button variant="secondary" className="report-modal-button secondary" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
-                  <Button variant="primary" className="report-modal-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
+                  <Button variant="secondary" className="report-modal-button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
+                  <Button variant="danger" className="report-modal-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
                 </div>
               </form>
             </div>

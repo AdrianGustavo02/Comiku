@@ -15,10 +15,30 @@ import {
 } from '../firebase/thematicLists'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import { getUserProfile, isUserBlocked } from '../firebase/user'
+import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListDetailPage.css'
 
-function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDeleteList }) {
+function formatCommentDateTime(value) {
+  if (!value) return ''
+
+  const date = value?.seconds ? new Date(value.seconds * 1000) : new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return date.toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDeleteList, onOpenProfile, onPageReady }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [list, setList] = useState(null)
@@ -27,7 +47,7 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
   const [commentText, setCommentText] = useState('')
   const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [commentAuthors, setCommentAuthors] = useState({})
+  const [commentProfiles, setCommentProfiles] = useState({})
   const [volumeCards, setVolumeCards] = useState([])
   const [processingLike, setProcessingLike] = useState(false)
   const [processingSave, setProcessingSave] = useState(false)
@@ -37,6 +57,7 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
   const [deleteError, setDeleteError] = useState('')
   const [deletingList, setDeletingList] = useState(false)
   const [processingComment, setProcessingComment] = useState(false)
+  const [creatorNick, setCreatorNick] = useState('')
 
   const loadCommentsWithAuthors = async (currentListId) => {
     const comms = await getListComments({ listId: currentListId })
@@ -49,16 +70,24 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
 
           return [
             userId,
-            profile?.nick?.trim() || profile?.nombre?.trim() || userId,
+            profile,
           ]
         } catch {
-          return [userId, userId]
+          return [
+            userId,
+            {
+              uid: userId,
+              nick: userId,
+              nombre: userId,
+              fotoPerfil: defaultProfilePicture,
+            },
+          ]
         }
       }),
     )
 
     setComments(comms)
-    setCommentAuthors(Object.fromEntries(profiles))
+    setCommentProfiles(Object.fromEntries(profiles))
 
     return comms
   }
@@ -89,6 +118,19 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
           }
         }
 
+        if (data.userId) {
+          try {
+            const creatorProfile = await getUserProfile(data.userId)
+            if (!cancelled) {
+              setCreatorNick(creatorProfile?.nick?.trim() || creatorProfile?.nombre?.trim() || data.userId)
+            }
+          } catch {
+            if (!cancelled) {
+              setCreatorNick(data.userId)
+            }
+          }
+        }
+
         if (!cancelled) setList(data)
 
         const vols = await getListVolumes({ listId })
@@ -106,12 +148,14 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
 
               return {
                 ...volumeEntry,
+                volumeId: volumeEntry.tomoId,
                 comicName: comic?.nombre || '',
                 volumeData,
               }
             } catch {
               return {
                 ...volumeEntry,
+                volumeId: volumeEntry.tomoId,
                 comicName: '',
                 volumeData: null,
               }
@@ -142,7 +186,10 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Error al cargar la lista.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
+        }
       }
     }
 
@@ -338,17 +385,27 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell thematic-list-detail-page">
       <section className="app-card">
         <div className="app-hero">
           <div>
-            <p className="eyebrow">Comiku / Listas temáticas</p>
             <h1>{list.nombre}</h1>
             <p className="lead">{list.descripcion || 'Sin descripción'}</p>
+            {creatorNick && list?.userId && (
+              <p className="creator-info">
+                Por:{' '}
+                <button
+                  className="creator-profile-button"
+                  onClick={() => onOpenProfile?.(list.userId)}
+                  type="button"
+                >
+                  <strong>{creatorNick}</strong>
+                </button>
+              </p>
+            )}
           </div>
 
           <div className="hero-actions">
-            <Button className="back-button" onClick={onBack} type="button" variant="secondary">Volver</Button>
             {canDeleteList ? (
               <Button className="danger-button" onClick={openDeleteListModal} type="button" variant="danger">
                 Eliminar lista
@@ -361,7 +418,7 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
 
         <div className="thematic-list-detail-meta">
           <Button className="primary-button" onClick={handleToggleLike} disabled={processingLike} type="button" variant="primary">
-            {liked ? '💙' : '🤍'} {list.cantidadLikes} 
+            {liked ? '💙' : '🤍'} {list.cantidadLikes}
           </Button>
 
           <Button className="secondary-button" onClick={() => {}} type="button" variant="secondary">
@@ -373,64 +430,89 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
           </Button>
         </div>
 
-        <div className="section-divider">
-          <h2>Tomos ({volumes.length})</h2>
-        </div>
-
         {volumeCards.length === 0 ? (
           <p className="helper-text">No hay tomos en esta lista.</p>
         ) : (
           <div className="selected-volumes-grid">
-            {volumeCards.map((v) => (
-              <div key={v.volumeId} className="selected-volume-card">
+            <div className="selected-volumes-grid-header">
+              <h2>Tomos ({volumeCards.length})</h2>
+            </div>
+
+            {volumeCards.map((volume) => (
+              <div key={volume.volumeId} className="selected-volume-card">
                 <VolumeCoverCard
-                  volume={v.volumeData || {}}
-                  comicName={v.comicName}
-                  onOpen={() => onOpenVolume({ comicId: v.comicId, volumeId: v.volumeId })}
+                  volume={volume.volumeData || {}}
+                  comicName={volume.comicName}
+                  onOpen={() => onOpenVolume({ comicId: volume.comicId, volumeId: volume.volumeId })}
                 />
               </div>
             ))}
           </div>
         )}
 
-        <div className="section-divider">
-          <h2>Comentarios ({comments.length})</h2>
-        </div>
-
         <div className="comments-section">
-          {comments.length === 0 ? <p className="helper-text">Sé el primero en comentar.</p> : (
-            <ul>
-              {comments.map((c) => (
-                <li key={c.id} className="comment-item">
-                  <div className="comment-meta">
-                    <strong>{commentAuthors[c.userId] || c.userId}</strong>
-                    <span>{c.fechaComentario ? new Date(c.fechaComentario.seconds * 1000).toLocaleString() : ''}</span>
-                  </div>
-                  <p>{c.comentario}</p>
-                  {authUser?.uid === c.userId ? (
-                    <Button
-                      type="button"
-                      className="danger-button"
-                      onClick={() => handleDeleteComment(c.id)}
-                      disabled={deletingCommentId === c.id}
-                      variant="danger"
-                    >
-                      {deletingCommentId === c.id ? 'Eliminando...' : 'Eliminar comentario'}
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="section-divider">
+            <h2>Comentarios ({comments.length})</h2>
+          </div>
 
           <div className="comment-form">
-            <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Deja un comentario..." rows={3} />
-            <div className="form-actions">
+            <div className="comment-form-row">
+              <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Deja un comentario..." rows={3} />
               <Button className="primary-button" onClick={handleAddComment} type="button" variant="primary" disabled={processingComment}>
                 {processingComment ? 'Comentando...' : 'Comentar'}
               </Button>
             </div>
           </div>
+
+          {comments.length === 0 ? (
+            <p className="helper-text">Sé el primero en comentar.</p>
+          ) : (
+            <ul className="comments-list">
+              {comments.map((c) => {
+                const profile = commentProfiles[c.userId]
+
+                return (
+                  <li key={c.id} className="comment-card">
+                    <div className="comment-user">
+                      <img
+                        src={profile?.fotoPerfil || defaultProfilePicture}
+                        alt={profile?.nombre || 'Usuario'}
+                        className="avatar"
+                      />
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => onOpenProfile?.(c.userId)}
+                          className="profile-link-button"
+                        >
+                          <strong>{profile?.nick || profile?.nombre || c.userId || 'Usuario'}</strong>
+                        </button>
+                        <div className="comment-meta-row">
+                          <span>{formatCommentDateTime(c.fechaComentario)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {authUser?.uid === c.userId ? (
+                      <Button
+                        type="button"
+                        className="danger-button comment-delete-button"
+                        onClick={() => handleDeleteComment(c.id)}
+                        disabled={deletingCommentId === c.id}
+                        variant="danger"
+                      >
+                        {deletingCommentId === c.id ? 'Eliminando...' : 'Eliminar comentario'}
+                      </Button>
+                    ) : null}
+
+                    <div className="comment-body-row">
+                      <p className="comment-text">{c.comentario}</p>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
 
         {deleteModalOpen ? (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { getUserProfile } from '../firebase/user'
 import { COMIC_GENRES } from '../constants/comicGenres'
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import { getUserLibraryItems } from '../firebase/volumeLists'
@@ -56,8 +57,13 @@ function getFeaturedVolumeTitle(volume) {
   return 'Tomo destacado'
 }
 
-function LibraryPage({ authUser, onOpenComic }) {
+function toSearchableText(value) {
+  return String(value ?? '').toLowerCase().trim()
+}
+
+function LibraryPage({ authUser, onOpenComic, libraryUid, onPageReady }) {
   const [loading, setLoading] = useState(true)
+  const [libraryOwnerNick, setLibraryOwnerNick] = useState('')
   const [error, setError] = useState('')
   const [items, setItems] = useState([])
   const [genreFilter, setGenreFilter] = useState('')
@@ -67,7 +73,13 @@ function LibraryPage({ authUser, onOpenComic }) {
     let cancelled = false
 
     async function loadLibraryItems() {
-      if (!authUser?.uid) {
+      const targetUid = typeof libraryUid === 'string' && libraryUid.trim()
+        ? libraryUid.trim()
+        : typeof authUser?.uid === 'string'
+          ? authUser.uid.trim()
+          : ''
+
+      if (!targetUid) {
         if (!cancelled) {
           setItems([])
           setLoading(false)
@@ -79,7 +91,7 @@ function LibraryPage({ authUser, onOpenComic }) {
         setLoading(true)
         setError('')
 
-        const nextItems = await getUserLibraryItems({ uid: authUser.uid })
+        const nextItems = await getUserLibraryItems({ uid: targetUid })
 
         if (!cancelled) {
           setItems(nextItems)
@@ -89,39 +101,64 @@ function LibraryPage({ authUser, onOpenComic }) {
           setError(
             requestError instanceof Error
               ? requestError.message
-              : 'No fue posible cargar tu biblioteca.',
+              : 'No fue posible cargar la biblioteca.',
           )
         }
       } finally {
         if (!cancelled) {
           setLoading(false)
+            if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
 
     loadLibraryItems()
-
     return () => {
       cancelled = true
     }
   }, [authUser?.uid])
 
+  useEffect(() => {
+    let cancelled = false
+    const targetUid = typeof libraryUid === 'string' ? libraryUid.trim() : ''
+
+    if (!targetUid) {
+      setLibraryOwnerNick('')
+      return () => { cancelled = true }
+    }
+
+      setLibraryOwnerNick('')
+
+    async function loadOwner() {
+      try {
+        const p = await getUserProfile(targetUid)
+        if (!cancelled) setLibraryOwnerNick(p?.nick || '')
+      } catch {
+        if (!cancelled) setLibraryOwnerNick('')
+      }
+    }
+
+    loadOwner()
+
+    return () => { cancelled = true }
+  }, [libraryUid])
+
   const filteredItems = useMemo(() => {
     let nextItems = !genreFilter
       ? items
-      : items.filter((item) => item.comic.generos.includes(genreFilter))
+      : items.filter((item) => Array.isArray(item.comic.generos) && item.comic.generos.includes(genreFilter))
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
+      const query = toSearchableText(searchQuery)
       nextItems = nextItems.filter(
         (item) =>
-          item.comic.nombre.toLowerCase().includes(query) ||
-          item.comic.editorial?.toLowerCase().includes(query) ||
-          item.comic.autores?.some((autor) => autor.toLowerCase().includes(query)),
+          toSearchableText(item.comic.nombre).includes(query) ||
+          toSearchableText(item.comic.editorial).includes(query) ||
+          (Array.isArray(item.comic.autores) && item.comic.autores.some((autor) => toSearchableText(autor).includes(query))),
       )
     }
 
-    return [...nextItems].sort((a, b) => a.comic.nombre.localeCompare(b.comic.nombre, 'es'))
+    return [...nextItems].sort((a, b) => toSearchableText(a.comic.nombre).localeCompare(toSearchableText(b.comic.nombre), 'es'))
   }, [items, genreFilter, searchQuery])
 
   const sortedGenres = useMemo(
@@ -140,11 +177,10 @@ function LibraryPage({ authUser, onOpenComic }) {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell library-page-shell">
       <section className="app-card user-list-page">
         <header>
-          <p className="eyebrow">Comiku / Biblioteca</p>
-          <h1>Tu biblioteca</h1>
+          <h1>{libraryUid ? `Biblioteca de ${libraryOwnerNick || 'usuario'}` : 'Tu biblioteca'}</h1>
           <p className="lead">Selecciona un comic para ver su información completa.</p>
         </header>
 
@@ -178,7 +214,7 @@ function LibraryPage({ authUser, onOpenComic }) {
         </div>
 
         {filteredItems.length === 0 ? (
-          <p className="user-empty-state">No hay tomos en tu biblioteca para ese filtro.</p>
+          <p className="user-empty-state">No hay tomos en la biblioteca para el filtro seleccionado.</p>
         ) : (
           <div className="user-comic-list">
             {filteredItems.map((item) => {

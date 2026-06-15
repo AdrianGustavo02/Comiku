@@ -6,14 +6,15 @@ import {
   declineFriendRequest,
   removeFriend,
 } from '../firebase/user'
-import '../styles/ThematicListsShared.css'
+import '../styles/FriendsPage.css'
 
-function FriendsPage({ authUser, onOpenProfile, onBack }) {
+function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [processingRequest, setProcessingRequest] = useState(null)
+  const [processingAction, setProcessingAction] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -35,7 +36,10 @@ function FriendsPage({ authUser, onOpenProfile, onBack }) {
           setError(err instanceof Error ? err.message : 'No fue posible cargar los datos.')
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
+        }
       }
     }
 
@@ -49,6 +53,7 @@ function FriendsPage({ authUser, onOpenProfile, onBack }) {
   const handleAcceptRequest = async (senderUid) => {
     try {
       setProcessingRequest(senderUid)
+      setProcessingAction('accept')
       await acceptFriendRequest(authUser.uid, senderUid)
 
       setRequests((prev) => prev.filter((r) => r.senderUid !== senderUid))
@@ -60,49 +65,47 @@ function FriendsPage({ authUser, onOpenProfile, onBack }) {
       setError(err instanceof Error ? err.message : 'No fue posible aceptar la solicitud.')
     } finally {
       setProcessingRequest(null)
+      setProcessingAction(null)
     }
   }
 
   const handleDeclineRequest = async (senderUid) => {
     try {
       setProcessingRequest(senderUid)
+      setProcessingAction('decline')
       await declineFriendRequest(authUser.uid, senderUid)
       setRequests((prev) => prev.filter((r) => r.senderUid !== senderUid))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible declinar la solicitud.')
     } finally {
       setProcessingRequest(null)
+      setProcessingAction(null)
     }
   }
 
   const handleRemoveFriend = async (friendUid) => {
     try {
       setProcessingRequest(friendUid)
+      setProcessingAction('remove')
       await removeFriend(authUser.uid, friendUid)
       setFriends((prev) => prev.filter((f) => f.uid !== friendUid))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible eliminar el amigo.')
     } finally {
       setProcessingRequest(null)
+      setProcessingAction(null)
     }
   }
 
   return (
-    <main className="app-shell">
-      <section className="app-card user-list-page">
+    <main className="app-shell friends-page-shell">
+      <section className="app-card user-list-page friends-page-card">
         <header>
-          <p className="eyebrow">Comiku / Amigos</p>
-          <h1>Mis amigos</h1>
+          <h1>Amigos</h1>
           <p className="lead">Aquí puedes ver tus amigos y gestionar solicitudes de amistad.</p>
         </header>
 
         {error ? <p className="form-message error">{error}</p> : null}
-
-        <div style={{ marginBottom: 12 }}>
-          <button className="profile-back-button" onClick={onBack} type="button">
-            Volver atrás
-          </button>
-        </div>
 
         {loading ? (
           <p className="status-message">Cargando datos...</p>
@@ -110,48 +113,38 @@ function FriendsPage({ authUser, onOpenProfile, onBack }) {
           <>
             {/* Solicitudes de amistad */}
             {requests.length > 0 && (
-              <section style={{ marginBottom: 24 }}>
+              <section className="friends-requests-section">
                 <h2>Solicitudes de amistad ({requests.length})</h2>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <ul className="friends-list">
                   {requests.map((req) => (
-                    <li
-                      key={req.senderUid}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 12,
-                        borderBottom: '1px solid #e5e5e5',
-                        gap: 12,
-                      }}
-                    >
-                      <img
-                        src={req.fotoPerfil}
-                        alt={`Foto de ${req.nick}`}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 8,
-                          objectFit: 'cover',
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontWeight: 500 }}>{req.nick}</p>
-                      </div>
+                    <li key={req.senderUid} className="friends-list-item">
                       <button
                         type="button"
-                        className="profile-back-button"
-                        onClick={() => handleAcceptRequest(req.senderUid)}
-                        disabled={processingRequest === req.senderUid}
+                        className="friend-profile-link"
+                        onClick={() => onOpenProfile(req.senderUid)}
                       >
-                        {processingRequest === req.senderUid ? 'Procesando...' : 'Aceptar'}
+                        <img
+                          src={req.fotoPerfil}
+                          alt={`Foto de ${req.nick}`}
+                          className="friend-avatar"
+                        />
+                        <p className="friend-nick">{req.nick}</p>
                       </button>
                       <button
                         type="button"
-                        className="delete-account-button"
+                        className="secondary-button"
+                        onClick={() => handleAcceptRequest(req.senderUid)}
+                        disabled={processingRequest === req.senderUid}
+                      >
+                        {processingRequest === req.senderUid && processingAction === 'accept' ? 'Procesando...' : 'Aceptar'}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-button"
                         onClick={() => handleDeclineRequest(req.senderUid)}
                         disabled={processingRequest === req.senderUid}
                       >
-                        {processingRequest === req.senderUid ? 'Procesando...' : 'Declinar'}
+                        {processingRequest === req.senderUid && processingAction === 'decline' ? 'Procesando...' : 'Declinar'}
                       </button>
                     </li>
                   ))}
@@ -163,55 +156,32 @@ function FriendsPage({ authUser, onOpenProfile, onBack }) {
             <section>
               <h2>Amigos ({friends.length})</h2>
               {friends.length === 0 ? (
-                <p className="search-empty-state">
+                <p className="search-empty-state-black">
                   {requests.length === 0 ? 'Aún no tienes amigos.' : 'Acepta una solicitud para tener amigos.'}
                 </p>
               ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <ul className="friends-list">
                   {friends.map((friend) => (
-                    <li
-                      key={friend.uid}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 12,
-                        borderBottom: '1px solid #e5e5e5',
-                        gap: 12,
-                      }}
-                    >
+                    <li key={friend.uid} className="friends-list-item">
                       <button
                         type="button"
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 12,
-                          flex: 1,
-                        }}
+                        className="friend-profile-link"
                         onClick={() => onOpenProfile(friend.uid)}
                       >
                         <img
                           src={friend.fotoPerfil}
                           alt={`Foto de ${friend.nick}`}
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 8,
-                            objectFit: 'cover',
-                          }}
+                          className="friend-avatar"
                         />
-                        <p style={{ margin: 0, fontWeight: 500, color: 'inherit' }}>{friend.nick}</p>
+                        <p className="friend-nick">{friend.nick}</p>
                       </button>
                       <button
                         type="button"
-                        className="delete-account-button"
+                        className="danger-button"
                         onClick={() => handleRemoveFriend(friend.uid)}
                         disabled={processingRequest === friend.uid}
                       >
-                        {processingRequest === friend.uid ? 'Eliminando...' : 'Eliminar'}
+                        {processingRequest === friend.uid && processingAction === 'remove' ? 'Eliminando...' : 'Eliminar'}
                       </button>
                     </li>
                   ))}

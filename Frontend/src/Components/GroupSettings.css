@@ -1,0 +1,453 @@
+/* ── Contenedor principal ── */
+.group-settings {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ── Barra de título ── */
+.group-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.group-settings-close-btn {
+  padding: 8px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: 20px;
+}
+
+/* ── Alertas ── */
+.group-settings-success {
+  padding: 12px;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.group-settings-error {
+  padding: 12px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.group-settings-field-error {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ── Pestañas ── */
+.group-settings-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.group-settings-tab {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 400;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.group-settings-tab.active {
+  font-weight: 700;
+  border-bottom-color: #0f172a;
+  color: #0f172a;
+}
+
+/* ── Cabecera de info (imagen + nombre + creado por) ── */
+.group-info-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.group-info-avatar-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f1f5f9;
+  flex-shrink: 0;
+}
+
+.group-info-avatar-fallback {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  font-size: 36px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.group-info-header-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-info-field-label {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.group-info-field-value {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.group-info-description {
+  margin-bottom: 12px;
+}
+
+.group-info-description-value {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ── Botones de acción ── */
+.group-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.group-settings-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 140ms ease;
+}
+
+.group-settings-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.group-settings-btn-primary   { background: #1d4ed8; color: #fff; }
+.group-settings-btn-danger    { background: #dc2626; color: #fff; }
+.group-settings-btn-warning   { background: #f97316; color: #fff; }
+.group-settings-btn-secondary { background: #f1f5f9; color: #334155; }
+.group-settings-btn-success   { background: #10b981; color: #fff; }
+
+.group-settings-actions .group-settings-btn:not(:disabled):hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+}
+
+.group-settings-btn-primary:not(:disabled):hover {
+  background: #1e40af;
+}
+
+.group-settings-btn-danger:not(:disabled):hover {
+  background: #b91c1c;
+}
+
+.group-settings-actions .group-settings-btn-warning:not(:disabled):hover {
+  background: #ea580c;
+}
+
+.group-settings-actions .group-settings-btn-secondary:not(:disabled):hover {
+  background: #e2e8f0;
+}
+
+.group-settings-actions .group-settings-btn-success:not(:disabled):hover {
+  background: #059669;
+}
+
+.group-settings-sole-admin-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ── Formulario de edición ── */
+.group-settings-form-field {
+  margin-bottom: 16px;
+}
+
+.group-settings-form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.group-settings-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.group-settings-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+
+.group-settings-photo-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.group-settings-photo-preview {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.group-settings-photo-preview-img {
+  width: 140px;
+  height: 140px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.group-settings-photo-preview-fallback {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  font-size: 48px;
+  font-weight: 700;
+}
+
+.group-settings-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* ── Lista de miembros ── */
+.group-settings-members-list {
+  list-style: none;
+  padding: 0;
+  padding-right: 4px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.group-settings-member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  min-height: 44px;
+}
+
+.group-settings-member-info {
+  min-width: 0;
+}
+
+.group-settings-member-name {
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.group-settings-member-profile-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #0f172a;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.group-settings-member-role {
+  font-size: 12px;
+  color: #64748b;
+  margin: 2px 0 0;
+  line-height: 1.1;
+}
+
+.group-settings-member-actions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.group-settings-member-menu-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-settings-member-menu-btn:disabled {
+  opacity: 0.7;
+}
+
+.group-settings-member-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.group-settings-member-dropdown-item {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.group-settings-member-dropdown-item:hover {
+  background: #f8fafc;
+}
+
+.group-settings-member-dropdown-item.danger {
+  color: #dc2626;
+  border-top: 1px solid #f1f5f9;
+}
+
+.group-settings-member-dropdown-item.danger:hover {
+  background: #fef2f2;
+}
+
+/* ── Panel agregar miembros ── */
+.group-settings-friends-list {
+  list-style: none;
+  padding: 0;
+  padding-right: 4px;
+  margin-bottom: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.group-settings-friend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  min-height: 42px;
+}
+
+.group-settings-friend-nick {
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.group-settings-members-toggle-btn:not(:disabled):hover {
+  opacity: 0.92;
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+}
+
+/* ── Modales ── */
+.group-settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  z-index: 9999;
+}
+
+.group-settings-modal-dialog {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 600px;
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  word-break: break-word;
+}
+
+.group-settings-modal-dialog.small {
+  max-width: 520px;
+  width: min(520px, calc(100vw - 32px));
+}
+
+.group-settings-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .group-settings-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-settings-actions .group-settings-btn {
+    width: 100%;
+  }
+}

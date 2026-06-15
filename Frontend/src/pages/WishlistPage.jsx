@@ -4,7 +4,11 @@ import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacte
 import { getUserWishlistItems } from '../firebase/volumeLists'
 import '../styles/WishlistPage.css'
 
-function WishlistPage({ authUser, onOpenVolume }) {
+function toSearchableText(value) {
+  return String(value ?? '').toLowerCase().trim()
+}
+
+function WishlistPage({ authUser, onOpenVolume, onPageReady }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [allVolumes, setAllVolumes] = useState([])
@@ -53,6 +57,7 @@ function WishlistPage({ authUser, onOpenVolume }) {
       } finally {
         if (!cancelled) {
           setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
@@ -68,12 +73,12 @@ function WishlistPage({ authUser, onOpenVolume }) {
     let result = [...allVolumes]
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
+      const query = toSearchableText(searchQuery)
       result = result.filter(
         (volume) =>
-          volume.comicNombre.toLowerCase().includes(query) ||
-          volume.comicEditorial?.toLowerCase().includes(query) ||
-          volume.comicAutores?.some((autor) => autor.toLowerCase().includes(query)),
+          toSearchableText(volume.comicNombre).includes(query) ||
+          toSearchableText(volume.comicEditorial).includes(query) ||
+          (Array.isArray(volume.comicAutores) && volume.comicAutores.some((autor) => toSearchableText(autor).includes(query))),
       )
     }
 
@@ -84,7 +89,7 @@ function WishlistPage({ authUser, onOpenVolume }) {
         return dateB.getTime() - dateA.getTime()
       })
     } else if (sortBy === 'alphabetical') {
-      result.sort((a, b) => a.comicNombre.localeCompare(b.comicNombre, 'es'))
+      result.sort((a, b) => toSearchableText(a.comicNombre).localeCompare(toSearchableText(b.comicNombre), 'es'))
     }
 
     return result
@@ -101,10 +106,9 @@ function WishlistPage({ authUser, onOpenVolume }) {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell wishlist-page-shell">
       <section className="app-card user-list-page">
         <header>
-          <p className="eyebrow">Comiku / Lista de deseados</p>
           <h1>Tu lista de deseados</h1>
           <p className="lead">Explora los tomos que deseas agregar a tu colección.</p>
         </header>

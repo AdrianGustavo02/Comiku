@@ -102,6 +102,10 @@ function parseRoute(pathname) {
     return { page: 'activities', comicId: '', volumeId: '' }
   }
 
+  if (pathname === '/chats') {
+    return { page: 'chats', comicId: '', volumeId: '' }
+  }
+
   const activityMatch = pathname.match(/^\/actividades\/([^/]+)$/) 
   if (activityMatch) {
     return { page: 'activities', comicId: decodeURIComponent(activityMatch[1]), volumeId: '' }
@@ -133,7 +137,6 @@ function parseRoute(pathname) {
 
   if (pathname === '/listas-tematicas/mis-listas') {
     return { page: 'my-thematic-lists', comicId: '', volumeId: '' }
-  }
 
   const editListMatch = pathname.match(/^\/listas-tematicas\/editar\/([^/]+)$/)
 
@@ -196,6 +199,10 @@ function getVolumeOrderValue(volume) {
   return 0
 }
 
+function toSortableText(value) {
+  return String(value ?? '').toLowerCase().trim()
+}
+
 function sortLatestLibraryVolumes(a, b) {
   const dateDiff = getDateTime(b.fechaAgregado) - getDateTime(a.fechaAgregado)
 
@@ -203,7 +210,7 @@ function sortLatestLibraryVolumes(a, b) {
     return dateDiff
   }
 
-  const comicDiff = a.comicNombre.localeCompare(b.comicNombre, 'es')
+  const comicDiff = toSortableText(a.comicNombre).localeCompare(toSortableText(b.comicNombre), 'es')
 
   if (comicDiff !== 0) {
     return comicDiff
@@ -225,7 +232,7 @@ function sortMissingLibraryVolumes(a, b) {
     return orderDiff
   }
 
-  return a.comicNombre.localeCompare(b.comicNombre, 'es')
+  return toSortableText(a.comicNombre).localeCompare(toSortableText(b.comicNombre), 'es')
 }
 
 function getFeaturedRecommendationVolume(volumes) {
@@ -316,8 +323,29 @@ function Home() {
   const [authNotice, setAuthNotice] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState(null)
+  const [currentUserProfile, setCurrentUserProfile] = useState(null)
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0)
+  const [isNavHidden, setIsNavHidden] = useState(false)
+
+  const handlePageReady = () => {
+    setIsNavHidden(false)
+  }
+
+  // Safety fallback: if pages don't call `onPageReady()` (navegación muy rápida
+  // o rutas sin carga asíncrona), mostramos el navbar automáticamente tras 800ms.
+  useEffect(() => {
+    if (!isNavHidden) return undefined
+
+    const id = window.setTimeout(() => setIsNavHidden(false), 800)
+    return () => window.clearTimeout(id)
+  }, [isNavHidden])
+
+  function normalizeRouteValue(value) {
+    return typeof value === 'string' ? value.trim() : ''
+  }
 
   const goToHome = () => {
+    setIsNavHidden(true)
     window.history.replaceState({}, '', '/')
     setActivePage('home')
     setActiveComicId('')
@@ -328,29 +356,36 @@ function Home() {
   }
 
   const goToProfile = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/perfil')
     setActivePage('profile')
   }
 
   const goToProfileByUid = (uid) => {
-    window.history.pushState({}, '', `/perfil/${encodeURIComponent(uid)}`)
+    setIsNavHidden(true)
+    const safeUid = normalizeRouteValue(uid)
+
+    window.history.pushState({}, '', `/perfil/${encodeURIComponent(safeUid)}`)
     setActivePage('profile')
-    setActiveComicId(uid)
+    setActiveComicId(safeUid)
   }
 
   const goToFriends = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/amigos')
     setActivePage('friends')
     setActiveComicId('')
   }
 
   const goToBlockedUsers = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/usuarios-bloqueados')
     setActivePage('blocked-users')
     setActiveComicId('')
   }
 
   const goToReports = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/reportes')
     setActivePage('reports')
     setActiveComicId('')
@@ -358,6 +393,7 @@ function Home() {
   }
 
   const goToCreationsReview = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/admin/creations')
     setActivePage('creations-review')
     setActiveComicId('')
@@ -365,6 +401,7 @@ function Home() {
   }
 
   const goToContacto = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/contacto')
     setActivePage('contacto')
     setActiveComicId('')
@@ -372,6 +409,7 @@ function Home() {
   }
 
   const goToMensajesUsuarios = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/mensajes-usuarios')
     setActivePage('mensajes-usuarios')
     setActiveComicId('')
@@ -379,6 +417,7 @@ function Home() {
   }
 
   const goToActivities = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/actividades')
     setActivePage('activities')
     setActiveComicId('')
@@ -386,6 +425,7 @@ function Home() {
   }
 
   const goToNotifications = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/notificaciones')
     setActivePage('notifications')
     setActiveComicId('')
@@ -393,23 +433,91 @@ function Home() {
   }
 
   const goToCreateComic = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/crear-comic')
     setActivePage('create-comic')
   }
 
   const goToCreateComicVolumes = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/crear-comic/tomos')
     setActivePage('create-comic-volumes')
   }
 
-  const goToLibrary = () => {
-    window.history.pushState({}, '', '/biblioteca')
+  useEffect(() => {
+    if (activePage !== 'home') {
+      return undefined
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveHeroSlide((currentSlide) => (currentSlide + 1) % 2)
+    }, 10000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [activePage])
+
+  useEffect(() => {
+    if (!authNotice) {
+      return undefined
+    }
+
+    if (activePage !== 'home' && activePage !== 'comic-detail') {
+      setAuthNotice('')
+      return undefined
+    }
+
+    const noticeTimeoutId = window.setTimeout(() => {
+      setAuthNotice('')
+    }, 12000)
+
+    return () => {
+      window.clearTimeout(noticeTimeoutId)
+    }
+  }, [authNotice, activePage])
+
+  // Navbar visibility is controlled by pages via `onPageReady()`.
+
+  const homeHeroSlides = [
+    {
+      image: '/home-carousel/bienvenida-comiku.jpg',
+      eyebrow: 'Bienvenido a Comiku',
+      title: 'Descubre, organiza y comparte comics y tomos',
+      description:
+        'Comiku es una plataforma pensada para explorar comics, guardar tomos en tu biblioteca, crear listas temáticas y seguir de cerca las novedades de tu colección.',
+      actionLabel: '',
+      actionHandler: null,
+    },
+    {
+      image: '/home-carousel/crear-comic.jpg',
+      eyebrow: 'Ayuda a crecer la plataforma',
+      title: 'Si no encuentras un comic, puedes crearlo',
+      description:
+        'Cuando un comic o tomo no existe todavía, puedes registrarlo para ayudar a que toda la comunidad complete el catálogo.',
+      actionLabel: 'Crear comic',
+      actionHandler: goToCreateComic,
+    },
+  ]
+
+  const [activeLibraryUid, setActiveLibraryUid] = useState('')
+  const [activeLibraryNick, setActiveLibraryNick] = useState('')
+
+  const goToLibrary = (uid, nick) => {
+    setIsNavHidden(true)
+    const safeUid = normalizeRouteValue(uid)
+    const safeNick = normalizeRouteValue(nick)
+    const path = safeUid ? `/biblioteca?uid=${encodeURIComponent(safeUid)}` : '/biblioteca'
+    window.history.pushState({}, '', path)
     setActivePage('library')
     setActiveComicId('')
     setActiveVolumeId('')
+    setActiveLibraryUid(safeUid)
+    setActiveLibraryNick(safeNick)
   }
 
   const goToWishlist = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/deseados')
     setActivePage('wishlist')
     setActiveComicId('')
@@ -417,6 +525,7 @@ function Home() {
   }
 
   const goToThematicLists = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/listas-tematicas')
     setActivePage('thematic-lists')
     setActiveComicId('')
@@ -424,6 +533,7 @@ function Home() {
   }
 
   const goToCreateThematicList = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/listas-tematicas/crear')
     setActivePage('create-thematic-list')
     setActiveComicId('')
@@ -431,6 +541,7 @@ function Home() {
   }
 
   const goToMyThematicLists = () => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', '/listas-tematicas/mis-listas')
     setActivePage('my-thematic-lists')
     setActiveComicId('')
@@ -438,6 +549,7 @@ function Home() {
   }
 
   const goToThematicListDetail = (listId) => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', `/listas-tematicas/ver/${encodeURIComponent(listId)}`)
     setActivePage('thematic-list-detail')
     setActiveComicId(listId)
@@ -445,6 +557,7 @@ function Home() {
   }
 
   const goToEditComic = (comicId) => {
+    setIsNavHidden(true)
     window.history.pushState({}, '', `/comic/editar/${encodeURIComponent(comicId)}`)
     setActivePage('edit-comic')
     setActiveComicId(comicId)
@@ -452,6 +565,7 @@ function Home() {
   }
 
   const goToEditVolume = ({ comicId, volumeId }) => {
+    setIsNavHidden(true)
     window.history.pushState(
       {},
       '',
@@ -487,8 +601,12 @@ function Home() {
     setActiveVolumeId(volumeId)
   }
 
-  const handleAuthenticated = ({ user, notice = '' }) => {
+  const handleAuthenticated = ({ user, profile = null, notice = '' }) => {
     setAuthUser(user)
+    if (profile && typeof profile === 'object') {
+      setCurrentUserRole(profile.rol || '')
+      setCurrentUserProfile(profile)
+    }
     setActivePage('home')
     setAuthError('')
     setAuthNotice(notice)
@@ -507,26 +625,48 @@ function Home() {
   useEffect(() => {
     let cancelled = false
 
-    async function loadCurrentUserRole() {
+    const PROFILE_RETRY_ATTEMPTS = 5
+    const PROFILE_RETRY_DELAY_MS = 250
+
+    async function wait(ms) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, ms)
+      })
+    }
+
+    async function loadCurrentUserProfile() {
       if (!authUser?.uid) {
         setCurrentUserRole(null)
+        setCurrentUserProfile(null)
         return
       }
 
       try {
-        const profile = await getUserProfile(authUser.uid)
+        let profile = null
+
+        for (let attempt = 0; attempt < PROFILE_RETRY_ATTEMPTS; attempt += 1) {
+          profile = await getUserProfile(authUser.uid)
+
+          if (profile || cancelled) {
+            break
+          }
+
+          await wait(PROFILE_RETRY_DELAY_MS)
+        }
 
         if (!cancelled) {
           setCurrentUserRole(profile?.rol || '')
+          setCurrentUserProfile(profile)
         }
       } catch {
         if (!cancelled) {
           setCurrentUserRole('')
+          setCurrentUserProfile(null)
         }
       }
     }
 
-    loadCurrentUserRole()
+    loadCurrentUserProfile()
 
     return () => {
       cancelled = true
@@ -689,7 +829,7 @@ function Home() {
               return matchedGenresDiff
             }
 
-            return a.comic.nombre.localeCompare(b.comic.nombre, 'es')
+            return toSortableText(a.comic.nombre).localeCompare(toSortableText(b.comic.nombre), 'es')
           })
           .slice(0, 20)
 
@@ -795,6 +935,7 @@ function Home() {
   }
 
   const renderNavbar = () => {
+    if (isNavHidden) return null
     try {
       return (
         <Navbar
@@ -815,8 +956,10 @@ function Home() {
           onOpenActivities={goToActivities}
           onOpenNotifications={goToNotifications}
           onOpenCreationsReview={goToCreationsReview}
+          onOpenMyProfile={goToProfile}
           activePage={activePage}
           currentUserRole={currentUserRole}
+          currentUserProfile={currentUserProfile}
         />
       )
     } catch (error) {
@@ -829,7 +972,9 @@ function Home() {
     return (
       <main className="app-shell">
         <section className="app-card loading-card">
-          <p className="status-message">Cargando sesión...</p>
+          <p className="status-message">
+            {activePage === 'creations-review' ? 'Cargando creaciones...' : 'Cargando sesión...'}
+          </p>
         </section>
       </main>
     )
@@ -851,7 +996,7 @@ function Home() {
     return (
       <main className="app-shell">
         <section className="app-card loading-card">
-          <p className="status-message">Cargando inicio personalizado...</p>
+          <p className="status-message">Cargando inicio...</p>
         </section>
       </main>
     )
@@ -863,8 +1008,19 @@ function Home() {
         {renderNavbar()}
         <ProfilePage
           authUser={authUser}
+          onLogout={handleLogout}
           onBack={() => {
             setActivePage('home')
+            goToHome()
+          }}
+          onUserBlocked={({ nick }) => {
+            const safeNick = String(nick || '').trim()
+            setAuthError('')
+            setAuthNotice(
+              safeNick
+                ? `Bloqueaste a ${safeNick} correctamente.`
+                : 'Usuario bloqueado correctamente.',
+            )
             goToHome()
           }}
           onAccountDeleted={({ message }) => {
@@ -872,11 +1028,16 @@ function Home() {
             setAuthNotice(message || 'Cuenta eliminada correctamente.')
             goToHome()
           }}
-          profileUid={activeComicId || undefined}
+          profileUid={typeof activeComicId === 'string' && activeComicId ? activeComicId : undefined}
+          onOpenComic={goToComicDetail}
+          onOpenLibrary={goToLibrary}
+          activeLibraryUid={typeof activeLibraryUid === 'string' && activeLibraryUid ? activeLibraryUid : undefined}
+          activeLibraryNick={typeof activeLibraryNick === 'string' && activeLibraryNick ? activeLibraryNick : undefined}
           onDeleteAccount={handleDeleteAccount}
           isDeletingAccount={deletingAccount}
           globalError={authError}
           onGoToBlockedUsers={goToBlockedUsers}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -890,6 +1051,7 @@ function Home() {
           authUser={authUser}
           onOpenProfile={(uid) => goToProfileByUid(uid)}
           onOpenFriends={goToFriends}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -906,6 +1068,7 @@ function Home() {
             setActivePage('chats')
             window.history.pushState({}, '', '/chats')
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -922,6 +1085,7 @@ function Home() {
             setActiveComicId('')
             goToProfile()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -953,6 +1117,8 @@ function Home() {
           onOpenThematicList={(listId) => {
             goToThematicListDetail(listId)
           }}
+          onOpenProfile={(uid) => goToProfileByUid(uid)}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -962,7 +1128,7 @@ function Home() {
     return (
       <>
         {renderNavbar()}
-        <NotificationsPage authUser={authUser} />
+        <NotificationsPage authUser={authUser} onPageReady={handlePageReady} />
       </>
     )
   }
@@ -977,6 +1143,7 @@ function Home() {
             setActivePage('home')
             goToHome()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -991,6 +1158,7 @@ function Home() {
             setActivePage('home')
             goToHome()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1012,6 +1180,7 @@ function Home() {
             setActivePage('create-comic-volumes')
             goToCreateComicVolumes()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1049,10 +1218,12 @@ function Home() {
             setCreateVolumesFromDetail(false)
             if (createVolumesFromDetail) {
               goToComicDetail(activeComicId)
+              window.scrollTo({ top: 0, behavior: 'auto' })
             } else {
               goToHome()
             }
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1075,6 +1246,7 @@ function Home() {
             setActivePage('comic-detail')
             goToComicDetail(activeComicId)
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1097,6 +1269,7 @@ function Home() {
             setActivePage('volume-detail')
             goToVolumeDetail({ comicId: activeComicId, volumeId: activeVolumeId })
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1132,6 +1305,8 @@ function Home() {
             setAuthNotice('Comic eliminado correctamente.')
             goToLibrary()
           }}
+          onOpenProfile={(uid) => goToProfileByUid(uid)}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1146,6 +1321,7 @@ function Home() {
             setActivePage('home')
             goToHome()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1166,6 +1342,7 @@ function Home() {
             setActivePage('creations-review')
             goToCreationsReview()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1184,6 +1361,7 @@ function Home() {
             setAuthNotice('Tomo eliminado correctamente.')
             goToComicDetail(comicId)
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1198,6 +1376,9 @@ function Home() {
           onOpenComic={(comicId) => {
             goToComicDetail(comicId)
           }}
+          libraryUid={typeof activeLibraryUid === 'string' && activeLibraryUid ? activeLibraryUid : undefined}
+          libraryOwnerNick={typeof activeLibraryNick === 'string' && activeLibraryNick ? activeLibraryNick : undefined}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1212,6 +1393,7 @@ function Home() {
           onOpenVolume={({ comicId, volumeId }) => {
             goToVolumeDetail({ comicId, volumeId })
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1229,6 +1411,7 @@ function Home() {
           onOpenVolume={({ comicId, volumeId }) => {
             goToVolumeDetail({ comicId, volumeId })
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1245,6 +1428,7 @@ function Home() {
           onFinishCreation={() => {
             goToThematicLists()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1261,6 +1445,7 @@ function Home() {
           onFinishCreation={() => {
             goToMyThematicLists()
           }}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1281,6 +1466,8 @@ function Home() {
             setAuthNotice('Lista temática eliminada correctamente.')
             goToThematicLists()
           }}
+          onOpenProfile={(uid) => goToProfileByUid(uid)}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1295,6 +1482,7 @@ function Home() {
           onEditList={(listId) => goToEditThematicList(listId)}
           onBack={goToThematicLists}
           onOpenList={(listId) => goToThematicListDetail(listId)}
+          onPageReady={handlePageReady}
         />
       </>
     )
@@ -1305,47 +1493,45 @@ function Home() {
       {renderNavbar()}
       <main className="app-shell">
         <section className="app-card home-dashboard-card">
-          <div className="app-hero">
-            <div>
-              <p className="eyebrow">Comiku / Home</p>
-              <h1>Inicio personalizado</h1>
-              <p className="lead">
-                Revisa tus faltantes, tus tomos más recientes y sugerencias basadas en
-                los géneros que ya guardaste.
-              </p>
-              <p className="session-user">Sesión activa: {authUser.email}</p>
+          {authNotice ? <p className="form-message success">{authNotice}</p> : null}
+
+          <div className="home-carousel" aria-roledescription="carousel" aria-label="Inicio de Comiku">
+            <div className="home-carousel-track">
+              {homeHeroSlides.map((slide, index) => (
+                <article
+                  key={slide.title}
+                  className={`home-carousel-slide ${index === activeHeroSlide ? 'active' : ''}`}
+                  style={{ backgroundImage: `url(${slide.image})` }}
+                  aria-hidden={index !== activeHeroSlide}
+                >
+                  <div className="home-carousel-overlay" />
+                  <div className="home-carousel-content">
+                    <p className="eyebrow home-carousel-eyebrow">{slide.eyebrow}</p>
+                    <h1>{slide.title}</h1>
+                    <p className="lead">{slide.description}</p>
+                    {slide.actionLabel ? (
+                      <button className="create-button home-carousel-button" onClick={slide.actionHandler} type="button">
+                        {slide.actionLabel}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
             </div>
 
-            <div className="hero-actions">
-              <button
-                className="create-button"
-                onClick={() => {
-                  setAuthError('')
-                  setActiveComicDraft(null)
-                  setActivePage('create-comic')
-                  goToCreateComic()
-                }}
-                type="button"
-              >
-                Crear ahora
-              </button>
-              <button
-                className="profile-button"
-                onClick={() => {
-                  setActivePage('profile')
-                  goToProfile()
-                }}
-                type="button"
-              >
-                Mi perfil
-              </button>
-              <button className="logout-button" onClick={handleLogout} type="button">
-                Cerrar sesión
-              </button>
+            <div className="home-carousel-dots" aria-label="Seleccionar slide del carrusel">
+              {homeHeroSlides.map((slide, index) => (
+                <button
+                  key={slide.title}
+                  type="button"
+                  className={`home-carousel-dot ${index === activeHeroSlide ? 'active' : ''}`}
+                  onClick={() => setActiveHeroSlide(index)}
+                  aria-label={`Ver slide ${index + 1}`}
+                  aria-pressed={index === activeHeroSlide}
+                />
+              ))}
             </div>
           </div>
-
-          {authNotice ? <p className="form-message success">{authNotice}</p> : null}
           {authError ? <p className="form-message error">{authError}</p> : null}
           {homeError ? <p className="form-message error">{homeError}</p> : null}
 
@@ -1353,7 +1539,6 @@ function Home() {
             <section className="home-highlight-section">
               <div className="home-section-header">
                 <div>
-                  <p className="eyebrow">Comiku / Biblioteca</p>
                   <h2>Tomos que me faltan</h2>
                   <p className="home-section-lead">
                     Una guía rápida de los tomos que todavía no están en tu biblioteca.
@@ -1409,7 +1594,6 @@ function Home() {
             <section className="home-highlight-section">
               <div className="home-section-header">
                 <div>
-                  <p className="eyebrow">Comiku / Últimos agregados</p>
                   <h2>Mis ultimos tomos añadidos</h2>
                   <p className="home-section-lead">
                     Ordenados de izquierda a derecha con los más recientes primero.
@@ -1465,7 +1649,6 @@ function Home() {
             <section className="home-highlight-section">
               <div className="home-section-header">
                 <div>
-                  <p className="eyebrow">Comiku / Recomendaciones</p>
                   <h2>Te puede gustar...</h2>
                   <p className="home-section-lead">
                     Sugerencias creadas a partir de los géneros que dominan tu biblioteca.
@@ -1546,6 +1729,7 @@ function Home() {
       </main>
     </>
   )
+}
 }
 
 export default Home

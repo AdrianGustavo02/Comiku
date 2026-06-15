@@ -6,6 +6,23 @@
   gap: 2rem;
 }
 
+.create-thematic-list-page.app-shell {
+  min-height: auto;
+  place-items: start center;
+  padding-top: 0;
+}
+
+.create-thematic-list-page.loading {
+  min-height: calc(100svh - 64px);
+  place-items: center;
+  padding-top: 0;
+}
+
+.create-thematic-list-page.loading > .loading-card {
+  align-self: center;
+  justify-self: center;
+}
+
 .thematic-list-form {
   display: flex;
   flex-direction: column;
@@ -20,7 +37,7 @@
 
 .thematic-list-form label {
   font-weight: 600;
-  color: #333;
+  color: #f8f3ff;
   font-size: 0.95rem;
 }
 
@@ -28,10 +45,12 @@
 .thematic-list-form textarea,
 .thematic-list-form select {
   padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-family: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  font-family: var(--font-sans);
   font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
 }
 
 .thematic-list-form textarea {
@@ -43,8 +62,8 @@
 .thematic-list-form textarea:focus,
 .thematic-list-form select:focus {
   outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+  border-color: rgba(255, 138, 31, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.12);
 }
 
 .comics-search-container {
@@ -67,46 +86,49 @@
 }
 
 .search-input-wrapper label {
-  font-weight: 600;
-  color: #333;
+  font-weight: bold;
+  color: rgb(35, 35, 35);
   font-size: 0.95rem;
 }
 
 .search-input-wrapper input {
   padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
   font-size: 0.95rem;
+  background: rgb(25, 14, 42);
+  color: #f8f3ff;
 }
 
 .search-input-wrapper input:focus {
   outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+  border-color: rgba(255, 138, 31, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.4);
 }
 
 .search-button {
   padding: 0.75rem 1.5rem;
-  background-color: #0066cc;
-  color: white;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
   border: none;
-  border-radius: 4px;
+  border-radius: 14px;
   font-weight: 600;
   cursor: pointer;
   font-size: 0.95rem;
-  transition: background-color 0.2s;
+  transition: filter 0.2s;
 }
 
 .search-button:hover {
-  background-color: #0052a3;
+  filter: brightness(1.04);
 }
 
 .search-button:active {
-  background-color: #003d7a;
+  filter: brightness(0.98);
 }
 
 .search-button:disabled {
-  background-color: #ccc;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cdbfe3;
   cursor: not-allowed;
 }
 
@@ -116,16 +138,15 @@
   gap: 1rem;
 }
 
-/* Limitar la altura visible de la lista de resultados temáticos para mostrar ~5 items y permitir scroll */
 .search-suggestion-list.thematic-volume-suggestions {
   max-height: 240px;
   overflow: auto;
 }
 
 .comic-search-card {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
   padding: 1rem;
   text-align: center;
   cursor: pointer;
@@ -133,21 +154,21 @@
 }
 
 .comic-search-card:hover {
-  border-color: #0066cc;
-  box-shadow: 0 2px 8px rgba(0, 102, 204, 0.15);
+  border-color: rgba(255, 138, 31, 0.34);
+  box-shadow: 0 10px 22px rgba(255, 138, 31, 0.12);
   transform: translateY(-2px);
 }
 
 .comic-search-card strong {
   display: block;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: #f8f3ff;
   word-break: break-word;
 }
 
 .comic-search-card small {
   display: block;
-  color: #666;
+  color: #cdbfe3;
   font-size: 0.85rem;
 }
 
@@ -169,33 +190,43 @@
 }
 
 .selected-volumes-count {
-  background-color: #f0f0f0;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  color: #666;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: rgb(35, 35, 35);
 }
 
 .remove-volume-button {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background-color: #e74c3c;
-  color: white;
+  background: #ed5454;
+  color: #fff1f2;
   border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  border-radius: 8px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 1rem;
-  transition: background-color 0.2s;
+  font-weight: bold;
+  font-family: 'Segoe UI Variable', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  margin-top: 0.5rem;
 }
 
 .remove-volume-button:hover {
-  background-color: #c0392b;
+  background: #881717;
+}
+
+.empty-results-text {
+  color: rgb(35, 35, 35);
+}
+
+.create-thematic-list-page .helper-text {
+  margin-top: 1rem;
+  text-align: center;
+  color: rgb(35, 35, 35);
+}
+
+.create-thematic-list-page .form-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {

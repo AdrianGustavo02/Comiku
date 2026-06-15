@@ -1,7 +1,14 @@
-.notifications-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+.notifications-page.app-shell {
+  min-height: auto;
+  place-items: start center;
+  padding-top: 0;
+}
+
+.notifications-container.app-card {
+width: min(1180px, 100%);
+  background:
+    radial-gradient(circle at top left, rgba(255, 138, 31, 0.12), transparent 25%),
+    linear-gradient(180deg, #12061f 0%, #1d0d2f 100%);
 }
 
 .notifications-header {
@@ -10,52 +17,50 @@
   align-items: center;
   margin-bottom: 20px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
 }
 
 .notifications-header h1 {
   margin: 0;
   font-size: 28px;
-  color: #333;
+  color: #f8f3ff;
 }
 
 .mark-all-read-btn {
   padding: 8px 16px;
-  background: #667eea;
-  color: white;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .mark-all-read-btn:hover {
-  background: #764ba2;
+  filter: brightness(1.04);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.notifications-container {
-  max-width: 600px;
-  margin: 0 auto;
+  box-shadow: 0 8px 18px rgba(255, 138, 31, 0.22);
 }
 
 .loading {
   text-align: center;
   padding: 40px 20px;
-  color: white;
+  color: #f8f3ff;
   font-size: 16px;
 }
 
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  color: #666;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  color: #cdbfe3;
 }
 
 .empty-state p {
@@ -64,10 +69,11 @@
 }
 
 .notifications-list {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
 }
 
 .notification-item {
@@ -75,10 +81,10 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;
-  background: white;
+  background: transparent;
 }
 
 .notification-item:last-child {
@@ -86,12 +92,12 @@
 }
 
 .notification-item:hover {
-  background: #f8f9fa;
+  background: rgba(255, 138, 31, 0.08);
   transform: translateX(4px);
 }
 
 .notification-item.unread {
-  background: #f0f4ff;
+  background: rgba(255, 138, 31, 0.09);
 }
 
 .notification-avatar {
@@ -100,7 +106,7 @@
   height: 48px;
   border-radius: 50%;
   overflow: hidden;
-  background: #e0e0e0;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .notification-avatar img {
@@ -115,8 +121,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #ffb05c, #a35eff);
+  color: #1b0f08;
   font-weight: bold;
   font-size: 20px;
 }
@@ -144,14 +150,14 @@
 
 .notification-text p {
   margin: 0;
-  color: #333;
+  color: #f8f3ff;
   font-size: 14px;
   line-height: 1.4;
 }
 
 .notification-date {
   font-size: 12px;
-  color: #999;
+  color: #cdbfe3;
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -159,7 +165,7 @@
 .unread-indicator {
   width: 8px;
   height: 8px;
-  background: #667eea;
+  background: #ff8a1f;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -167,10 +173,10 @@
 .load-more-btn {
   width: 100%;
   padding: 12px;
-  background: white;
-  border: 2px solid #667eea;
-  color: #667eea;
-  border-radius: 0 0 12px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 138, 31, 0.32);
+  color: #ffd2a6;
+  border-radius: 0 0 20px 20px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -178,15 +184,11 @@
 }
 
 .load-more-btn:hover {
-  background: #667eea;
-  color: white;
+  background: rgba(255, 138, 31, 0.14);
+  color: #fff0df;
 }
 
 @media (max-width: 600px) {
-  .notifications-page {
-    padding: 10px;
-  }
-
   .notifications-header {
     flex-direction: column;
     gap: 12px;

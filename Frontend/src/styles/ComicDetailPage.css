@@ -5,14 +5,44 @@
 
 .comic-detail-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  color: #f8fafc;
+  font-size: 2em;
+  color: rgb(35, 35, 35);
+  font-family: 'Segoe UI Variable', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: bold;
+}
+
+.comic-detail-header {
+  position: relative;
+  padding-right: 200px;
+}
+
+.hero-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 2;
+}
+
+@media (max-width: 640px) {
+  .comic-detail-header {
+    padding-right: 0;
+  }
+
+  .hero-actions {
+    position: static;
+    margin-top: 12px;
+    justify-content: flex-start;
+    gap: 8px;
+  }
 }
 
 .comic-detail-metadata {
   border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(15, 23, 42, 0.44);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(25, 14, 42);
   padding: 14px;
   display: grid;
   gap: 8px;
@@ -20,13 +50,20 @@
 
 .comic-detail-metadata p {
   margin: 0;
-  color: #cbd5e1;
+  color: #d9cdea;
+}
+
+.comic-detail-volumes {
+  background: rgb(25, 14, 42);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
 }
 
 .report-content-panel {
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   padding: 16px;
   display: grid;
   gap: 10px;
@@ -34,49 +71,59 @@
 
 .report-content-panel h2 {
   margin: 0;
-  color: #f8fafc;
+  color: #f8f3ff;
+  font-family: var(--font-sans);
+}
+
+.report-content-panel .danger-button {
+  width: fit-content;
+  justify-self: start;
 }
 
 .report-content-button {
   width: fit-content;
-  border: 1px solid rgba(248, 113, 113, 0.45);
+  border: 1px solid rgba(239, 68, 68, 0.42);
   border-radius: 12px;
   padding: 10px 14px;
   font-weight: 700;
-  color: #fecaca;
-  background: rgba(127, 29, 29, 0.24);
+  color: #ffe4e6;
+  background: rgba(239, 68, 68, 0.18);
   cursor: pointer;
 }
 
 .report-content-button:hover {
-  background: rgba(127, 29, 29, 0.36);
+  background: rgba(239, 68, 68, 0.28);
 }
 
 .report-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.72);
+  background: rgba(7, 3, 14, 0.78);
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow-y: auto;
   z-index: 45;
   backdrop-filter: blur(8px);
 }
 
 .report-modal {
-  width: min(100%, 500px);
+  width: min(500px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
   border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(33, 17, 49, 0.98), rgba(16, 7, 25, 0.98));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   padding: 22px;
   display: grid;
   gap: 14px;
+  overflow: auto;
+  word-break: break-word;
 }
 
 .report-modal h2 {
   margin: 0;
-  color: #f8fafc;
+  color: #f8f3ff;
 }
 
 .report-form {
@@ -85,7 +132,7 @@
 }
 
 .report-form label {
-  color: #dbeafe;
+  color: #f8f3ff;
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -94,12 +141,12 @@
 .report-form select,
 .report-form input[type='file'] {
   width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  background: rgba(2, 6, 23, 0.45);
-  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   padding: 10px;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 
 .report-form textarea {
@@ -109,8 +156,8 @@
 
 .report-screenshot-preview-card {
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(2, 6, 23, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   padding: 8px;
   display: grid;
 }
@@ -127,6 +174,7 @@
   gap: 10px;
   justify-content: flex-end;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 
 .report-modal-button {
@@ -134,15 +182,15 @@
   padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
-  border: 1px solid rgba(248, 113, 113, 0.45);
-  color: #fecaca;
-  background: rgba(127, 29, 29, 0.24);
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  color: #ffe4e6;
+  background: rgba(239, 68, 68, 0.18);
 }
 
 .report-modal-button.secondary {
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  color: #e2e8f0;
-  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f8f3ff;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .report-modal-button:disabled {
@@ -162,7 +210,16 @@
 
 .comic-detail-volumes h2 {
   margin: 0 0 12px;
-  color: #f8fafc;
+  color: #f8f3ff;
+  font-family: var(--font-sans);
+}
+
+.missing-volumes,
+.owned-volumes {
+  background: rgb(25, 14, 42);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
 }
 
 .comic-detail-volumes > div:not(:last-child) {
@@ -192,10 +249,10 @@
 
 .volume-scroll-button {
   flex: 0 0 auto;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  background: rgba(15, 23, 42, 0.45);
-  color: #dbeafe;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   width: 40px;
   height: 40px;
   display: grid;
@@ -207,12 +264,12 @@
 }
 
 .volume-scroll-button:hover {
-  background: rgba(30, 64, 175, 0.18);
-  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(255, 138, 31, 0.12);
+  border-color: rgba(255, 138, 31, 0.32);
 }
 
 .volume-scroll-button:active {
-  background: rgba(30, 64, 175, 0.28);
+  background: rgba(255, 138, 31, 0.18);
 }
 
 @media (max-width: 768px) {
@@ -238,8 +295,8 @@
 /* Reseñas */
 .comic-detail-reviews {
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(25, 14, 42);
   padding: 16px;
   display: grid;
   gap: 12px;
@@ -247,13 +304,13 @@
 
 .comic-rating-summary p {
   margin: 0;
-  color: #e2e8f0;
+  color: #d9cdea;
 }
 
 .my-review {
-  background: rgba(2,6,23,0.25);
+  background: rgba(255, 255, 255, 0.04);
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .review-form {
@@ -268,8 +325,8 @@
 
 .star-button {
   background: transparent;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f8f3ff;
   width: 40px;
   height: 36px;
   border-radius: 8px;
@@ -280,26 +337,36 @@
 }
 
 .star-button.selected {
-  background: rgba(250, 204, 21, 0.12);
-  border-color: rgba(250, 204, 21, 0.5);
-  color: #facc15;
+  background: rgba(255, 138, 31, 0.14);
+  border-color: rgba(255, 138, 31, 0.42);
+  color: #ffb05c;
+}
+
+/* Hover / focus effect para botones de estrella */
+.star-button:hover,
+.star-button:focus-visible {
+  background: rgba(255, 138, 31, 0.12);
+  border-color: rgba(255, 138, 31, 0.32);
+  color: #ffb05c;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
 .review-form textarea {
   width: 100%;
   resize: vertical;
   min-height: 64px;
-  background: rgba(2,6,23,0.12);
-  color: #e2e8f0;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 8px;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .review-actions {
   display: flex;
   gap: 8px;
 }
+
 
 .other-reviews .reviews-list {
   list-style: none;
@@ -310,8 +377,8 @@
 }
 
 .review-item {
-  background: rgba(2,6,23,0.14);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
   padding: 10px;
   display: grid;
   gap: 8px;
@@ -328,14 +395,14 @@
   height: 44px;
   border-radius: 999px;
   object-fit: cover;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .review-meta {
   display: flex;
   gap: 8px;
   align-items: center;
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.9rem;
 }
 
@@ -346,7 +413,7 @@
 
 .review-text {
   margin: 0;
-  color: #cbd5e1;
+  color: #d9cdea;
 }
 
 .reviews-more {
@@ -358,9 +425,9 @@
 .reviews-more button {
   padding: 8px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.6);
-  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   cursor: pointer;
 }
 
@@ -370,3 +437,15 @@
     height: 34px;
   }
 }
+
+/* Botón de enlace a perfil en reseñas (antes inline styles) */
+.profile-link-button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font: inherit;
+}
+

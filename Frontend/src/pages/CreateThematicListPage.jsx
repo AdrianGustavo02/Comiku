@@ -21,19 +21,25 @@ import '../styles/ThematicListsShared.css'
 import '../styles/CreateThematicListPage.css'
 
 function normalizeText(value) {
-  return (value || '').toLowerCase().trim()
+  return String(value ?? '').toLowerCase().trim()
+}
+
+function toSortableText(value) {
+  return String(value ?? '').toLowerCase().trim()
 }
 
 function getSearchScore(name, query) {
+  const safeName = String(name || '')
+
   if (name === query) {
     return 0
   }
 
-  if (name.startsWith(query)) {
+  if (safeName.startsWith(query)) {
     return 1
   }
 
-  const matchIndex = name.indexOf(query)
+  const matchIndex = safeName.indexOf(query)
 
   if (matchIndex >= 0) {
     return 2 + matchIndex
@@ -107,6 +113,7 @@ function CreateThematicListPage({
   listId,
   onBack,
   onFinishCreation,
+  onPageReady,
 }) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(listId ? true : false)
@@ -124,7 +131,6 @@ function CreateThematicListPage({
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [selectedVolumes, setSelectedVolumes] = useState([])
-  const [loadingComics, setLoadingComics] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -208,6 +214,7 @@ function CreateThematicListPage({
       } finally {
         if (!cancelled) {
           setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
@@ -227,7 +234,6 @@ function CreateThematicListPage({
 
     async function loadComics() {
       try {
-        setLoadingComics(true)
         const comics = await getAllComics()
 
         const comicsWithVolumes = await Promise.all(
@@ -259,10 +265,6 @@ function CreateThematicListPage({
               ? requestError.message
               : 'No fue posible cargar los comics.',
           )
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingComics(false)
         }
       }
     }
@@ -331,7 +333,7 @@ function CreateThematicListPage({
           return aVolume - bVolume
         }
 
-        return a.comicNombre.localeCompare(b.comicNombre, 'es')
+        return toSortableText(a.comicNombre).localeCompare(toSortableText(b.comicNombre), 'es')
       })
           .slice(0, 20)
   }, [allComicVolumes, parsedSearch.comicQuery, parsedSearch.volumeNumber])
@@ -498,7 +500,7 @@ function CreateThematicListPage({
 
   if (loading) {
     return (
-      <main className="app-shell">
+      <main className="app-shell create-thematic-list-page loading">
         <section className="app-card loading-card">
           <p className="status-message">Cargando...</p>
         </section>
@@ -507,11 +509,10 @@ function CreateThematicListPage({
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell create-thematic-list-page">
       <section className="app-card">
         <div className="app-hero">
           <div>
-            <p className="eyebrow">Comiku / {listId ? 'Editar' : 'Crear'} lista temática</p>
             <h1>{listId ? 'Editar lista temática' : 'Crear nueva lista temática'}</h1>
             <p className="lead">
               {step === 1
@@ -522,7 +523,7 @@ function CreateThematicListPage({
 
           <div className="hero-actions">
             <button className="back-button" onClick={onBack} type="button">
-              Volver
+              Volver a listas tematicas
             </button>
           </div>
         </div>
@@ -545,7 +546,6 @@ function CreateThematicListPage({
             <label htmlFor="list-description">Descripción</label>
             <textarea
               id="list-description"
-              maxLength={500}
               onChange={(event) => setDescripcion(sanitizeForbiddenInputChars(event.target.value))}
               placeholder="Describe el propósito de esta lista..."
               rows={4}
@@ -574,7 +574,7 @@ function CreateThematicListPage({
           <div>
             <div className="search-form">
               <div className="search-input-wrapper" ref={searchRef}>
-                <label htmlFor="comic-search-input">Buscar comic por nombre</label>
+                <label htmlFor="comic-search-input">Buscar tomos por nombre de comic</label>
                 <input
                   id="comic-search-input"
                   type="text"
@@ -589,12 +589,8 @@ function CreateThematicListPage({
             </div>
 
             {isSearchOpen && normalizeText(searchQuery) ? (
-              <p className="helper-text">Busca un comic para ver sus tomos y agregarlos.</p>
-            ) : null}
-
-            {isSearchOpen && normalizeText(searchQuery) ? (
               filteredVolumes.length === 0 ? (
-                <p className="helper-text">No se encontró ese tomo para este comic.</p>
+                <p className="empty-results-text">No se encontró ese tomo para este comic.</p>
               ) : (
                 <div className="search-results-wrapper">
                   <ul className="search-suggestion-list thematic-volume-suggestions" role="listbox">
@@ -622,7 +618,7 @@ function CreateThematicListPage({
             ) : null}
 
             <div className="section-divider">
-              <h2>Tomos agregados ({selectedVolumes.length})</h2>
+              <h2 className='selected-volumes-count'>Tomos agregados ({selectedVolumes.length})</h2>
             </div>
 
             {selectedVolumes.length === 0 ? (
@@ -637,7 +633,7 @@ function CreateThematicListPage({
                       comicName=""
                     />
                     <button
-                      className="remove-button"
+                      className="remove-volume-button"
                       onClick={() => handleRemoveVolume(idx)}
                       type="button"
                     >

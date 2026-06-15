@@ -82,11 +82,73 @@ export async function initStreamClient({ apiKey, token, user }) {
   if (!apiKey || !token) {
     throw new Error('apiKey y token son requeridos para inicializar Stream')
   }
+  // Reuse existing client if already connected as the same user
+  try {
+    if (client && client.userID === user.id) {
+      return client
+    }
+  } catch {
+    // ignore
+  }
 
-  client = new StreamChat(apiKey)
-  await client.connectUser(user, token)
+  // If there's an existing client for a different user, disconnect it first
+  if (client) {
+    try {
+      await client.disconnectUser()
+    } catch {
+      // ignore disconnect errors
+    }
+    client = null
+  }
 
-  return client
+  // Attempt connect with exponential backoff to handle transient rate limits
+  const maxAttempts = 3
+  let attempt = 0
+  let lastErr = null
+
+  while (attempt < maxAttempts) {
+    attempt += 1
+    client = new StreamChat(apiKey)
+
+    try {
+      await client.connectUser(user, token)
+      return client
+    } catch (err) {
+      lastErr = err
+
+      // Ensure client is cleaned up before retrying
+      try {
+        await client.disconnectUser()
+      } catch {
+        // ignore
+      }
+      client = null
+
+      const statusCode = err?.StatusCode || err?.statusCode || err?.code
+      const isRateLimit = statusCode === 429 || String(err?.message || '').toLowerCase().includes('too many requests')
+
+      if (attempt >= maxAttempts) {
+        if (isRateLimit) {
+          const wrapped = new Error('Rate limit al conectar WS a Stream (429). Espera unos segundos antes de reintentar.')
+          wrapped.original = err
+          throw wrapped
+        }
+        throw err
+      }
+
+      // Backoff: 500ms, 1000ms, 2000ms (cap 2000ms)
+      const delay = Math.min(2000, 500 * Math.pow(2, attempt - 1))
+      // If rate-limited, give a slightly longer wait
+      const wait = isRateLimit ? Math.max(delay, 1000) : delay
+
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((res) => setTimeout(res, wait))
+      // retry
+    }
+  }
+
+  // fallback
+  throw lastErr || new Error('No fue posible inicializar Stream')
 }
 
 export function getStreamClient() {
@@ -94,7 +156,7 @@ export function getStreamClient() {
 }
 
 export async function createOrGet1to1Channel({ members }) {
-  if (!client) throw new Error('Stream client no inicializado')
+  if (!client || !client.userID) throw new Error('Stream client no inicializado o no conectado')
 
   if (!Array.isArray(members) || members.length !== 2) {
     throw new Error('members debe ser array de 2 uids')
@@ -128,7 +190,7 @@ export async function createOrGet1to1Channel({ members }) {
 }
 
 export async function createGroupChannel({ name, members, metadata = {}, description = null, imageUrl = null }) {
-  if (!client) throw new Error('Stream client no inicializado')
+  if (!client || !client.userID) throw new Error('Stream client no inicializado o no conectado')
 
   if (!Array.isArray(members) || members.length < 3) {
     throw new Error('Un chat grupal requiere al menos 3 miembros.')
@@ -194,6 +256,7 @@ export async function sendMessageWithFiles({ channel, text = '', files = [] }) {
     attachments.push({
       type: file.type?.startsWith('audio') ? 'audio' : 'file',
       asset_url: uploadRes.file,
+      mime_type: file.type || 'audio/webm',
       title: file.name || 'attachment',
     })
   }
@@ -249,7 +312,6 @@ export async function enrichChannelWithFirestoreData(channel) {
       channel.data.createdBy = firestoreData.createdBy
     }
   } catch (error) {
-    console.error('Error enriqueciendo channel con datos de Firestore:', error)
   }
 
   return channel

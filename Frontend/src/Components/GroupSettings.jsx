@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { updateGroupChannel, addGroupMembers, makeGroupAdmin, leaveGroupChannel, removeGroupMember, adminDeleteChannel } from '../firebase/stream'
 import { createReport, hasPendingObjectReport, REPORT_REASON_OPTIONS_FOR_GROUP } from '../firebase/reports'
 import { ALLOWED_IMAGE_TYPES, MAX_COVER_SIZE_BYTES, createCompressedImageDataUrl, readFileAsDataUrl } from '../constants/imageUpload'
@@ -6,27 +6,35 @@ import { getUserFriends, getUsersNicksByUids } from '../firebase/user'
 import FileInput from './FileInput'
 import CoverPreview from './CoverPreview'
 import Button from './Button'
+import ConfirmModal from './ConfirmModal'
+import '../styles/Modal.css'
+import './GroupSettings.css'
 
-export default function GroupSettings({ channel, authUser, onClose = () => {}, onUpdated = () => {} }) {
+export default function GroupSettings({ channel, authUser, onClose = () => {}, onUpdated = () => {}, onOpenProfile = () => {} }) {
   const members = channel?.data?.members || []
   const admins = channel?.data?.admins || []
   const isAdmin = authUser?.uid && admins.includes(authUser.uid)
+  const isSoleAdmin = Boolean(isAdmin && admins.length === 1)
   const [activeTab, setActiveTab] = useState('info')
   const [editMode, setEditMode] = useState(false)
   const [groupName, setGroupName] = useState(channel?.data?.groupName || channel?.data?.name || '')
   const [groupDescription, setGroupDescription] = useState(channel?.data?.groupDescription || '')
   const [groupImagePreview, setGroupImagePreview] = useState(channel?.data?.image || channel?.data?.groupImageUrl || null)
   const [groupImageUrl, setGroupImageUrl] = useState(channel?.data?.image || channel?.data?.groupImageUrl || null)
+  const [groupImageFileName, setGroupImageFileName] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [friends, setFriends] = useState([])
   const [selectedFriendsToAdd, setSelectedFriendsToAdd] = useState([])
   const [loadingFriends, setLoadingFriends] = useState(false)
+  const [showAddMembersPanel, setShowAddMembersPanel] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [memberNicks, setMemberNicks] = useState({})
+  const [openMemberMenuId, setOpenMemberMenuId] = useState('')
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deletingGroup, setDeletingGroup] = useState(false)
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false)
   // report group state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_GROUP[0])
@@ -35,6 +43,8 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   const [reportScreenshotPreview, setReportScreenshotPreview] = useState(null)
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [reportError, setReportError] = useState('')
+  const reportDialogRef = useRef(null)
+  const deleteDialogRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -65,6 +75,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
 
     setGroupImagePreview(currentImage || null)
     setGroupImageUrl(currentImage || null)
+    setGroupImageFileName('')
 
     return () => {
       cancelled = true
@@ -72,7 +83,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   }, [channel?.id, channel?.data?.groupName, channel?.data?.name, channel?.data?.groupDescription, channel?.data?.image, channel?.data?.groupImageUrl, channel?.data?.members])
 
   useEffect(() => {
-    if (activeTab !== 'members' || !isAdmin || !authUser?.uid) {
+    if (activeTab !== 'members' || !isAdmin || !authUser?.uid || !showAddMembersPanel) {
       return
     }
 
@@ -91,7 +102,25 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
 
     handleLoadFriends()
-  }, [activeTab, isAdmin, authUser?.uid, channel?.data?.members])
+  }, [activeTab, isAdmin, authUser?.uid, channel?.data?.members, showAddMembersPanel])
+
+  useEffect(() => {
+    if (!isReportModalOpen) {
+      return
+    }
+
+    reportDialogRef.current?.focus({ preventScroll: false })
+    reportDialogRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [isReportModalOpen])
+
+  useEffect(() => {
+    if (!deleteModalOpen) {
+      return
+    }
+
+    deleteDialogRef.current?.focus({ preventScroll: false })
+    deleteDialogRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [deleteModalOpen])
 
   async function handleImageSelect(event) {
     const file = event.target.files?.[0]
@@ -112,6 +141,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
       const compressedDataUrl = await createCompressedImageDataUrl(dataUrl)
       setGroupImagePreview(dataUrl)
       setGroupImageUrl(compressedDataUrl)
+      setGroupImageFileName(file.name || 'Imagen seleccionada')
       setErrors({ ...errors, image: null })
     } catch {
       setErrors({ ...errors, image: 'No se pudo leer la imagen.' })
@@ -121,6 +151,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   function handleRemoveImage() {
     setGroupImagePreview(null)
     setGroupImageUrl(null)
+    setGroupImageFileName('')
     setErrors((currentErrors) => ({ ...currentErrors, image: null }))
   }
 
@@ -188,6 +219,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
 
       setSuccessMessage('Miembros agregados correctamente.')
       setSelectedFriendsToAdd([])
+      setShowAddMembersPanel(false)
       setActiveTab('members')
       setTimeout(() => setSuccessMessage(''), 3000)
     } catch (err) {
@@ -240,8 +272,17 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
   }
 
+  function toggleMemberMenu(memberUid) {
+    setOpenMemberMenuId((currentOpenMemberMenuId) => (currentOpenMemberMenuId === memberUid ? '' : memberUid))
+  }
+
+  function closeMemberMenu() {
+    setOpenMemberMenuId('')
+  }
+
   async function handleLeaveGroup() {
-    if (!window.confirm('¿Estás seguro de que quieres abandonar el grupo?')) {
+    if (!channel?.id) {
+      setErrors({ leave: 'Grupo inválido.' })
       return
     }
 
@@ -254,6 +295,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
       })
 
       setSuccessMessage('Has abandonado el grupo.')
+      setLeaveModalOpen(false)
       setTimeout(() => onClose(), 2000)
     } catch (err) {
       setErrors({ leave: err instanceof Error ? err.message : 'Error al abandonar grupo.' })
@@ -349,93 +391,76 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   }
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div className="group-settings">
+      <div className="group-settings-header">
         <h2>{channel?.data?.name || 'Grupo'}</h2>
-        <button type="button" onClick={onClose} style={{ padding: 8, cursor: 'pointer', border: 'none', background: 'none', fontSize: 20 }}>
+        <button type="button" onClick={onClose} className="group-settings-close-btn">
           ✕
         </button>
       </div>
 
       {successMessage && (
-        <p style={{ padding: 12, background: '#dcfce7', color: '#166534', borderRadius: 8, marginBottom: 16 }}>
-          {successMessage}
-        </p>
+        <p className="group-settings-success">{successMessage}</p>
       )}
 
       {isReportModalOpen ? (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} role="presentation" onClick={closeReportModal}>
-          <div style={{ backgroundColor: 'white', borderRadius: 8, padding: 20, maxWidth: 600, width: '100%' }} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <p className="eyebrow">Comiku / Reportar grupo</p>
-            <h2>Reportar grupo</h2>
+        <div className="modal-backdrop" role="presentation" onClick={closeReportModal}>
+          <div ref={reportDialogRef} className="modal-card" role="dialog" aria-modal="true" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+            <header className="modal-header">
+              <h3>Reportar grupo</h3>
+            </header>
 
-            {reportError ? <p className="form-message error">{reportError}</p> : null}
+            <div className="modal-body">
+              {reportError ? <p className="form-message error">{reportError}</p> : null}
 
-            <form className="report-form" onSubmit={handleSubmitGroupReport}>
-              <label>Motivo</label>
-              <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} disabled={isSubmittingReport}>
-                {REPORT_REASON_OPTIONS_FOR_GROUP.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
+              <form className="report-form" onSubmit={handleSubmitGroupReport}>
+                <label>Motivo</label>
+                <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} disabled={isSubmittingReport}>
+                  {REPORT_REASON_OPTIONS_FOR_GROUP.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
 
-              <label>Descripción</label>
-              <textarea value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
+                <label>Descripción</label>
+                <textarea value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} rows={4} placeholder="Describe brevemente el problema." disabled={isSubmittingReport} />
 
-              <label>Captura de pantalla (opcional)</label>
-              <FileInput
-                id="report-screenshot"
-                accept=".jpg,.jpeg,.png,.webp"
-                onFileChange={(file) => handleReportScreenshotChange({ target: { files: file ? [file] : [] } })}
-                disabled={isSubmittingReport}
-                initialFileName={reportScreenshotFile?.name}
-              />
+                <label>Captura de pantalla (opcional)</label>
+                <FileInput
+                  id="report-screenshot"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onFileChange={(file) => handleReportScreenshotChange({ target: { files: file ? [file] : [] } })}
+                  disabled={isSubmittingReport}
+                  initialFileName={reportScreenshotFile?.name}
+                />
 
-              {reportScreenshotPreview ? (
-                <div className="report-screenshot-preview-card"><img src={reportScreenshotPreview} alt="Vista previa" className="report-screenshot-preview-image" /></div>
-              ) : null}
+                {reportScreenshotPreview ? (
+                  <div className="report-screenshot-preview-card"><img src={reportScreenshotPreview} alt="Vista previa" className="report-screenshot-preview-image" /></div>
+                ) : null}
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-                <Button variant="secondary" className="profile-back-button" type="button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
-                <Button variant="primary" className="delete-account-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
-              </div>
-            </form>
+                <div className="modal-footer">
+                  <button className="secondary-button" type="button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</button>
+                  <button className="danger-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       ) : null}
 
       {errors.submit && (
-        <p style={{ padding: 12, background: '#fee2e2', color: '#991b1b', borderRadius: 8, marginBottom: 16 }}>
-          {errors.submit}
-        </p>
+        <p className="group-settings-error">{errors.submit}</p>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
+      <div className="group-settings-tabs">
         <button
           type="button"
           onClick={() => setActiveTab('info')}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            fontWeight: activeTab === 'info' ? 700 : 400,
-            borderBottom: activeTab === 'info' ? '2px solid #0f172a' : 'none',
-            color: activeTab === 'info' ? '#0f172a' : '#64748b',
-          }}
+          className={`group-settings-tab ${activeTab === 'info' ? 'active' : ''}`}
         >
           Información
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('members')}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            fontWeight: activeTab === 'members' ? 700 : 400,
-            borderBottom: activeTab === 'members' ? '2px solid #0f172a' : 'none',
-            color: activeTab === 'members' ? '#0f172a' : '#64748b',
-          }}
+          className={`group-settings-tab ${activeTab === 'members' ? 'active' : ''}`}
         >
           Miembros ({members.length})
         </button>
@@ -445,201 +470,129 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
         <div>
           {!editMode ? (
             <div>
-              {groupImagePreview ? (
-                <div style={{ marginBottom: 16, textAlign: 'center' }}>
+              <div className="group-info-header">
+                {groupImagePreview ? (
                   <img
                     src={groupImagePreview}
                     alt={groupName || 'Grupo'}
-                    style={{ width: 120, height: 120, borderRadius: 12, objectFit: 'cover', background: '#f1f5f9' }}
+                    className="group-info-avatar-img"
                   />
-                </div>
-              ) : (
-                <div style={{ marginBottom: 16, textAlign: 'center' }}>
-                  <div
-                    style={{
-                      width: 120,
-                      height: 120,
-                      margin: '0 auto',
-                      borderRadius: 12,
-                      background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#0f172a',
-                      fontSize: 42,
-                      fontWeight: 700,
-                    }}
-                  >
+                ) : (
+                  <div className="group-info-avatar-fallback">
                     {(groupName.trim()[0] || 'G').toUpperCase()}
                   </div>
+                )}
+
+                <div className="group-info-header-text">
+                  <div>
+                    {/* <p className="group-info-field-label">Nombre</p> */}
+                    <p className="group-info-field-value">{groupName || 'Sin nombre'}</p>
+                  </div>
+                  <div>
+                    <p className="group-info-field-label">Creado por</p>
+                    <p className="group-info-field-value">
+                      {channel?.data?.createdBy === authUser?.uid ? 'Tú' : 'Otro usuario'}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div style={{ marginBottom: 12 }}>
-                <p style={{ fontSize: 14, color: '#64748b' }}>Nombre</p>
-                <p style={{ fontSize: 16, fontWeight: 600 }}>{groupName || 'Sin nombre'}</p>
               </div>
+
               {groupDescription && (
-                <div style={{ marginBottom: 12 }}>
-                  <p style={{ fontSize: 14, color: '#64748b' }}>Descripción</p>
-                  <p style={{ fontSize: 14 }}>{groupDescription}</p>
+                <div className="group-info-description">
+                  <p className="group-info-field-label">Descripción</p>
+                  <p className="group-info-description-value">{groupDescription}</p>
                 </div>
               )}
-              <div style={{ marginBottom: 12 }}>
-                <p style={{ fontSize: 14, color: '#64748b' }}>Creado por</p>
-                <p style={{ fontSize: 14, fontWeight: 600 }}>
-                  {channel?.data?.createdBy === authUser?.uid ? 'Tú' : 'Otro usuario'}
-                </p>
+
+              <div className="group-settings-actions">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setEditMode(true)}
+                    className="group-settings-btn group-settings-btn-primary"
+                  >
+                    Editar información
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setReportError('')
+                    try {
+                      const hasPending = await hasPendingObjectReport({ usuarioIdReporta: authUser?.uid, objetoReportadoId: channel.id, nombreObjetoReportado: 'grupo de chat' })
+                      if (hasPending) setReportError('Ya tienes un reporte pendiente para este grupo. Podrás volver a reportarlo cuando se resuelva.')
+                    } catch {
+                      // ignore
+                    }
+                    setIsReportModalOpen(true)
+                  }}
+                  disabled={loading}
+                  className="group-settings-btn group-settings-btn-warning"
+                >
+                  Reportar grupo
+                </button>
+                
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={openDeleteGroupModal}
+                    className="group-settings-btn group-settings-btn-danger"
+                  >
+                    Eliminar grupo
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setLeaveModalOpen(true)}
+                  disabled={loading || isSoleAdmin}
+                  className="group-settings-btn group-settings-btn-danger"
+                >
+                  {loading ? 'Abandonando...' : isSoleAdmin ? 'No puedes abandonar' : 'Abandonar grupo'}
+                </button>
+
+
               </div>
 
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setEditMode(true)}
-                  style={{
-                    marginTop: 16,
-                    padding: '10px 16px',
-                    background: '#1d4ed8',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    marginRight: 10,
-                  }}
-                >
-                  Editar información
-                </button>
+              {isSoleAdmin && (
+                <p className="group-settings-sole-admin-hint">
+                  Debes dejar al menos un administrador en el grupo.
+                </p>
               )}
-
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={openDeleteGroupModal}
-                  style={{
-                    marginTop: 16,
-                    padding: '10px 16px',
-                    background: '#dc2626',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    marginRight: 10,
-                  }}
-                >
-                  Eliminar grupo
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={handleLeaveGroup}
-                disabled={loading}
-                style={{
-                  marginTop: 16,
-                  padding: '10px 16px',
-                  background: '#dc2626',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  opacity: loading ? 0.7 : 1,
-                }}
-              >
-                {loading ? 'Abandonando...' : 'Abandonar grupo'}
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setReportError('')
-                  // verificar si hay pendiente
-                  try {
-                    const hasPending = await hasPendingObjectReport({ usuarioIdReporta: authUser?.uid, objetoReportadoId: channel.id, nombreObjetoReportado: 'grupo de chat' })
-                    if (hasPending) setReportError('Ya tienes un reporte pendiente para este grupo. Podrás volver a reportarlo cuando se resuelva.')
-                  } catch {
-                    // ignore
-                  }
-                  setIsReportModalOpen(true)
-                }}
-                disabled={loading}
-                style={{
-                  marginTop: 16,
-                  padding: '10px 16px',
-                  background: '#f97316',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  marginLeft: 8,
-                }}
-              >
-                Reportar grupo
-              </button>
             </div>
           ) : (
             <div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Nombre *</label>
+              <div className="group-settings-form-field">
+                <label className="group-settings-form-label">Nombre</label>
                 <input
                   type="text"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  style={{ width: '100%', padding: 10, border: '1px solid #d7d7d7', borderRadius: 8, fontSize: 14 }}
+                  className="group-settings-input"
                   maxLength={100}
                 />
-                {errors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{errors.name}</p>}
+                {errors.name && <p className="group-settings-field-error">{errors.name}</p>}
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Descripción</label>
+              <div className="group-settings-form-field">
+                <label className="group-settings-form-label">Descripción</label>
                 <textarea
                   value={groupDescription}
                   onChange={(e) => setGroupDescription(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: 10,
-                    border: '1px solid #d7d7d7',
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                    minHeight: 80,
-                  }}
+                  className="group-settings-textarea"
                   maxLength={500}
                 />
-                {errors.description && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{errors.description}</p>}
+                {errors.description && <p className="group-settings-field-error">{errors.description}</p>}
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Foto</label>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('group-settings-image')?.click()}
-                    style={{
-                      padding: '10px 16px',
-                      background: '#0f172a',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cambiar foto
-                  </button>
+              <div className="group-settings-form-field">
+                <label className="group-settings-form-label">Foto</label>
+                <div className="group-settings-photo-buttons">
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    style={{
-                      padding: '10px 16px',
-                      background: '#f1f5f9',
-                      color: '#334155',
-                      border: 'none',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                    }}
+                    className="group-settings-btn group-settings-btn-danger"
                   >
                     Eliminar foto
                   </button>
@@ -649,54 +602,30 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
                   accept={ALLOWED_IMAGE_TYPES.join(',')}
                   onFileChange={(file) => handleImageSelect({ target: { files: file ? [file] : [] } })}
                   disabled={loading || deletingGroup}
-                  initialFileName={groupImagePreview ? 'Imagen seleccionada' : ''}
+                  initialFileName={groupImageFileName}
                 />
-                {errors.image && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{errors.image}</p>}
-                <div style={{ marginTop: 12, textAlign: 'center' }}>
+                {errors.image && <p className="group-settings-field-error">{errors.image}</p>}
+                <div className="group-settings-photo-preview">
                   {groupImagePreview ? (
                     <img
                       src={groupImagePreview}
                       alt={groupName}
-                      style={{ width: 140, height: 140, borderRadius: 14, objectFit: 'cover', background: '#f1f5f9' }}
+                      className="group-settings-photo-preview-img"
                     />
                   ) : (
-                    <div
-                      style={{
-                        width: 140,
-                        height: 140,
-                        margin: '0 auto',
-                        borderRadius: 14,
-                        background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#0f172a',
-                        fontSize: 48,
-                        fontWeight: 700,
-                      }}
-                    >
+                    <div className="group-settings-photo-preview-fallback">
                       {(groupName.trim()[0] || 'G').toUpperCase()}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <div className="group-settings-form-actions">
                 <button
                   type="button"
                   onClick={handleSaveGroupInfo}
                   disabled={loading}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    background: '#1d4ed8',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    opacity: loading ? 0.7 : 1,
-                  }}
+                  className="group-settings-btn group-settings-btn-primary"
                 >
                   {loading ? 'Guardando...' : 'Guardar cambios'}
                 </button>
@@ -704,16 +633,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
                   type="button"
                   onClick={() => setEditMode(false)}
                   disabled={loading}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    background: '#f1f5f9',
-                    color: '#334155',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
+                  className="group-settings-btn group-settings-btn-danger"
                 >
                   Cancelar
                 </button>
@@ -725,59 +645,74 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
 
       {activeTab === 'members' && (
         <div>
-          <div style={{ marginBottom: 16 }}>
+          <div>
             <h3 style={{ marginBottom: 12 }}>Miembros</h3>
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: 20 }}>
+            <ul className="group-settings-members-list">
               {members.map((memberId) => {
                 const memberIsAdmin = admins.includes(memberId)
                 const isCurrentUser = memberId === authUser?.uid
+                const isMemberMenuOpen = openMemberMenuId === memberId
 
                 return (
-                  <li key={memberId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: '#f8fafc', borderRadius: 8, marginBottom: 8 }}>
-                    <div>
-                      <p style={{ fontWeight: 600 }}>{isCurrentUser ? 'Tú' : memberNicks[memberId] || memberId}</p>
-                      {memberIsAdmin && <p style={{ fontSize: 12, color: '#64748b' }}>Admin</p>}
-                    </div>
-                    {isAdmin && !isCurrentUser && (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        {!memberIsAdmin && (
+                  <li key={memberId} className="group-settings-member-item">
+                    <div className="group-settings-member-info">
+                      <p className="group-settings-member-name">
+                        {isCurrentUser ? (
+                          'Tú'
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => handleMakeAdmin(memberId)}
-                            disabled={loading}
-                            style={{
-                              padding: '6px 12px',
-                              background: '#fbbf24',
-                              color: '#000',
-                              border: 'none',
-                              borderRadius: 6,
-                              cursor: 'pointer',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              opacity: loading ? 0.7 : 1,
-                            }}
+                            onClick={() => onOpenProfile(memberId)}
+                            className="group-settings-member-profile-btn"
                           >
-                            Hacer admin
+                            {memberNicks[memberId] || memberId}
                           </button>
                         )}
+                      </p>
+                      {memberIsAdmin && <p className="group-settings-member-role">Admin</p>}
+                    </div>
+
+                    {isAdmin && !isCurrentUser && (
+                      <div className="group-settings-member-actions">
                         <button
                           type="button"
-                          onClick={() => handleRemoveMember(memberId)}
+                          onClick={() => toggleMemberMenu(memberId)}
                           disabled={loading}
-                          style={{
-                            padding: '6px 12px',
-                            background: '#dc2626',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            opacity: loading ? 0.7 : 1,
-                          }}
+                          aria-label="Más opciones"
+                          aria-expanded={isMemberMenuOpen}
+                          className="group-settings-member-menu-btn"
                         >
-                          Eliminar miembro
+                          ⋯
                         </button>
+
+                        {isMemberMenuOpen && (
+                          <div className="group-settings-member-dropdown">
+                            {!memberIsAdmin && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  closeMemberMenu()
+                                  await handleMakeAdmin(memberId)
+                                }}
+                                disabled={loading}
+                                className="group-settings-member-dropdown-item"
+                              >
+                                Hacer admin
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                closeMemberMenu()
+                                await handleRemoveMember(memberId)
+                              }}
+                              disabled={loading}
+                              className="group-settings-member-dropdown-item danger"
+                            >
+                              Eliminar miembro
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </li>
@@ -788,54 +723,56 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
 
           {isAdmin && (
             <div>
-              <h3 style={{ marginBottom: 12 }}>Agregar miembros</h3>
-              {friends.length === 0 ? (
-                <p style={{ color: '#64748b', marginBottom: 16 }}>
-                  {loadingFriends ? 'Cargando amigos...' : 'No hay amigos disponibles para agregar.'}
-                </p>
-              ) : (
-                <div style={{ marginBottom: 16 }}>
-                  <ul style={{ listStyle: 'none', padding: 0, marginBottom: 12, maxHeight: 200, overflowY: 'auto' }}>
-                    {friends.map((friend) => (
-                      <li key={friend.uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: '#f8fafc', borderRadius: 8, marginBottom: 6 }}>
-                        <span style={{ fontWeight: 500 }}>{friend.nick}</span>
-                        <input
-                          type="checkbox"
-                          checked={selectedFriendsToAdd.includes(friend.uid)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedFriendsToAdd([...selectedFriendsToAdd, friend.uid])
-                            } else {
-                              setSelectedFriendsToAdd(selectedFriendsToAdd.filter((uid) => uid !== friend.uid))
-                            }
-                          }}
-                        />
-                      </li>
-                    ))}
-                  </ul>
+              <button
+                type="button"
+                onClick={() => setShowAddMembersPanel((currentValue) => !currentValue)}
+                disabled={loading || loadingFriends}
+                className="group-settings-btn group-settings-btn-success group-settings-members-toggle-btn"
+                style={{ marginBottom: 12 }}
+              >
+                {showAddMembersPanel ? 'Ocultar miembros' : 'Agregar miembros'}
+              </button>
 
-                  {errors.members && <p style={{ color: '#dc2626', fontSize: 12, marginBottom: 12 }}>{errors.members}</p>}
+              {showAddMembersPanel ? (
+                friends.length === 0 ? (
+                  <p style={{ color: '#64748b', marginBottom: 16 }}>
+                    {loadingFriends ? 'Cargando amigos...' : 'No hay amigos disponibles para agregar.'}
+                  </p>
+                ) : (
+                  <div style={{ marginBottom: 16 }}>
+                    <ul className="group-settings-friends-list">
+                      {friends.map((friend) => (
+                        <li key={friend.uid} className="group-settings-friend-item">
+                          <span className="group-settings-friend-nick">{friend.nick}</span>
+                          <input
+                            type="checkbox"
+                            checked={selectedFriendsToAdd.includes(friend.uid)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedFriendsToAdd([...selectedFriendsToAdd, friend.uid])
+                              } else {
+                                setSelectedFriendsToAdd(selectedFriendsToAdd.filter((uid) => uid !== friend.uid))
+                              }
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
 
-                  <button
-                    type="button"
-                    onClick={handleAddMembers}
-                    disabled={loading || selectedFriendsToAdd.length === 0}
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      background: '#10b981',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      opacity: loading || selectedFriendsToAdd.length === 0 ? 0.7 : 1,
-                    }}
-                  >
-                    {loading ? 'Agregando...' : `Agregar ${selectedFriendsToAdd.length} miembro(s)`}
-                  </button>
-                </div>
-              )}
+                    {errors.members && <p className="group-settings-field-error" style={{ marginBottom: 12 }}>{errors.members}</p>}
+
+                    <button
+                      type="button"
+                      onClick={handleAddMembers}
+                      disabled={loading || selectedFriendsToAdd.length === 0}
+                      className="group-settings-btn group-settings-btn-success"
+                      style={{ width: '100%' }}
+                    >
+                      {loading ? 'Agregando...' : `Agregar ${selectedFriendsToAdd.length} miembro(s)`}
+                    </button>
+                  </div>
+                )
+              ) : null}
             </div>
           )}
 
@@ -844,18 +781,8 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
               type="button"
               onClick={handleLeaveGroup}
               disabled={loading}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                background: '#dc2626',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontWeight: 600,
-                marginTop: 16,
-                opacity: loading ? 0.7 : 1,
-              }}
+              className="group-settings-btn group-settings-btn-danger"
+              style={{ width: '100%', marginTop: 16 }}
             >
               {loading ? 'Abandonando...' : 'Abandonar grupo'}
             </button>
@@ -864,19 +791,36 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
       )}
 
       {deleteModalOpen ? (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} role="presentation" onClick={closeDeleteGroupModal}>
-          <div style={{ backgroundColor: 'white', borderRadius: 8, padding: 20, maxWidth: 520, width: '100%' }} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <p className="eyebrow">Comiku / Eliminar grupo</p>
-            <h2>Eliminar grupo</h2>
-            <p className="confirm-modal-text">Esta acción eliminará el grupo, sus mensajes y su información asociada.</p>
-            {deleteError ? <p className="form-message error">{deleteError}</p> : null}
-
-            <div className="confirm-modal-actions">
-              <button type="button" className="profile-back-button" onClick={closeDeleteGroupModal} disabled={deletingGroup}>Cancelar</button>
-              <button type="button" className="delete-account-button" onClick={handleDeleteGroup} disabled={deletingGroup}>{deletingGroup ? 'Eliminando...' : 'Eliminar grupo'}</button>
+        <div className="modal-backdrop" role="presentation" onClick={closeDeleteGroupModal}>
+          <div ref={deleteDialogRef} className="modal-card" role="dialog" aria-modal="true" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+            <header className="modal-header">
+              <p className="attention">ATENCIÓN</p>
+              <h3>Eliminar grupo</h3>
+            </header>
+            <div className="modal-body">
+              <p>Esta acción eliminará el grupo, sus mensajes y su información asociada.</p>
+              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
             </div>
+            <footer className="modal-footer">
+              <button type="button" className="secondary-button" onClick={closeDeleteGroupModal} disabled={deletingGroup}>Cancelar</button>
+              <button type="button" className="danger-button" onClick={handleDeleteGroup} disabled={deletingGroup}>{deletingGroup ? 'Eliminando...' : 'Eliminar grupo'}</button>
+            </footer>
           </div>
         </div>
+      ) : null}
+
+      {leaveModalOpen ? (
+        <ConfirmModal
+          title="Abandonar grupo"
+          message="Vas a abandonar este grupo. Se borrará solo tu registro de chat en este grupo para que ya no lo veas en tu lista. Los demás usuarios seguirán dentro del grupo y el grupo no se eliminará."
+          confirmLabel={loading ? 'Abandonando...' : 'Sí, abandonar'}
+          onCancel={() => {
+            if (!loading) {
+              setLeaveModalOpen(false)
+            }
+          }}
+          onConfirm={handleLeaveGroup}
+        />
       ) : null}
     </div>
   )

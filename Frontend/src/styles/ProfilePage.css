@@ -2,23 +2,41 @@
   width: min(980px, 100%);
 }
 
+.app-shell.profile-page-shell {
+  min-height: auto;
+  place-items: start center;
+  padding-top: 0;
+}
+
 .profile-hero {
   margin-bottom: 20px;
 }
 
-.profile-actions {
-  align-items: start;
+.profile-page-shell .profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
-.profile-back-button {
-  margin-top: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
+.profile-page-shell .profile-actions > .profile-back-button,
+.profile-page-shell .profile-actions > .other-options-wrapper {
+  margin-top: 0;
+}
+
+.profile-page-shell .profile-back-button {
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 11px 16px;
   font-weight: 700;
   cursor: pointer;
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.65);
+  color: #f8f3ff;
+  background: rgb(25, 14, 42);
+}
+
+.profile-back-button:hover {
+  background: rgb(114, 60, 8);
 }
 
 .profile-grid {
@@ -35,15 +53,15 @@
 
 .profile-list li {
   padding: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.35);
+  background: rgba(255, 255, 255, 0.04);
   display: grid;
   gap: 4px;
 }
 
 .profile-list span {
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.82rem;
 }
 
@@ -52,23 +70,22 @@
   word-break: break-word;
 }
 
-.danger-zone {
-  border-color: rgba(248, 113, 113, 0.35);
-  background: rgba(127, 29, 29, 0.16);
-}
-
-.delete-account-button {
+.profile-page-shell .delete-account-button {
   margin-top: 18px;
-  border: 1px solid rgba(248, 113, 113, 0.4);
+  border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 12px;
   padding: 11px 16px;
-  font-weight: 800;
+  font-weight: bold;
   cursor: pointer;
-  color: #fee2e2;
-  background: rgba(220, 38, 38, 0.28);
+  color: #ffffff;
+  background: rgba(239, 68, 68, 0.80);
 }
 
-.delete-account-button:disabled {
+.profile-page-shell .delete-account-button:hover {
+  background: rgba(157, 44, 44, 0.80);
+}
+
+.profile-page-shell .delete-account-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -76,21 +93,25 @@
 .confirm-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.74);
+  background: rgba(7, 3, 14, 0.78);
   backdrop-filter: blur(3px);
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow-y: auto;
   z-index: 1000;
 }
 
 .confirm-modal {
-  width: min(560px, 100%);
-  border: 1px solid rgba(248, 113, 113, 0.34);
+  width: min(560px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
+  border: 1px solid rgba(239, 68, 68, 0.34);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(20, 25, 42, 0.98), rgba(10, 14, 27, 0.98));
+  background: linear-gradient(180deg, rgba(33, 17, 49, 0.98), rgba(16, 7, 25, 0.98));
   box-shadow: 0 20px 60px rgba(2, 6, 23, 0.65);
   padding: 24px;
+  overflow: auto;
+  word-break: break-word;
 }
 
 .confirm-modal-eyebrow {
@@ -104,13 +125,13 @@
 
 .confirm-modal h2 {
   margin: 8px 0 12px;
-  color: #f8fafc;
+  color: #f8f3ff;
   font-size: 1.45rem;
 }
 
 .confirm-modal-text {
   margin: 0;
-  color: #e2e8f0;
+  color: #d9cdea;
   font-size: 1.08rem;
   line-height: 1.6;
 }
@@ -121,12 +142,55 @@
   gap: 12px;
   justify-content: flex-end;
   flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.confirm-modal-actions > button {
+  margin-top: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-page-shell .confirm-modal-actions .profile-back-button,
+.profile-page-shell .confirm-modal-actions .delete-account-button {
+  margin-top: 0;
+  height: 44px;
+  padding: 0 16px;
+}
+
+.profile-block-warning-text {
+  margin: 10px 0 0;
+  color: #cdbfe3;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.profile-blocked-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-blocked-actions-single {
+  text-align: center;
+}
+
+.profile-blocked-actions > button {
+  margin-top: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .profile-picture-section {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -135,7 +199,7 @@
 
 .profile-picture-label {
   margin: 0;
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -144,9 +208,330 @@
   width: 150px;
   height: 150px;
   border-radius: 50%;
-  border: 2px solid rgba(148, 163, 184, 0.34);
+  border: 2px solid rgba(255, 255, 255, 0.08);
   object-fit: cover;
-  background: rgba(2, 6, 23, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+/* Profile header */
+.profile-header {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.profile-header-media {
+  flex: 0 0 auto;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.profile-header-image {
+  width: 180px;
+  height: 180px;
+  border-radius: 18px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+}
+
+.profile-header-placeholder {
+  width: 180px;
+  height: 180px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cdbfe3;
+}
+
+.profile-header-body {
+  flex: 1 1 auto;
+}
+
+.profile-nick {
+  margin: 0 0 8px 0;
+  font-size: 2rem;
+  color: #f8f3ff;
+}
+
+.profile-nick-input {
+  width: min(100%, 520px);
+  margin: 0 0 8px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(35,35,35);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(35, 35, 35);
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.profile-stat {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: #f8f3ff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.profile-stat strong {
+  font-size: 1.05rem;
+}
+
+.profile-stat span {
+  font-size: 0.85rem;
+  color: #cdbfe3;
+}
+
+.profile-stat:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.profile-stat.profile-stat-highlight {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
+  box-shadow: 0 12px 28px rgba(255, 138, 31, 0.22);
+}
+
+.profile-stat.profile-stat-highlight span {
+  color: rgba(27, 15, 8, 0.82);
+}
+
+.profile-stat.profile-stat-highlight:hover {
+  background: linear-gradient(135deg, #ffbf75, #ff952f);
+  box-shadow: 0 14px 30px rgba(255, 138, 31, 0.28);
+}
+
+.profile-header-file-input {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.profile-header-file-input .file-input-control {
+  justify-content: center;
+}
+
+.profile-header-edit-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+}
+
+.profile-header-edit-actions-right {
+  justify-content: flex-end;
+}
+
+.profile-header-edit-actions-right .profile-back-button,
+.profile-header-edit-actions-right .delete-account-button {
+  margin-top: 0;
+}
+
+.profile-header-edit-actions-right .profile-save-button {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
+}
+
+.profile-header-edit-actions-right .profile-save-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffbf75, #ff952f);
+  color: white;
+}
+
+.info-card.featured-comics-card {
+  margin-top: 18px;
+  background: rgb(25, 14, 42);
+}
+
+.featured-comics-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.featured-comics-header h2 {
+  margin: 0 0 6px;
+}
+
+.featured-comics-count {
+  margin: 0;
+  color: #ffb05c;
+  font-weight: 800;
+}
+
+.featured-comics-picker {
+  display: grid;
+  gap: 14px;
+}
+
+.featured-comics-search {
+  display: grid;
+  gap: 8px;
+}
+
+.featured-comics-search label {
+  color: #f8f3ff;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.featured-comics-search input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
+  font-size: 0.98rem;
+}
+
+.featured-comics-search input::placeholder {
+  color: #9f8bb8;
+}
+
+.featured-comics-search input:focus {
+  outline: none;
+  border-color: rgba(255, 138, 31, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.12);
+}
+
+.featured-comics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.featured-comics-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.featured-comics-footer-text {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.92rem;
+}
+
+.featured-comics-load-more {
+  margin-top: 0;
+}
+
+.featured-comic-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 12px;
+  text-align: left;
+  color: #f8f3ff;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.featured-comic-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(255, 138, 31, 0.12);
+  border-color: rgba(255, 138, 31, 0.34);
+}
+
+.featured-comic-card.selectable.selected {
+  border-color: rgba(255, 138, 31, 0.45);
+  background: rgba(255, 138, 31, 0.12);
+}
+
+.featured-comic-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.featured-comic-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.featured-comic-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #cdbfe3;
+  font-size: 0.9rem;
+}
+
+.featured-comic-info {
+  display: grid;
+  gap: 4px;
+}
+
+.featured-comic-info strong {
+  color: #f8f3ff;
+  line-height: 1.2;
+}
+
+.featured-comic-info span {
+  color: #cdbfe3;
+  font-size: 0.85rem;
+}
+
+.featured-comic-action {
+  color: #ffd2a6;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .profile-header { flex-direction: column; align-items: center; text-align: center }
+  .profile-header-media {
+    width: min(180px, 100%);
+    align-items: center;
+  }
+  .profile-header-image {
+    width: 140px;
+    height: 140px;
+    margin-inline: auto;
+  }
+  .profile-header-placeholder {
+    margin-inline: auto;
+  }
+  .profile-nick { font-size: 1.6rem }
+
+  .featured-comics-header {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 900px) {
@@ -171,7 +556,7 @@
 .profile-edit-form label {
   display: block;
   margin-top: 12px;
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.9rem;
 }
 
@@ -182,9 +567,9 @@
   padding: 10px 12px;
   margin-top: 6px;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(2, 6, 23, 0.45);
-  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
 }
 
 .profile-edit-form .cover-preview-card {
@@ -199,7 +584,7 @@
   height: 96px;
   object-fit: cover;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .profile-edit-actions {
@@ -213,4 +598,98 @@
 .profile-edit-actions .delete-account-button {
   padding: 8px 14px;
   font-size: 0.95rem;
+}
+
+/* Dropdown "Otras opciones" */
+.profile-page-shell .other-options-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-page-shell .dropdown-toggle {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #f8f3ff;
+  background: rgb(25, 14, 42);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-page-shell .dropdown-arrow {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  transform-origin: center;
+  transition: transform 180ms ease;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #d9cdea;
+}
+
+.profile-page-shell .dropdown-toggle:hover{
+  background: rgb(114, 60, 8);
+}
+
+.profile-page-shell .dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.profile-page-shell .dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  background: rgba(18, 9, 29, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.32);
+  padding: 8px;
+  z-index: 1200;
+  display: grid;
+  gap: 6px;
+}
+
+.profile-page-shell .dropdown-item {
+  text-align: left;
+  background: transparent;
+  color: #f8f3ff;
+  border: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.profile-page-shell .dropdown-item:hover {
+  background: rgba(255, 138, 31, 0.12);
+}
+
+.profile-page-shell .dropdown-item.delete-account-item {
+  color: #fecaca;
+  border: 1px solid rgba(239, 68, 68, 0.16);
+}
+
+.profile-page-shell .dropdown-item.logout-item {
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.60);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+.profile-page-shell .dropdown-item.logout-item:hover {
+  background: rgba(157, 44, 44, 0.80);
+}
+
+.profile-delete-footer {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 8px;
+}
+
+@media (max-width: 640px) {
+  .profile-page-shell .dropdown-menu { right: 8px; left: 8px; }
 }

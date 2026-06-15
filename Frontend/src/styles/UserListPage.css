@@ -10,16 +10,16 @@
 }
 
 .user-list-filter label {
-  color: #dbeafe;
+  color: #f8f3ff;
   font-weight: 700;
   font-size: 0.9rem;
 }
 
 .user-list-filter select {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.5);
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   padding: 10px 12px;
 }
 
@@ -30,26 +30,26 @@
 }
 
 .user-list-search label {
-  color: #dbeafe;
+  color: #f8f3ff;
   font-weight: 700;
   font-size: 0.9rem;
 }
 
 .user-list-search input {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.5);
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   padding: 10px 12px;
   font-size: 0.95rem;
   transition: all 0.2s ease;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 
 .user-list-search input:focus {
   outline: none;
-  border-color: rgba(96, 165, 250, 0.5);
-  background: rgba(2, 6, 23, 0.7);
+  border-color: rgba(255, 138, 31, 0.42);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .user-comic-list {
@@ -58,9 +58,9 @@
 }
 
 .user-comic-card {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
 
@@ -68,7 +68,7 @@
   width: 100%;
   border: 0;
   background: transparent;
-  color: #e2e8f0;
+  color: #f8f3ff;
   text-align: left;
   padding: 14px;
   display: grid;
@@ -79,11 +79,11 @@
 }
 
 .user-comic-toggle:hover {
-  background: rgba(30, 64, 175, 0.18);
+  background: rgba(255, 138, 31, 0.12);
 }
 
 .user-comic-toggle:focus-visible {
-  outline: 2px solid rgba(96, 165, 250, 0.95);
+  outline: 2px solid rgba(255, 138, 31, 0.95);
   outline-offset: -2px;
 }
 
@@ -92,8 +92,8 @@
   aspect-ratio: 3 / 4;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .user-comic-cover img,
@@ -106,7 +106,7 @@
 .user-comic-placeholder {
   display: grid;
   place-items: center;
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.88rem;
 }
 
@@ -121,15 +121,15 @@
 }
 
 .user-comic-toggle span {
-  color: #94a3b8;
+  color: #cdbfe3;
   font-size: 0.88rem;
 }
 
 .user-empty-state {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.45);
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(35, 35, 35);
   padding: 14px;
 }
 

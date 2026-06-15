@@ -556,6 +556,42 @@ export async function getUserSavedListStatus({ listId, userId }) {
   return snapshot.exists()
 }
 
+export async function getUserSavedThematicLists({ userId }) {
+  ensureFirestoreReady()
+
+  if (!userId) {
+    throw new Error('ID de usuario es obligatorio.')
+  }
+
+  const userRef = doc(db, USER_COLLECTION, userId)
+  const savedListsRef = collection(userRef, 'listasGuardadas')
+  const snapshots = await getDocs(savedListsRef)
+
+  const savedListIds = snapshots.docs.map((doc) => doc.id)
+
+  if (savedListIds.length === 0) {
+    return []
+  }
+
+  const listPromises = savedListIds.map(async (listId) => {
+    try {
+      return await getThematicListById({ listId })
+    } catch {
+      return null
+    }
+  })
+
+  const lists = await Promise.all(listPromises)
+
+  return lists
+    .filter(Boolean)
+    .sort((a, b) => {
+      const dateA = a.fechaCreacion instanceof Date ? a.fechaCreacion : new Date(0)
+      const dateB = b.fechaCreacion instanceof Date ? b.fechaCreacion : new Date(0)
+      return dateB.getTime() - dateA.getTime()
+    })
+}
+
 export async function deleteThematicListByAdmin({ idToken, listId }) {
   ensureFirestoreReady()
 

@@ -27,6 +27,10 @@ function ensureFirestoreReady() {
   }
 }
 
+function toSortableText(value) {
+  return String(value ?? '').toLowerCase().trim()
+}
+
 export async function createComic({
   nombre,
   autores,
@@ -88,16 +92,24 @@ export async function addComicVolume({
 function mapComicSnapshot(snapshot) {
   const data = snapshot.data()
 
+  const autores = Array.isArray(data.Autor)
+    ? data.Autor.map((autor) => String(autor ?? '').trim()).filter(Boolean)
+    : []
+
+  const generos = Array.isArray(data.Genero)
+    ? data.Genero.map((genero) => String(genero ?? '').trim()).filter(Boolean)
+    : []
+
   return {
     id: snapshot.id,
-    nombre: data.Nombre || '',
-    autores: Array.isArray(data.Autor) ? data.Autor : [],
-    editorial: data.Editorial || '',
-    paisEditorial: data.PaisEditorial || '',
-    estado: data.Estado || '',
-    generos: Array.isArray(data.Genero) ? data.Genero : [],
-    descripcion: data.Descripcion || '',
-    formato: data.Formato || '',
+    nombre: String(data.Nombre || '').trim(),
+    autores,
+    editorial: String(data.Editorial || '').trim(),
+    paisEditorial: String(data.PaisEditorial || '').trim(),
+    estado: String(data.Estado || '').trim(),
+    generos,
+    descripcion: String(data.Descripcion || '').trim(),
+    formato: String(data.Formato || '').trim(),
     promedioCalificacion:
       data.PromedioCalificacion === undefined || data.PromedioCalificacion === null
         ? null
@@ -128,7 +140,7 @@ export async function getAllComics() {
   const snapshots = await getDocs(collection(db, COMICS_COLLECTION))
   const comics = snapshots.docs.map(mapComicSnapshot)
 
-  return comics.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  return comics.sort((a, b) => toSortableText(a.nombre).localeCompare(toSortableText(b.nombre), 'es'))
 }
 
 export async function getComicById(comicId) {

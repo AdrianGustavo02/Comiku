@@ -52,7 +52,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     apellido: '',
     nick: '',
     email: '',
-    fechaCumpleanos: '',
+    fechaNacimiento: '',
     password: '',
     confirmPassword: '',
   })
@@ -171,14 +171,14 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     onError('')
     onNotice('')
 
-    const { nombre, apellido, nick, email, fechaCumpleanos, password, confirmPassword } =
+    const { nombre, apellido, nick, email, fechaNacimiento, password, confirmPassword } =
       registerForm
     const trimmedNombre = nombre.trim()
     const trimmedApellido = apellido.trim()
     const trimmedNick = nick.trim()
     const trimmedEmail = email.trim()
 
-    if (!trimmedNick || !trimmedEmail || !fechaCumpleanos || !password || !confirmPassword) {
+    if (!trimmedNick || !trimmedEmail || !fechaNacimiento || !password || !confirmPassword) {
       showErrorAndScrollTop(
         'Completa nick, correo, fecha de cumpleaños, contraseña y confirmación.',
       )
@@ -190,7 +190,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       return
     }
 
-    const age = getAgeFromDateString(fechaCumpleanos)
+    const age = getAgeFromDateString(fechaNacimiento)
 
     if (age === null) {
       showErrorAndScrollTop('Ingresa una fecha de cumpleaños válida.')
@@ -272,7 +272,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         apellido: trimmedApellido,
         nick: trimmedNick,
         email: trimmedEmail,
-        fechaCumpleanos,
+        fechaNacimiento,
         fotoPerfil: fotoPefilObject,
       })
 
@@ -281,7 +281,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         apellido: '',
         nick: '',
         email: '',
-        fechaCumpleanos: '',
+        fechaNacimiento: '',
         password: '',
         confirmPassword: '',
       })
@@ -296,6 +296,16 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       
       onAuthenticated({
         user,
+        profile: {
+          uid: user.uid,
+          nombre: trimmedNombre,
+          apellido: trimmedApellido,
+          nick: trimmedNick,
+          email: trimmedEmail,
+          rol: 'usuario',
+          fechaNacimiento,
+          fotoPerfil: fotoPefilObject?.dataUrl || defaultProfilePicture,
+        },
         notice: 'Registro exitoso. Tu perfil fue guardado correctamente.',
       })
     } catch (error) {
@@ -384,13 +394,13 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       <label htmlFor="register-fecha-cumpleanos">Fecha de nacimiento</label>
       <input
         id="register-fecha-cumpleanos"
-        name="fechaCumpleanos"
+        name="fechaNacimiento"
         type="date"
-        value={registerForm.fechaCumpleanos}
+        value={registerForm.fechaNacimiento}
         onChange={(event) =>
           setRegisterForm((current) => ({
             ...current,
-            fechaCumpleanos: event.target.value,
+            fechaNacimiento: event.target.value,
           }))
         }
         disabled={isSubmitting}
@@ -409,11 +419,15 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         <p className="helper-text">
           {fotoPerfilFileName ? 'Tu foto de perfil' : 'Foto de perfil por defecto'}
         </p>
-        <img
-          className="cover-preview-image"
-          src={fotoPerfilPreviewUrl || defaultPreviewUrl}
-          alt="Foto de perfil"
-        />
+        {fotoPerfilPreviewUrl || defaultPreviewUrl ? (
+          <img
+            className="cover-preview-image"
+            src={fotoPerfilPreviewUrl || defaultPreviewUrl}
+            alt="Foto de perfil"
+          />
+        ) : (
+          <div className="cover-preview-image cover-preview-placeholder" aria-hidden="true" />
+        )}
       </div>
 
       <label htmlFor="register-password">Contraseña</label>

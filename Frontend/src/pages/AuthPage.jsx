@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
-import '../styles/Home.css'
+import '../styles/AuthPage.css'
 
 function AuthPage({
   onAuthenticated,
@@ -14,11 +14,16 @@ function AuthPage({
 
   return (
     <main className="app-shell">
-      <section className="app-card auth-card">
+      <section className="auth-page-card">
+        <div className="auth-form-brand auth-form-brand-floating" aria-label="Presentacion de Comiku">
+          <img className="auth-form-brand-logo" src="/icon.png" alt="Comiku" />
+        </div>
+
         <div className="app-hero auth-hero">
           <div>
-            <p className="eyebrow">Comiku / Auth</p>
             <h1>Bienvenido a Comiku</h1>
+              <p className="auth-form-brand-copy">Descubre historias, crea tu biblioteca, comparte tu pasion por los comics.</p>
+
             <p className="lead">
               Crea tu cuenta o inicia sesión para ingresar al inicio de la app.
             </p>

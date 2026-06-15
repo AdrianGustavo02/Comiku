@@ -36,7 +36,8 @@ function formatDate(value) {
   }
 
   try {
-    return new Date(value).toLocaleString('es-AR')
+    const date = value?.toDate ? value.toDate() : new Date(value)
+    return date.toLocaleDateString('es-AR')
   } catch {
     return 'Fecha no disponible'
   }
@@ -54,6 +55,22 @@ function isAdminRole(role) {
   return String(role || '').toLowerCase().includes('admin')
 }
 
+function isPersonalChatResult(channel) {
+  if (!channel) {
+    return false
+  }
+
+  if (channel.type === 'personal' || channel.streamType === 'personal') {
+    return true
+  }
+
+  if (channel.type === 'group' || channel.streamType === 'group') {
+    return false
+  }
+
+  return !channel.groupName && !channel.groupImageUrl && !channel.image && (channel.members || []).length === 2
+}
+
 async function getReportObjectDetails(report) {
   const objectType = String(report.nombreObjetoReportado || '').toLowerCase()
 
@@ -65,6 +82,7 @@ async function getReportObjectDetails(report) {
       objectName: comic?.nombre || 'Comic no disponible',
       objectAuthors: formatAuthors(comic?.autores),
       objectCountry: comic?.paisEditorial || 'No definido',
+      objectEditorial: comic?.editorial || 'No definido',
       volumeNumber: null,
       screenshotUrl: report.capturaPantalla?.dataUrl || '',
     }
@@ -84,6 +102,7 @@ async function getReportObjectDetails(report) {
       objectName: comic?.nombre || 'Comic no disponible',
       objectAuthors: formatAuthors(comic?.autores),
       objectCountry: comic?.paisEditorial || 'No definido',
+      objectEditorial: comic?.editorial || 'No definido',
       volumeNumber: volume?.numeroTomo ?? null,
       screenshotUrl: report.capturaPantalla?.dataUrl || '',
     }
@@ -131,7 +150,14 @@ async function enrichReports(reports) {
     reports.map(async (report) => {
       try {
         const details = await getReportObjectDetails(report)
-        return { ...report, ...details }
+        // Resolver nick del usuario que reportó mediante su UserID
+        try {
+          const reporterProfile = await getUserProfile(report.usuarioIdReporta)
+          const reporterNick = reporterProfile?.nick || reporterProfile?.nombre || report.usuarioIdReporta
+          return { ...report, ...details, reporterNick }
+        } catch {
+          return { ...report, ...details, reporterNick: report.usuarioIdReporta }
+        }
       } catch {
         return {
           ...report,
@@ -141,6 +167,7 @@ async function enrichReports(reports) {
           objectCountry: 'No definido',
           volumeNumber: null,
           screenshotUrl: report.capturaPantalla?.dataUrl || '',
+          reporterNick: report.usuarioIdReporta,
         }
       }
     }),
@@ -153,6 +180,29 @@ function reportKeyFromItem(report) {
 
 function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss, showActions }) {
   const infoLabel = report.objectType === 'tomo' ? 'tomo' : report.objectType || 'objeto'
+  const [resolvedReporterNick, setResolvedReporterNick] = useState(report.reporterNick || '')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function resolveNick() {
+      if (resolvedReporterNick) return
+      try {
+        const profile = await getUserProfile(report.usuarioIdReporta)
+        if (cancelled) return
+        const nick = profile?.nick || profile?.nombre || ''
+        if (nick) setResolvedReporterNick(nick)
+      } catch {
+        // ignore
+      }
+    }
+
+    resolveNick()
+
+    return () => {
+      cancelled = true
+    }
+  }, [report.usuarioIdReporta, resolvedReporterNick])
 
   return (
     <article className="report-card">
@@ -171,6 +221,9 @@ function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss
         {report.objectType === 'usuario' ? (
           <>
             <p>
+              <strong>Nick del usuario:</strong> {report.objectName || 'No disponible'}
+            </p>
+            <p>
               <strong>ID del usuario:</strong> {report.objetoReportadoId || 'No disponible'}
             </p>
           </>
@@ -184,6 +237,9 @@ function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss
           <>
             <p>
               <strong>Autor:</strong> {report.objectAuthors}
+            </p>
+            <p>
+              <strong>Editorial:</strong> {report.objectEditorial || 'No definido'}
             </p>
             <p>
               <strong>País:</strong> {report.objectCountry}
@@ -201,11 +257,14 @@ function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss
         {isExpanded ? 'Ocultar información' : 'Ver mas informacion'}
       </button>
 
-      {isExpanded ? (
+          {isExpanded ? (
         <div className="report-card-details">
           <p>
             <strong>Descripción:</strong> {report.descripcion || 'Sin descripción.'}
           </p>
+              <p>
+                <strong>Reportado por:</strong> {resolvedReporterNick || report.reporterNick || report.usuarioIdReporta}
+              </p>
           <p>
             <strong>Fecha de reporte:</strong> {formatDate(report.fechaReporte)}
           </p>
@@ -253,7 +312,6 @@ function ReportsSection({
     <section className="reports-panel">
       <div className="reports-section-header">
         <div>
-          <p className="eyebrow">Comiku / Reportes</p>
           <h2>{title}</h2>
         </div>
         <span className="reports-counter">{sectionState.items.length}</span>
@@ -263,7 +321,7 @@ function ReportsSection({
       {sectionState.loading && sectionState.items.length === 0 ? (
         <p className="status-message">Cargando reportes...</p>
       ) : sectionState.items.length === 0 ? (
-        <p className="helper-text">No hay reportes para mostrar.</p>
+        <p className="status-message">No hay reportes para mostrar.</p>
       ) : (
         <div className="reports-grid">
           {sectionState.items.map((report) => (
@@ -288,17 +346,17 @@ function ReportsSection({
             onClick={() => onLoadMore(sectionKey)}
             disabled={sectionState.loading}
           >
-            {sectionState.loading ? 'Cargando...' : 'Cargar 10 más'}
+            {sectionState.loading ? 'Cargando...' : 'Cargar mas reportes'}
           </button>
         </div>
       ) : sectionState.items.length > 0 ? (
-        <p className="helper-text">No hay más reportes para mostrar.</p>
+        <p className="status-message">No hay mas reportes</p>
       ) : null}
     </section>
   )
 }
 
-function ReportsPage({ authUser, currentUserRole }) {
+function ReportsPage({ authUser, currentUserRole, onPageReady }) {
   const [sections, setSections] = useState(createInitialSections)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const [confirmation, setConfirmation] = useState({
@@ -311,15 +369,24 @@ function ReportsPage({ authUser, currentUserRole }) {
   const [searchId, setSearchId] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchResults, setSearchResults] = useState([])
+  const [searchAttempted, setSearchAttempted] = useState(false)
+  const [searchTargetNick, setSearchTargetNick] = useState('')
   const [selectedChannel, setSelectedChannel] = useState(null)
   const [selectedChannelMessages, setSelectedChannelMessages] = useState([])
   const [memberNicks, setMemberNicks] = useState({})
   const [adminProcessing, setAdminProcessing] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, channelId: null })
   const [processing, setProcessing] = useState(false)
+  const [selectedSection, setSelectedSection] = useState('pending')
 
   const adminReady = currentUserRole !== null
   const isAdmin = isAdminRole(currentUserRole)
+  const isSelectedChannelGroup = Boolean(
+    selectedChannel?.data?.type === 'group'
+      || selectedChannel?.data?.groupName
+      || selectedChannel?.data?.groupImageUrl
+      || (selectedChannel?.data?.members || []).length > 2,
+  )
 
   const updateSection = (sectionKey, updater) => {
     setSections((current) => ({
@@ -331,13 +398,25 @@ function ReportsPage({ authUser, currentUserRole }) {
   const handleSearchChats = async () => {
     if (!searchId || !searchId.trim()) return
     setSearchLoading(true)
+    setSearchAttempted(true)
+    setSearchTargetNick('')
     setSearchResults([])
     setSelectedChannel(null)
     setSelectedChannelMessages([])
 
     try {
-      const channels = await adminSearchChats({ id: searchId.trim() })
+      const searchValue = searchId.trim()
+      const channels = await adminSearchChats({ id: searchValue })
       setSearchResults(channels || [])
+
+      if (Array.isArray(channels) && channels.some((channel) => isPersonalChatResult(channel))) {
+        try {
+          const profile = await getUserProfile(searchValue)
+          setSearchTargetNick(profile?.nick || profile?.nombre || '')
+        } catch {
+          setSearchTargetNick('')
+        }
+      }
     } catch (err) {
       setPageError(err instanceof Error ? err.message : 'No fue posible buscar chats')
     } finally {
@@ -407,14 +486,14 @@ function ReportsPage({ authUser, currentUserRole }) {
     setAdminProcessing(true)
     try {
       await adminDeleteChannel({ channelId: deleteConfirm.channelId })
-      setNotice('Grupo eliminado correctamente.')
+      setNotice('Chat eliminado correctamente.')
       setSearchResults((s) => s.filter((c) => c.id !== deleteConfirm.channelId))
       if (selectedChannel?.id === deleteConfirm.channelId) {
         setSelectedChannel(null)
         setSelectedChannelMessages([])
       }
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'No fue posible eliminar el grupo')
+      setPageError(err instanceof Error ? err.message : 'No fue posible eliminar el chat')
     } finally {
       setAdminProcessing(false)
       setDeleteConfirm({ open: false, channelId: null })
@@ -480,28 +559,40 @@ function ReportsPage({ authUser, currentUserRole }) {
     if (!isAdmin) {
       return
     }
-
     let cancelled = false
 
-    async function loadAllSections() {
-      const sectionsToLoad = ['pending', 'resolved', 'dismissed']
-
-      for (const sectionKey of sectionsToLoad) {
-        if (cancelled) {
-          return
-        }
-
-        await loadSection(sectionKey, false)
-      }
+    async function loadSelected() {
+      if (cancelled) return
+      await loadSection(selectedSection, false)
     }
 
-    loadAllSections()
+    loadSelected().then(() => {
+      if (typeof onPageReady === 'function') onPageReady()
+    }).catch(() => {})
 
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser?.uid, currentUserRole])
+  }, [authUser?.uid, currentUserRole, selectedSection])
+
+  // If user is not admin but adminReady is true, signal ready so Navbar can be shown
+  useEffect(() => {
+    if (adminReady && !isAdmin && typeof onPageReady === 'function') {
+      onPageReady()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminReady, isAdmin])
+
+  // Si el usuario cambia la pestaña a una sección no cargada, cargarla
+  useEffect(() => {
+    if (!isAdmin) return
+    const sec = sections[selectedSection]
+    if (sec && sec.items.length === 0 && !sec.loading) {
+      void loadSection(selectedSection, false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSection])
 
   const openConfirmationModal = (report, action) => {
     setConfirmation({ open: true, action, report })
@@ -583,26 +674,45 @@ function ReportsPage({ authUser, currentUserRole }) {
     )
   }
 
+  const currentSection = sections[selectedSection]
+  if (currentSection && currentSection.loading && currentSection.items.length === 0) {
+    return (
+      <main className="app-shell">
+        <section className="app-card loading-card">
+          <p className="status-message">Cargando reportes...</p>
+        </section>
+      </main>
+    )
+  }
+
   return (
-    <main className="app-shell">
+    <main className="app-shell reports-page">
       <section className="app-card reports-page-card">
         <header className="reports-page-hero">
           <div>
-            <p className="eyebrow">Comiku / Administración</p>
             <h1>Reportes</h1>
-            <p className="lead">
-              Revisa los reportes pendientes, resueltos y desestimados desde un mismo panel.
-            </p>
           </div>
         </header>
 
-        <section style={{ marginTop: 18, marginBottom: 24 }}>
+        <section className="reports-chat-search">
           <h3>Buscar chats</h3>
-          <p className="helper-text">Ingresa el ID de usuario o el ID del grupo de chat para cargar los chats correspondientes.</p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-            <input type="text" value={searchId} onChange={(e) => setSearchId(e.target.value)} placeholder="ID de usuario o ID de grupo" style={{ flex: 1, padding: 8 }} />
-            <button type="button" onClick={handleSearchChats} disabled={searchLoading} className="profile-back-button">{searchLoading ? 'Buscando...' : 'Buscar'}</button>
+          <p className="helper-text-white">Ingresa el ID de usuario o el ID del grupo de chat para cargar los chats correspondientes.</p>
+          <div className="reports-chat-search-row">
+            <input
+              type="text"
+              value={searchId}
+              onChange={(e) => setSearchId(e.target.value)}
+              placeholder="ID de usuario o ID de grupo"
+              className="reports-chat-search-input"
+            />
+            <button type="button" onClick={handleSearchChats} disabled={searchLoading} className="reports-chat-search-button">
+              {searchLoading ? 'Buscando...' : 'Buscar'}
+            </button>
           </div>
+
+          {searchAttempted && !searchLoading && searchResults.length === 0 ? (
+            <p className="status-message" style={{ marginTop: 12 }}>No se encontraron resultados</p>
+          ) : null}
 
           {searchResults.length > 0 ? (
             <div style={{ marginTop: 12 }}>
@@ -611,12 +721,14 @@ function ReportsPage({ authUser, currentUserRole }) {
                 {searchResults.map((c) => (
                   <li key={c.id} style={{ padding: 10, border: '1px solid #e6e6e6', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <strong>{c.groupName || c.name || c.id}</strong>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{(c.members || []).length} miembros — {c.type || c.streamType || 'group'}</div>
+                      <strong>{isPersonalChatResult(c) ? (searchTargetNick || c.groupName || c.name || c.id) : (c.groupName || c.name || c.id)}</strong>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {(c.members || []).length} miembros — {isPersonalChatResult(c) ? 'Chat individual' : 'Grupo de chat'}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button type="button" className="profile-back-button" onClick={() => handleLoadChannelDetails(c.id)} disabled={adminProcessing}>Ver</button>
-                      <button type="button" className="delete-account-button" onClick={() => handleConfirmDeleteChannel(c.id)} disabled={adminProcessing}>{c.type === 'personal' || (c.members || []).length === 2 ? 'Eliminar chat' : 'Eliminar grupo'}</button>
+                      <button type="button" className="delete-account-button" onClick={() => handleConfirmDeleteChannel(c.id)} disabled={adminProcessing}>{isPersonalChatResult(c) ? 'Eliminar chat' : 'Eliminar grupo'}</button>
                     </div>
                   </li>
                 ))}
@@ -627,7 +739,9 @@ function ReportsPage({ authUser, currentUserRole }) {
           {selectedChannel ? (
             <div style={{ marginTop: 12, padding: 12, border: '1px solid #e6e6e6', borderRadius: 8 }}>
               <h4>Canal: {selectedChannel.id}</h4>
-              <p><strong>Nombre:</strong> {selectedChannel.data?.groupName || selectedChannel.data?.name || 'Sin nombre'}</p>
+              {isSelectedChannelGroup ? (
+                <p><strong>Nombre:</strong> {selectedChannel.data?.groupName || selectedChannel.data?.name || 'Sin nombre'}</p>
+              ) : null}
               <p><strong>Miembros:</strong> {(selectedChannel.data?.members || []).map((uid) => memberNicks[uid] || uid).join(', ')}</p>
               <div style={{ marginTop: 8 }}>
                 <h5>Mensajes recientes</h5>
@@ -667,36 +781,46 @@ function ReportsPage({ authUser, currentUserRole }) {
         {pageError ? <p className="form-message error">{pageError}</p> : null}
         {notice ? <p className="form-message success">{notice}</p> : null}
 
-        <ReportsSection
-          title="Reportes pendientes"
-          sectionKey="pending"
-          sectionState={sections.pending}
-          onLoadMore={(sectionKey) => loadSection(sectionKey, true)}
-          onToggleExpanded={toggleExpanded}
-          expandedIds={expandedIds}
-          onResolve={(report) => openConfirmationModal(report, 'resolve')}
-          onDismiss={(report) => openConfirmationModal(report, 'dismiss')}
-          showActions
-        />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button
+            type="button"
+            className={`profile-back-button ${selectedSection === 'pending' ? 'active' : ''}`}
+            onClick={() => setSelectedSection('pending')}
+          >
+            Reportes pendientes
+          </button>
+          <button
+            type="button"
+            className={`profile-back-button ${selectedSection === 'resolved' ? 'active' : ''}`}
+            onClick={() => setSelectedSection('resolved')}
+          >
+            Reportes resueltos
+          </button>
+          <button
+            type="button"
+            className={`profile-back-button ${selectedSection === 'dismissed' ? 'active' : ''}`}
+            onClick={() => setSelectedSection('dismissed')}
+          >
+            Reportes desestimados
+          </button>
+        </div>
 
         <ReportsSection
-          title="Reportes resueltos"
-          sectionKey="resolved"
-          sectionState={sections.resolved}
-          onLoadMore={(sectionKey) => loadSection(sectionKey, true)}
+          title={
+            selectedSection === 'pending'
+              ? 'Reportes pendientes'
+              : selectedSection === 'resolved'
+              ? 'Reportes resueltos'
+              : 'Reportes desestimados'
+          }
+          sectionKey={selectedSection}
+          sectionState={sections[selectedSection]}
+          onLoadMore={() => loadSection(selectedSection, true)}
           onToggleExpanded={toggleExpanded}
           expandedIds={expandedIds}
-          showActions={false}
-        />
-
-        <ReportsSection
-          title="Reportes desestimados"
-          sectionKey="dismissed"
-          sectionState={sections.dismissed}
-          onLoadMore={(sectionKey) => loadSection(sectionKey, true)}
-          onToggleExpanded={toggleExpanded}
-          expandedIds={expandedIds}
-          showActions={false}
+          onResolve={selectedSection === 'pending' ? (report) => openConfirmationModal(report, 'resolve') : undefined}
+          onDismiss={selectedSection === 'pending' ? (report) => openConfirmationModal(report, 'dismiss') : undefined}
+          showActions={selectedSection === 'pending'}
         />
       </section>
 

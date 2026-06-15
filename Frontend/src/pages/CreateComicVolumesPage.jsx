@@ -72,8 +72,10 @@ function CreateComicVolumesPage({
   const [formError, setFormError] = useState('')
   const [formNotice, setFormNotice] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingAction, setSavingAction] = useState('')
   const [comicMetadata, setComicMetadata] = useState(null)
   const isExistingComicMode = showComicMetadata
+  const isEditVolumeMode = Boolean(volumeId)
 
   useEffect(() => {
     let cancelled = false
@@ -257,6 +259,7 @@ function CreateComicVolumesPage({
     setFormNotice('')
 
     try {
+      setSavingAction('continue')
       setSaving(true)
       const volume = await buildVolumeDraft()
 
@@ -295,6 +298,7 @@ function CreateComicVolumesPage({
       setFormError(message)
     } finally {
       setSaving(false)
+      setSavingAction('')
     }
   }
 
@@ -310,6 +314,7 @@ function CreateComicVolumesPage({
     })
 
     try {
+      setSavingAction('finalize')
       setSaving(true)
       let finalVolumes = [...volumesAdded]
 
@@ -403,12 +408,14 @@ function CreateComicVolumesPage({
       setFormError(message)
     } finally {
       setSaving(false)
+      setSavingAction('')
     }
   }
 
   const handleUpdateVolume = async () => {
     setFormError('')
     try {
+      setSavingAction('update')
       setSaving(true)
 
       // validate
@@ -507,6 +514,7 @@ function CreateComicVolumesPage({
       setFormError(message)
     } finally {
       setSaving(false)
+      setSavingAction('')
     }
   }
 
@@ -515,11 +523,11 @@ function CreateComicVolumesPage({
       <section className="app-card">
         <div className="app-hero">
           <div>
-            <p className="eyebrow">Comiku / Tomos</p>
-            <h1>Cargar tomos</h1>
+            <h1>{isEditVolumeMode ? 'Modificar tomo' : 'Crear tomo/s de comics'}</h1>
             <p className="lead">
-              Agrega los tomos que quieras para este comic. La subcolección tomos
-              se crea automáticamente al guardar el primer tomo.
+              {isEditVolumeMode
+                ? 'Actualiza los datos del tomo seleccionado.'
+                : 'Puedes crear uno o varios tomos a la vez.'}
             </p>
           </div>
 
@@ -646,7 +654,7 @@ function CreateComicVolumesPage({
                     onClick={handleContinue}
                     type="button"
                   >
-                    {saving ? 'Guardando...' : 'Seguir agregando tomos'}
+                    {saving && savingAction === 'continue' ? 'Guardando...' : 'Seguir agregando tomos'}
                   </button>
                 ) : null}
 
@@ -656,7 +664,7 @@ function CreateComicVolumesPage({
                   onClick={handleFinalize}
                   type="button"
                 >
-                  {saving ? 'Guardando...' : 'Finalizar creacion'}
+                  {saving && savingAction === 'finalize' ? 'Guardando...' : 'Finalizar creacion'}
                 </button>
               </>
             ) : (
@@ -666,7 +674,7 @@ function CreateComicVolumesPage({
                 onClick={handleUpdateVolume}
                 type="button"
               >
-                {saving ? 'Guardando...' : 'Actualizar tomo'}
+                {saving && savingAction === 'update' ? 'Guardando...' : 'Actualizar tomo'}
               </button>
             )}
           </div>

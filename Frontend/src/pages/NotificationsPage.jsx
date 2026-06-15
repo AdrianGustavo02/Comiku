@@ -9,13 +9,14 @@ import {
 import { getActivityById } from '../firebase/activities'
 import '../styles/NotificationsPage.css'
 
-export default function NotificationsPage({ authUser }) {
+export default function NotificationsPage({ authUser, onPageReady }) {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [unreadCount, setUnreadCount] = useState(0)
   const [cursor, setCursor] = useState(null)
   const [hasMore, setHasMore] = useState(false)
+  const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
   const PAGE_SIZE = 15
 
@@ -74,6 +75,7 @@ export default function NotificationsPage({ authUser }) {
         setErrorMessage(error instanceof Error ? error.message : 'No fue posible cargar las notificaciones.')
       } finally {
         setLoading(false)
+        if (typeof onPageReady === 'function') onPageReady()
       }
     }
 
@@ -170,6 +172,7 @@ export default function NotificationsPage({ authUser }) {
     if (!authUser?.uid) return
 
     try {
+      setMarkingAllAsRead(true)
       await markAllNotificationsAsRead(authUser.uid)
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, leido: true })),
@@ -177,6 +180,8 @@ export default function NotificationsPage({ authUser }) {
       setUnreadCount(0)
     } catch (error) {
       console.error('Error marking all as read:', error)
+    } finally {
+      setMarkingAllAsRead(false)
     }
   }
 
@@ -257,31 +262,31 @@ export default function NotificationsPage({ authUser }) {
 
   if (loading) {
     return (
-      <div className="notifications-page">
-        <div className="notifications-header">
-          <h1>Notificaciones</h1>
-        </div>
-        <div className="loading">Cargando notificaciones...</div>
-      </div>
+      <main className="app-shell">
+        <section className="app-card loading-card">
+          <p className="status-message">Cargando notificaciones...</p>
+        </section>
+      </main>
     )
   }
 
   return (
-    <div className="notifications-page">
-      <div className="notifications-header">
+    <main className="app-shell notifications-page">
+      <section className="app-card notifications-container">
+        <div className="notifications-header">
         <h1>Notificaciones</h1>
         {unreadCount > 0 && (
           <button
             className="mark-all-read-btn"
             onClick={handleMarkAllAsRead}
+            disabled={markingAllAsRead}
             title="Marcar todas como leídas"
           >
-            Marcar todas como leídas ({unreadCount})
+            {markingAllAsRead ? 'Cargando...' : `Marcar todas como leídas (${unreadCount})`}
           </button>
         )}
-      </div>
+        </div>
 
-      <div className="notifications-container">
         {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
 
         {notifications.length === 0 ? (
@@ -339,7 +344,7 @@ export default function NotificationsPage({ authUser }) {
             )}
           </>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

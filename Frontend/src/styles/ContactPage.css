@@ -1,42 +1,60 @@
-/* ContactoPage.css */
+.contact-page{
+  width: min(1180px, 100%);
+  min-height: auto;
+  margin: 0 auto;
+  padding: 0px 0px 40px;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  box-sizing: border-box;
+}
 
-.contacto-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px;
-  display: flex;
-  justify-content: center;
+.contact-page-loading{
   align-items: center;
 }
 
-.contacto-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  max-width: 600px;
+.contact-container{
   width: 100%;
-  padding: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+  padding: 0px 40px 20px;
+  box-sizing: border-box;
 }
 
-.contacto-header {
+.contact-loading-card{
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+}
+
+.contact-loading-message{
+  margin: 0;
+  color: #f8f3ff;
+  font-weight: 700;
+  text-align: center;
+}
+
+.contact-header{
   text-align: center;
   margin-bottom: 30px;
 }
 
-.contacto-header h1 {
+.contact-header{
   font-size: 28px;
-  color: #333;
+  color: #f8f3ff;
   margin-bottom: 8px;
   font-weight: 600;
 }
 
-.contacto-header p {
-  color: #666;
+.contact-header p{
+  color: #cdbfe3;
   font-size: 14px;
   line-height: 1.5;
 }
 
-.contacto-form {
+.contact-form{
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -51,29 +69,35 @@
 .form-group label {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: #f8f3ff;
 }
 
 .form-group select,
 .form-group textarea {
   padding: 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
   font-size: 14px;
   font-family: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group select option {
+  color: #000;
 }
 
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: rgba(255, 138, 31, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.12);
 }
 
 .form-group select:disabled,
 .form-group textarea:disabled {
-  background-color: #f5f5f5;
+  background-color: rgba(255, 255, 255, 0.03);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -86,26 +110,26 @@
 
 .char-count {
   font-size: 12px;
-  color: #999;
+  color: #cdbfe3;
   text-align: right;
 }
 
 .error-message {
   padding: 12px;
-  background-color: #ffebee;
-  color: #c62828;
-  border-radius: 6px;
+  background-color: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
+  border-radius: 14px;
   font-size: 14px;
-  border-left: 4px solid #c62828;
+  border-left: 4px solid #ef4444;
 }
 
 .success-message {
   padding: 12px;
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border-radius: 6px;
+  background-color: rgba(255, 138, 31, 0.14);
+  color: #ffd2a6;
+  border-radius: 14px;
   font-size: 14px;
-  border-left: 4px solid #2e7d32;
+  border-left: 4px solid #ff8a1f;
 }
 
 .form-actions {
@@ -113,56 +137,16 @@
   gap: 12px;
   margin-top: 10px;
   flex-wrap: wrap;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  flex: 1;
-  min-width: 150px;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: #f0f0f0;
-  color: #333;
-  border: 1px solid #e0e0e0;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #e8e8e8;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  justify-content: center;
 }
 
 @media (max-width: 600px) {
+  .contact-container,
   .contacto-container {
     padding: 25px;
   }
 
+  .contact-header h1,
   .contacto-header h1 {
     font-size: 24px;
   }

@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createMessage, MENSAJE_TYPES } from '../firebase/userMessages';
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters';
 import '../styles/ContactPage.css';
 
-export default function ContactPage({ authUser, onBack }) {
+export default function ContactPage({ authUser, onBack, onPageReady }) {
   const [formData, setFormData] = useState({
     tipo: 'Sugerencia',
     descripcion: '',
@@ -12,7 +12,21 @@ export default function ContactPage({ authUser, onBack }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const formRef = useRef(null);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setLoading(false);
+      if (typeof onPageReady === 'function') {
+        onPageReady();
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [onPageReady]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -73,6 +87,16 @@ export default function ContactPage({ authUser, onBack }) {
     }
   };
 
+  if (loading) {
+    return (
+      <main className="contact-page contact-page-loading">
+        <section className="contact-container contact-loading-card">
+          <p className="contact-loading-message">Cargando formulario de contacto...</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="contact-page">
       <div className="contact-container">
@@ -122,7 +146,7 @@ export default function ContactPage({ authUser, onBack }) {
           <div className="form-actions">
             <button
               type="submit"
-              className="btn-primary"
+              className="primary-button"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Enviando...' : 'Enviar Mensaje'}
@@ -130,7 +154,7 @@ export default function ContactPage({ authUser, onBack }) {
             {onBack && (
               <button
                 type="button"
-                className="btn-secondary"
+                className="secondary-button"
                 onClick={onBack}
                 disabled={isSubmitting}
               >

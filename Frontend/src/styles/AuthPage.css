@@ -1,0 +1,117 @@
+@import './Home.css';
+
+.auth-page-card {
+  --auth-page-padding: 36px;
+  --auth-hero-brand-width: 320px;
+  --auth-hero-brand-height: 150px;
+  position: relative;
+  width: min(800px, 100%);
+  max-width: 800px;
+  padding: 36px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(25, 14, 42);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+}
+
+.auth-hero {
+  margin-bottom: 22px;
+  padding-right: var(--auth-hero-brand-width);
+  min-height: var(--auth-hero-brand-height);
+  color: #ffffff !important;
+}
+
+.auth-page-card .auth-hero h1,
+.auth-page-card .auth-hero .lead {
+  color: #ffffff !important;
+}
+
+.auth-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.switch-button {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d9cdea;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.switch-button:hover {
+  border-color: rgba(255, 138, 31, 0.45);
+  color: #1b0f08;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+}
+
+.switch-button.active {
+  color: #1b0f08;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  border-color: transparent;
+}
+
+.auth-form-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-form-brand-floating {
+  position: absolute;
+  top: var(--auth-page-padding);
+  right: var(--auth-page-padding);
+  width: var(--auth-hero-brand-width);
+  height: var(--auth-hero-brand-height);
+}
+
+.auth-form-brand-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.auth-form-brand-copy {
+  margin: 0;
+  color: #d9cdea;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .auth-page-card {
+    --auth-page-padding: 20px;
+    padding: 20px;
+  }
+
+  .auth-form-brand-floating {
+    position: static;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin-bottom: 12px;
+  }
+
+  .auth-hero {
+    padding-right: 0;
+    padding-top: 0;
+    min-height: 0;
+  }
+
+  .auth-form-brand-logo {
+    width: 88px;
+    height: 88px;
+  }
+
+  .auth-form-brand-copy {
+    font-size: 0.86rem;
+  }
+}

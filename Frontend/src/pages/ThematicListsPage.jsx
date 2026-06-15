@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getAllThematicLists } from '../firebase/thematicLists'
-import { getUsersWhoBlockedUser } from '../firebase/user'
+import { getAllThematicLists, getUserSavedThematicLists } from '../firebase/thematicLists'
+import { getUsersWhoBlockedUser, getUserProfile } from '../firebase/user'
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import Button from '../Components/Button'
 import '../styles/ThematicListsShared.css'
@@ -18,6 +18,10 @@ const LIST_FILTERS = [
   {
     id: 'reading-guide',
     label: 'Guia de lectura',
+  },
+  {
+    id: 'saved',
+    label: 'Mis listas guardadas',
   },
 ]
 
@@ -57,6 +61,7 @@ function ThematicListsPage({
   onOpenList,
   onCreateList,
   onOpenMyLists,
+  onPageReady,
 }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,6 +70,7 @@ function ThematicListsPage({
   const [searchTerm, setSearchTerm] = useState('')
   const [visibleCount, setVisibleCount] = useState(15)
   const [blockedByUsers, setBlockedByUsers] = useState([])
+  const [creatorProfiles, setCreatorProfiles] = useState({})
 
   useEffect(() => {
     let cancelled = false
@@ -74,14 +80,35 @@ function ThematicListsPage({
         setLoading(true)
         setError('')
 
-        const [nextLists, blockedCreators] = await Promise.all([
-          getAllThematicLists(),
+        let nextLists = []
+
+        if (activeFilter === 'saved' && authUser?.uid) {
+          nextLists = await getUserSavedThematicLists({ userId: authUser.uid })
+        } else {
+          nextLists = await getAllThematicLists()
+        }
+
+        const [blockedCreators] = await Promise.all([
           authUser?.uid ? getUsersWhoBlockedUser(authUser.uid) : Promise.resolve([]),
         ])
+
+        // Cargar perfiles de creadores
+        const uniqueCreatorIds = [...new Set(nextLists.map((l) => l.userId).filter(Boolean))]
+        const profiles = {}
+
+        for (const creatorId of uniqueCreatorIds) {
+          try {
+            const profile = await getUserProfile(creatorId)
+            profiles[creatorId] = profile?.nick || profile?.nombre || creatorId
+          } catch {
+            profiles[creatorId] = creatorId
+          }
+        }
 
         if (!cancelled) {
           setLists(nextLists)
           setBlockedByUsers(blockedCreators)
+          setCreatorProfiles(profiles)
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -94,6 +121,7 @@ function ThematicListsPage({
       } finally {
         if (!cancelled) {
           setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
         }
       }
     }
@@ -103,7 +131,7 @@ function ThematicListsPage({
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid])
+  }, [authUser?.uid, activeFilter])
 
   const visibleLists = useMemo(() => {
     if (!blockedByUsers.length) {
@@ -177,7 +205,7 @@ function ThematicListsPage({
 
   if (loading) {
     return (
-      <main className="app-shell">
+      <main className="app-shell thematic-lists-page loading">
         <section className="app-card loading-card">
           <p className="status-message">Cargando listas temáticas...</p>
         </section>
@@ -186,10 +214,9 @@ function ThematicListsPage({
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell thematic-lists-page">
       <section className="app-card user-list-page">
         <header>
-          <p className="eyebrow">Comiku / Listas temáticas</p>
           <h1>Listas temáticas</h1>
           <p className="lead">
             Explora guías de lectura y listas destacadas creadas por la comunidad.
@@ -244,21 +271,28 @@ function ThematicListsPage({
             value={activeFilter}
             onChange={(event) => setActiveFilter(event.target.value)}
           >
-            {LIST_FILTERS.map((filter) => (
-              <option key={filter.id} value={filter.id}>
-                {filter.label}
-              </option>
-            ))}
+            {LIST_FILTERS.map((filter) => {
+              if (filter.id === 'saved' && !authUser?.uid) {
+                return null
+              }
+              return (
+                <option key={filter.id} value={filter.id}>
+                  {filter.label}
+                </option>
+              )
+            })}
           </select>
         </div>
 
         {filteredLists.length === 0 ? (
-          <p className="user-empty-state">
+          <p className="status-message-black">
             {searchTerm.trim()
-              ? 'No se encontraron coincidencias con ese nombre.'
+              ? 'No se encontraron coincidencias con ese nombre'
               : activeFilter === 'reading-guide'
-                ? 'No hay guias de lectura disponibles por ahora.'
-                : 'No hay listas tematicas disponibles por ahora.'}
+                ? 'No hay guias de lectura disponibles por ahora'
+                : activeFilter === 'saved'
+                  ? 'Aun no has guardado ninguna lista'
+                  : 'No hay listas tematicas disponibles por ahora'}
           </p>
         ) : (
           <>
@@ -291,11 +325,12 @@ function ThematicListsPage({
 
                   <div className="thematic-list-info">
                     <strong>{list.nombre}</strong>
+                    <p className="thematic-list-creator" style={{ fontSize: '0.85em', opacity: 0.7, marginBottom: '8px' }}>
+                      Por: {creatorProfiles[list.userId] || list.userId}
+                    </p>
                     <p>{list.descripcion || 'Sin descripción'}</p>
                     <div className="thematic-list-meta">
-                      <span>
-                        {list.esGuiaDeLectura ? '📖 Guía de lectura' : '⭐ Destacados'}
-                      </span>
+                      {list.esGuiaDeLectura ? <span>📖 Guía de lectura</span> : null}
                       <span>{list.cantidadLikes} me gusta</span>
                       <span>{list.cantidadComentarios} comentarios</span>
                     </div>
@@ -314,7 +349,7 @@ function ThematicListsPage({
                   Mostrar 15 más
                 </button>
               ) : (
-                <p className="search-empty-state">No hay más listas para mostrar.</p>
+                <p className="status-message-black">No hay más listas para mostrar</p>
               )}
             </div>
           </>

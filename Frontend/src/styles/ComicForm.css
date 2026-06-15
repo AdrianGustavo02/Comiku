@@ -1,11 +1,15 @@
 .comic-form {
   display: grid;
   gap: 12px;
+  background: rgb(25, 14, 42);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 10px;
 }
 
 .comic-form label,
 .dynamic-group legend {
-  color: #e2e8f0;
+  color: #f8f3ff;
   font-size: 0.94rem;
   font-weight: 700;
 }
@@ -13,18 +17,19 @@
 .comic-form input,
 .comic-form select,
 .comic-form textarea {
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.5);
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   padding: 12px 14px;
 }
 
 .comic-form input:focus-visible,
 .comic-form select:focus-visible,
 .comic-form textarea:focus-visible {
-  outline: 3px solid rgba(125, 211, 252, 0.5);
+  outline: 3px solid rgba(255, 138, 31, 0.42);
   outline-offset: 2px;
+  background: rgb(25, 14, 42);
 }
 
 .comic-form input:disabled,
@@ -33,7 +38,7 @@
 }
 
 .dynamic-group {
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 14px;
   display: grid;
@@ -63,9 +68,9 @@
 }
 
 .small-button.secondary {
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  color: #e2e8f0;
-  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f8f3ff;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .primary-button,
@@ -76,20 +81,37 @@
 }
 
 .primary-button {
-  color: #04111f;
-  background: linear-gradient(135deg, #7dd3fc, #34d399);
+  color: #1b0f08;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  width: auto;
+}
+
+.comic-form > .primary-button {
+  width: fit-content;
+  justify-self: center;
+}
+
+.primary-button:hover {
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  filter: brightness(1.1);
+  color:white;
 }
 
 .secondary-button {
-  color: #e2e8f0;
-  border: 1px solid rgba(125, 211, 252, 0.4);
-  background: rgba(2, 132, 199, 0.22);
+  color: #f8f3ff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(25, 14, 42);
+  border-color: rgba(250, 250, 250, 0.3);
+}
+
+.secondary-button:hover {
+  background: rgb(114, 60, 8);
 }
 
 .back-button {
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f8f3ff;
+  background: rgb(25, 14, 42);
 }
 
 .primary-button:disabled,
@@ -100,14 +122,14 @@
 }
 
 .counter-chip {
-  margin-bottom: 14px;
+  margin-top: 10px;
   display: inline-flex;
   border-radius: 999px;
   padding: 8px 14px;
-  border: 1px solid rgba(125, 211, 252, 0.4);
-  color: #bae6fd;
-  background: rgba(2, 132, 199, 0.2);
-  font-weight: 700;
+  border: 1px solid rgba(255, 138, 31, 0.32);
+  color: white;
+  background: rgb(25, 14, 42);
+  font-weight: bold;
 }
 
 .volume-actions {
@@ -115,41 +137,36 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.helper-text {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #cbd5e1;
+  justify-content: center;
 }
 
 .cover-preview-card {
   display: grid;
   gap: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 10px;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .cover-preview-image {
   width: min(260px, 100%);
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   object-fit: cover;
 }
 
 .loaded-volumes {
   margin-top: 24px;
   border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 16px;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgb(25, 14, 42);
 }
 
 .loaded-volumes h2 {
   margin: 0 0 12px;
-  color: #f8fafc;
+  color: #f8f3ff;
   font-size: 1.1rem;
 }
 
@@ -173,5 +190,6 @@
 
   .volume-actions {
     flex-direction: column;
+    align-items: center;
   }
 }

@@ -3,8 +3,7 @@ import ChatPanel from '../Components/ChatPanel'
 import { createGroupChannel, createOrGet1to1Channel } from '../firebase/stream'
 import { getAllUsers, getUserFriends, isUserBlocked } from '../firebase/user'
 import { ALLOWED_IMAGE_TYPES, MAX_COVER_SIZE_BYTES, createCompressedImageDataUrl, readFileAsDataUrl } from '../constants/imageUpload'
-import '../styles/ThematicListsShared.css'
-import '../styles/ThematicListsPage.css'
+import '../styles/ChatsPage.css'
 import FileInput from '../Components/FileInput'
 import Button from '../Components/Button'
 
@@ -12,7 +11,7 @@ function normalizeText(value) {
   return (value || '').toLowerCase().trim()
 }
 
-function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
+function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
   const [users, setUsers] = useState([])
   const [friends, setFriends] = useState([])
   const [query, setQuery] = useState('')
@@ -31,6 +30,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
   const [showGroupFormStep, setShowGroupFormStep] = useState(false)
   const [groupFormData, setGroupFormData] = useState({ name: '', description: '', imageUrl: null, imagePreview: null })
   const [groupFormErrors, setGroupFormErrors] = useState({})
+  const [groupImageFileName, setGroupImageFileName] = useState('')
 
   useEffect(() => {
     if (!pendingFriendUid || isChatReady) {
@@ -59,7 +59,10 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No fue posible cargar usuarios')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
+        }
       }
     }
 
@@ -77,8 +80,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
     return users.filter((u) => normalizeText(u.nick).includes(normalizedQuery))
   }, [users, normalizedQuery])
   
-  const [visibleCount, setVisibleCount] = useState(15)
-  const visibleResults = useMemo(() => results.slice(0, visibleCount), [results, visibleCount])
+  const visibleResults = useMemo(() => results, [results])
 
   useEffect(() => {
     let cancelled = false
@@ -92,8 +94,8 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
       const entries = await Promise.all(
         visibleResults.map(async (user) => {
           try {
-            const blockedMe = await isUserBlocked(authUser.uid, user.uid)
-            return [user.uid, blockedMe]
+            const blockedByMe = await isUserBlocked(user.uid, authUser.uid)
+            return [user.uid, blockedByMe]
           } catch {
             return [user.uid, false]
           }
@@ -206,6 +208,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
     setShowGroupFormStep(true)
     setGroupFormData({ name: '', description: '', imageUrl: null, imagePreview: null })
     setGroupFormErrors({})
+    setGroupImageFileName('')
   }
 
   async function handleGroupImageSelect(event) {
@@ -230,6 +233,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
         imageUrl: compressedDataUrl,
         imagePreview: dataUrl,
       }))
+      setGroupImageFileName(file.name || '')
       setGroupFormErrors({ ...groupFormErrors, image: null })
     } catch {
       setGroupFormErrors({ ...groupFormErrors, image: 'No se pudo leer la imagen.' })
@@ -294,15 +298,14 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell chats-page-shell">
       <section className="app-card user-list-page">
         <header>
-          <p className="eyebrow">Comiku / Chats</p>
           <h1>Chats</h1>
-          <p className="lead">Busca usuarios por su nick para abrir su perfil público.</p>
+          <p className="">Los chats no cuentan con cifrado de extremo a extremo. Un administrador puede revisar los mensajes.</p>
         </header>
 
-        <div style={{ marginBottom: 12 }}>
+        <div className="chats-toolbar" style={{ marginBottom: 12 }}>
           <Button
             variant="primary"
             className="delete-account-button"
@@ -330,7 +333,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
             onClick={onOpenFriends}
             style={{ marginRight: 8 }}
           >
-            Mis amigos
+            Amigos
           </Button>
         </div>
 
@@ -341,7 +344,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
             <h2>Selecciona un amigo para iniciar el chat</h2>
 
             {friends.length === 0 ? (
-              <p className="status-message">Todavia no tienes amigos. Agrega amigos para iniciar una conversacion.</p>
+              <p className="status-message-black">Todavia no tienes amigos. Agrega amigos para iniciar una conversacion.</p>
             ) : (
               <ul className="search-suggestion-list" role="listbox">
                 {friends.map((friend) => (
@@ -351,8 +354,9 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                       className="search-suggestion-button"
                       onClick={() => handleStartChatWithFriend(friend.uid)}
                       disabled={creatingChatForUid === friend.uid}
+                      style={{ display: 'flex', alignItems: 'center' }}
                     >
-                      <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', marginRight: 12 }} />
+                      <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', marginRight: 12 }} />
                       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
                         <strong>{friend.nick}</strong>
                         {creatingChatForUid === friend.uid ? (
@@ -372,10 +376,15 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
             <h2>Selecciona amigos para iniciar chat grupal</h2>
 
             {friends.length === 0 ? (
-              <p className="status-message">Todavia no tienes amigos. Agrega amigos para iniciar un chat grupal.</p>
+              <p className="status-message-black">Todavia no tienes amigos. Agrega amigos para iniciar un chat grupal.</p>
             ) : (
               <>
-                <ul className="search-suggestion-list" role="listbox" aria-multiselectable="true">
+                <ul
+                  className="search-suggestion-list"
+                  role="listbox"
+                  aria-multiselectable="true"
+                  style={{ maxHeight: 320, overflowY: 'auto', marginTop: 0 }}
+                >
                   {friends.map((friend) => {
                     const checked = selectedGroupFriendUids.includes(friend.uid)
 
@@ -383,10 +392,10 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                       <li key={friend.uid}>
                         <label
                           className="search-suggestion-button"
-                          style={{ cursor: 'pointer', justifyContent: 'space-between' }}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         >
                           <span style={{ display: 'flex', alignItems: 'center' }}>
-                            <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', marginRight: 12 }} />
+                            <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', marginRight: 12 }} />
                             <strong>{friend.nick}</strong>
                           </span>
                           <input
@@ -434,10 +443,10 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
             <h2>Configurar grupo ({selectedGroupFriendUids.length + 1} miembros)</h2>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Nombre del grupo *</label>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Nombre del grupo</label>
               <input
                 type="text"
-                placeholder="Ej: Fans de Manga"
+                placeholder="Ej: Fans del manga"
                 value={groupFormData.name}
                 onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
                 style={{ width: '100%', padding: 10, border: '1px solid #d7d7d7', borderRadius: 10 }}
@@ -467,7 +476,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                 accept={ALLOWED_IMAGE_TYPES.join(',')}
                 onFileChange={(file) => handleGroupImageSelect({ target: { files: file ? [file] : [] } })}
                 disabled={creatingGroupChat}
-                initialFileName={groupFormData.imagePreview ? 'Imagen seleccionada' : ''}
+                initialFileName={groupImageFileName}
               />
               {groupFormData.imagePreview && (
                 <div style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
@@ -496,6 +505,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
                   setShowGroupFormStep(false)
                   setGroupFormData({ name: '', description: '', imageUrl: null, imagePreview: null })
                   setGroupFormErrors({})
+                  setGroupImageFileName('')
                 }}
                 disabled={creatingGroupChat}
               >
@@ -505,64 +515,61 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
           </section>
         ) : null}
 
-        <div className="thematic-search-bar">
-          <label className="thematic-search-label" htmlFor="chat-user-search">Buscar usuario por nick</label>
+        <div className="thematic-search-bar chats-search-bar" style={{ margin: '12px 0 0', gap: 4 }}>
+          <label className="thematic-search-label" htmlFor="chat-user-search">Busca usuarios por su nick para ver su perfil.</label>
           <input
             id="chat-user-search"
             className="thematic-search-input"
             type="search"
-            placeholder="Busca un nick..."
+            placeholder="Introduce un nick..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
 
-        {loading ? (
-          <p className="status-message">Cargando usuarios...</p>
-        ) : (
-          <div>
-            {normalizedQuery && results.length === 0 ? (
-              <p className="search-empty-state">No se encontraron coincidencias con ese nick.</p>
-            ) : null}
+        {normalizedQuery ? (
+          loading ? (
+            <p className="status-message-black">Cargando usuarios...</p>
+          ) : (
+            <div>
+              {results.length === 0 ? (
+                <p className="status-message-black">No se encontraron coincidencias con ese nick.</p>
+              ) : null}
 
-            {results.length > 0 && (
-              <ul className="search-suggestion-list" role="listbox">
-                {visibleResults.map((u) => (
-                  <li key={u.uid}>
-                    <button
-                      type="button"
-                      className="search-suggestion-button"
-                      onClick={() => onOpenProfile(u.uid)}
-                      disabled={Boolean(blockedByMeMap[u.uid])}
-                    >
-                      <img src={u.fotoPerfil} alt={`Foto de ${u.nick}`} style={{width:40,height:40,borderRadius:8,objectFit:'cover',marginRight:12}} />
-                      <span style={{display:'flex',flexDirection:'column',alignItems:'flex-start',lineHeight:1.2}}>
-                        <strong>{u.nick}</strong>
-                        {blockedByMeMap[u.uid] ? (
-                          <span style={{fontSize:12,opacity:0.8}}>Este usuario te bloqueo</span>
-                        ) : null}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+              {results.length > 0 && (
+                <ul className="search-suggestion-list" role="listbox" style={{ marginTop: 0, maxHeight: 300, overflowY: 'auto' }}>
+                  {visibleResults.map((u) => (
+                    <li key={u.uid}>
+                      <button
+                        type="button"
+                        className="search-suggestion-button"
+                        onClick={() => {
+                          if (blockedByMeMap[u.uid]) {
+                            return
+                          }
 
-            {results.length > visibleCount && (
-              <div style={{marginTop:12}}>
-                <button
-                  type="button"
-                  className="thematic-load-more"
-                  onClick={() => setVisibleCount((c) => c + 15)}
-                >
-                  Mostrar 15 más
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                          onOpenProfile(u.uid)
+                        }}
+                        disabled={Boolean(blockedByMeMap[u.uid])}
+                      >
+                        <img src={u.fotoPerfil} alt={`Foto de ${u.nick}`} style={{width:40,height:40,borderRadius:'50%',objectFit:'cover',marginRight:12}} />
+                        <span style={{display:'flex',flexDirection:'column',alignItems:'flex-start',lineHeight:1.2}}>
+                          <strong>{u.nick}</strong>
+                          {blockedByMeMap[u.uid] ? (
+                            <span className="chat-search-blocked-help">Desbloquea a este usuario para acceder a su perfil</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-        <div style={{ marginTop: 18 }}>
+            </div>
+          )
+        ) : null}
+
+        <div className="chat-panel-wrapper" style={{ marginTop: 18 }}>
           <ChatPanel
             authUser={authUser}
             selectedChannel={selectedChannel}
@@ -573,6 +580,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends }) {
               setCreatingChatForUid('')
               setError(`Error al conectar chat: ${message}`)
             }}
+            onOpenProfile={onOpenProfile}
           />
         </div>
       </section>

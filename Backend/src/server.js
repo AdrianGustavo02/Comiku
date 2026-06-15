@@ -3,7 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { StreamChat } = require('stream-chat');
 
 dotenv.config();
@@ -280,6 +280,130 @@ async function deleteGroupedSubcollectionDocs(adminDb, collectionName, fieldName
   return deleted;
 }
 
+async function deleteFriendReferencesAndUpdateCounts(adminDb, uid) {
+  const ownFriendsSnapshot = await adminDb.collection('usuario').doc(uid).collection('Amigos').get();
+  let deleted = 0;
+
+  for (const friendDoc of ownFriendsSnapshot.docs) {
+    const data = friendDoc.data() || {};
+    const friendUid = data.UserID || friendDoc.id;
+
+    if (!friendUid || friendUid === uid) {
+      continue;
+    }
+
+    try {
+      await adminDb.collection('usuario').doc(friendUid).collection('Amigos').doc(uid).delete();
+      await adminDb.collection('usuario').doc(friendUid).update({
+        cantidadAmigos: FieldValue.increment(-1),
+      });
+      deleted += 1;
+    } catch (error) {
+      console.error('Warning: no se pudo limpiar amistad en cascada:', error?.message || error);
+    }
+  }
+
+  return deleted;
+}
+
+async function deleteUserComicReferencesAndUpdateCounts(adminDb, comicId, volumeId = null) {
+  const volumeFieldNames = ['TomoID', 'VolumeId'];
+  const listTypes = ['biblioteca', 'listaDeseados'];
+  const usersSnapshot = await adminDb.collection('usuario').get();
+  const containers = new Map();
+  let deleted = 0;
+
+  for (const userSnapshot of usersSnapshot.docs) {
+    const ownerUid = userSnapshot.id;
+
+    for (const listType of listTypes) {
+      const containerRef = adminDb
+        .collection('usuario')
+        .doc(ownerUid)
+        .collection(listType)
+        .doc('coleccion')
+        .collection('comics')
+        .doc(comicId);
+
+      const volumeSnapshots = await containerRef.collection('tomos').get();
+
+      if (volumeSnapshots.empty) {
+        continue;
+      }
+
+      const docsToDelete = [];
+
+      for (const volumeSnapshot of volumeSnapshots.docs) {
+        if (!volumeId) {
+          docsToDelete.push(volumeSnapshot.ref);
+          continue;
+        }
+
+        const data = volumeSnapshot.data() || {};
+        const matchesByField = volumeFieldNames.some((fieldName) => String(data[fieldName] || '') === String(volumeId));
+        const matchesByDocId = volumeSnapshot.id === volumeId;
+
+        if (matchesByField || matchesByDocId) {
+          docsToDelete.push(volumeSnapshot.ref);
+        }
+      }
+
+      if (docsToDelete.length === 0) {
+        continue;
+      }
+
+      const containerKey = `${ownerUid}::${listType}`;
+      containers.set(containerKey, {
+        ownerUid,
+        listType,
+        containerPath: containerRef.path,
+        docsToDelete,
+      });
+    }
+  }
+
+  for (const container of containers.values()) {
+    const { ownerUid, listType, containerPath, totalTomos, docsToDelete } = container;
+
+    if (docsToDelete.length === 0) {
+      continue;
+    }
+
+    for (const docRef of docsToDelete) {
+      await docRef.delete();
+      deleted += 1;
+    }
+
+    const tomosCollectionRef = adminDb.doc(containerPath).collection('tomos');
+    const existingSnapshot = await tomosCollectionRef.limit(docsToDelete.length + 1).get();
+    const remainingTomos = Math.max(0, existingSnapshot.size - docsToDelete.length);
+
+    if (listType === 'biblioteca') {
+      const updatePayload = {};
+      const tomosDelta = docsToDelete.length;
+      const comicsDelta = volumeId ? (remainingTomos === 0 ? 1 : 0) : 1;
+
+      if (tomosDelta > 0) {
+        updatePayload.totalTomos = FieldValue.increment(-tomosDelta);
+      }
+
+      if (comicsDelta > 0) {
+        updatePayload.totalComics = FieldValue.increment(-comicsDelta);
+      }
+
+      if (Object.keys(updatePayload).length > 0) {
+        await adminDb.collection('usuario').doc(ownerUid).update(updatePayload);
+      }
+    }
+
+    if (remainingTomos === 0) {
+      await adminDb.doc(containerPath).delete();
+    }
+  }
+
+  return deleted;
+}
+
 async function pruneActivityMentionsByVolume(adminDb, matchesVolume) {
   const activitiesRef = adminDb.collection('actividades');
   const snapshots = await activitiesRef.get();
@@ -439,11 +563,105 @@ async function deleteUserOwnedThematicLists(adminDb, uid) {
   return ownedListIds.size;
 }
 
+async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
+  // Buscar todas las reseñas del usuario en la colección 'Resenas' (subcollection de comics)
+  const reviewsSnapshots = await adminDb.collectionGroup('Resenas').get();
+  const reviewsByComicId = new Map();
+  let deletedReviews = 0;
+
+  // Agrupar reseñas por comicId y calcular delta por comic
+  for (const reviewSnapshot of reviewsSnapshots.docs) {
+    const reviewData = reviewSnapshot.data() || {};
+    const reviewUserIdFields = [reviewData.UserID, reviewData.userId, reviewData.uid];
+
+    if (!reviewUserIdFields.includes(uid)) {
+      continue;
+    }
+
+    // Obtener el comicId desde la ruta: comics/{comicId}/Resenas/{reviewId}
+    const path = reviewSnapshot.ref.path;
+    const pathParts = path.split('/');
+    
+    if (pathParts[0] !== 'comics' || pathParts[2] !== 'Resenas') {
+      continue;
+    }
+
+    const comicId = pathParts[1];
+    const rating = reviewData.Calificacion ?? 0;
+
+    if (!reviewsByComicId.has(comicId)) {
+      reviewsByComicId.set(comicId, { count: 0, sum: 0, reviews: [] });
+    }
+
+    const comicData = reviewsByComicId.get(comicId);
+    comicData.count += 1;
+    comicData.sum += rating;
+    comicData.reviews.push(reviewSnapshot.ref);
+  }
+
+  // Actualizar agregados en cada comic y borrar las reseñas
+  for (const [comicId, comicData] of reviewsByComicId.entries()) {
+    const comicRef = adminDb.collection('comics').doc(comicId);
+
+    try {
+      // Usar transacción para leer y actualizar de forma atómica
+      await adminDb.runTransaction(async (transaction) => {
+        const comicSnapshot = await transaction.get(comicRef);
+
+        if (!comicSnapshot.exists) {
+          return;
+        }
+
+        const comicDataDoc = comicSnapshot.data() || {};
+        const currentCount = comicDataDoc.CantidadCalificaciones ?? 0;
+        const currentSum = comicDataDoc.PromedioCalificacion ?? 0; // Field used for average, we'll store sum
+
+        // Calcular nuevo count y sum
+        const newCount = Math.max(0, currentCount - comicData.count);
+        let newSum = currentSum;
+
+        // Nota: El frontend usa PromedioCalificacion para guardar el promedio.
+        // Para mantener consistencia, debemos trabajar con él.
+        // Si currentCount > 0, currentSum es el promedio. Convertimos a suma para restar.
+        let totalSum = currentCount > 0 ? currentSum * currentCount : 0;
+        totalSum = Math.max(0, totalSum - comicData.sum);
+
+        if (newCount === 0) {
+          // Si no quedan reseñas, limpiar los campos
+          transaction.update(comicRef, {
+            CantidadCalificaciones: 0,
+            PromedioCalificacion: null,
+          });
+        } else {
+          // Calcular nuevo promedio
+          const newAverage = totalSum / newCount;
+          transaction.update(comicRef, {
+            CantidadCalificaciones: newCount,
+            PromedioCalificacion: newAverage,
+          });
+        }
+
+        // Borrar todas las reseñas del usuario para este comic
+        for (const reviewRef of comicData.reviews) {
+          transaction.delete(reviewRef);
+        }
+      });
+
+      deletedReviews += comicData.reviews.length;
+    } catch (error) {
+      console.error(`Warning: no se pudo actualizar agregados para comic ${comicId}:`, error?.message || error);
+    }
+  }
+
+  return deletedReviews;
+}
+
 async function deleteUserDataWithFullCleanup(adminDb, uid) {
   const referenceFields = getReferenceFields();
   const summary = {
     usuario: 0,
     rootMatches: 0,
+    friends: 0,
     notifications: 0,
     reportes: 0,
     activities: 0,
@@ -451,9 +669,14 @@ async function deleteUserDataWithFullCleanup(adminDb, uid) {
     comments: 0,
     likes: 0,
     thematicLists: 0,
+    reviews: 0,
   };
 
   summary.thematicLists = await deleteUserOwnedThematicLists(adminDb, uid);
+  summary.friends = await deleteFriendReferencesAndUpdateCounts(adminDb, uid);
+
+  // Eliminar reseñas y actualizar agregados de cómics
+  summary.reviews = await deleteUserReviewsWithAggregateUpdate(adminDb, uid);
 
   const userProfileRef = adminDb.collection('usuario').doc(uid);
   const userProfileSnapshot = await userProfileRef.get();
@@ -513,6 +736,8 @@ async function deleteComicCascade(adminDb, comicId) {
     throw new Error('No se encontró el comic.');
   }
 
+  await deleteUserComicReferencesAndUpdateCounts(adminDb, comicId);
+
   await deleteMatchingReports(adminDb, (data) => {
     return (
       (data.NombreObjetoReportado || '').toLowerCase() === 'comic' &&
@@ -524,19 +749,6 @@ async function deleteComicCascade(adminDb, comicId) {
   });
 
   await pruneActivityMentionsByVolume(adminDb, (entry) => entry?.comicId === comicId);
-
-  const volumeSnapshots = await adminDb.collectionGroup('tomos').get();
-
-  for (const volumeSnapshot of volumeSnapshots.docs) {
-    const parentComicRef = volumeSnapshot.ref.parent.parent;
-    const parentCollectionName = parentComicRef?.parent?.id || '';
-
-    if (parentCollectionName !== 'comics' || parentComicRef?.id !== comicId) {
-      continue;
-    }
-
-    await volumeSnapshot.ref.delete();
-  }
 
   await adminDb.recursiveDelete(comicRef);
 
@@ -556,6 +768,8 @@ async function deleteVolumeCascade(adminDb, comicId, volumeId) {
     throw new Error('No se encontró el tomo.');
   }
 
+  await deleteUserComicReferencesAndUpdateCounts(adminDb, comicId, volumeId);
+
   await deleteMatchingReports(adminDb, (data) => {
     return (
       (data.NombreObjetoReportado || '').toLowerCase() === 'tomo' &&
@@ -568,17 +782,17 @@ async function deleteVolumeCascade(adminDb, comicId, volumeId) {
     return entry?.comicId === comicId && entry?.volumeId === volumeId;
   });
 
-  const volumeSnapshots = await adminDb.collectionGroup('tomos').get();
-
-  for (const snap of volumeSnapshots.docs) {
-    const parentComicRef = snap.ref.parent.parent;
-    const parentCollectionName = parentComicRef?.parent?.id || '';
-
-    if (parentCollectionName !== 'comics' || parentComicRef?.id !== comicId || snap.id !== volumeId) {
-      continue;
+  // Eliminar el tomo de todas las listas temáticas
+  const thematicListsRef = adminDb.collection('listasTematicas');
+  const allThematicListsSnapshot = await thematicListsRef.get();
+  
+  for (const listSnapshot of allThematicListsSnapshot.docs) {
+    const tomosDeLista = listSnapshot.ref.collection('tomosDeLista');
+    const volumesInList = await tomosDeLista.where('TomoId', '==', volumeId).where('ComicId', '==', comicId).get();
+    
+    for (const volumeDoc of volumesInList.docs) {
+      await volumeDoc.ref.delete();
     }
-
-    await snap.ref.delete();
   }
 
   await volumeRef.delete();
@@ -985,7 +1199,18 @@ app.delete('/api/admin/channels/:channelId', async (req, res) => {
     const idToken = authHeader.slice('Bearer '.length).trim();
     const { adminAuth, adminDb } = getAdminServices();
     const decodedToken = await adminAuth.verifyIdToken(idToken);
-    await assertAdminRequest(adminDb, decodedToken.uid);
+
+    const channelDoc = await adminDb.collection('streamChannels').doc(req.params.channelId).get();
+    if (!channelDoc.exists) {
+      return res.status(404).json({ ok: false, message: 'Grupo no encontrado.' });
+    }
+
+    const channelData = channelDoc.data() || {};
+    const isGroupAdmin = Array.isArray(channelData.admins) && channelData.admins.includes(decodedToken.uid);
+
+    if (!isGroupAdmin) {
+      return res.status(403).json({ ok: false, message: 'Solo los administradores del grupo pueden eliminarlo.' });
+    }
 
     await deleteGroupCascade(adminDb, req.params.channelId);
 
@@ -1422,6 +1647,14 @@ app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
       return res.status(403).json({ ok: false, message: 'No eres miembro de este grupo.' });
     }
 
+    const currentAdmins = Array.isArray(channelData.admins) ? channelData.admins : [];
+    const isRequesterAdmin = currentAdmins.includes(requesterUid);
+    const remainingAdmins = currentAdmins.filter((uid) => uid !== requesterUid);
+
+    if (isRequesterAdmin && remainingAdmins.length === 0) {
+      return res.status(400).json({ ok: false, message: 'Debes dejar al menos un administrador en el grupo.' });
+    }
+
     const apiKey = process.env.STREAM_API_KEY;
     const apiSecret = process.env.STREAM_API_SECRET;
     if (!apiKey || !apiSecret) {
@@ -1435,7 +1668,19 @@ app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
 
     // Update Firestore
     const updatedMembers = channelData.members.filter((uid) => uid !== requesterUid);
-    const updatedAdmins = (channelData.admins || []).filter((uid) => uid !== requesterUid);
+    const updatedAdmins = remainingAdmins;
+
+    if (updatedMembers.length <= 1) {
+      try {
+        await channel.delete();
+      } catch (err) {
+        console.error('Warning: no se pudo eliminar el canal vacío:', err?.message || err);
+      }
+
+      await adminDb.collection('streamChannels').doc(channelId).delete();
+
+      return res.json({ ok: true, message: 'El grupo se eliminó automáticamente porque quedó sin miembros.' });
+    }
 
     await adminDb.collection('streamChannels').doc(channelId).update({
       members: updatedMembers,
@@ -1478,6 +1723,15 @@ app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
     const isAdmin = channelData.admins && channelData.admins.includes(requesterUid);
     if (!isAdmin) {
       return res.status(403).json({ ok: false, message: 'Solo los administradores del grupo pueden remover miembros.' });
+    }
+
+    const memberIsAdmin = Array.isArray(channelData.admins) && channelData.admins.includes(memberUid);
+    const remainingAdmins = Array.isArray(channelData.admins)
+      ? channelData.admins.filter((uid) => uid !== memberUid)
+      : [];
+
+    if (memberIsAdmin && remainingAdmins.length === 0) {
+      return res.status(400).json({ ok: false, message: 'Debes dejar al menos un administrador en el grupo.' });
     }
 
     if (!channelData.members.includes(memberUid)) {

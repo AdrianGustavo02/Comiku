@@ -190,19 +190,12 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
       <section className="app-card">
         <div className="app-hero">
           <div>
-            <p className="eyebrow">Comiku / {comicId ? 'Modificar comic' : 'Nuevo comic'}</p>
-            <h1>{comicId ? 'Modificar comic' : 'Crear comic'}</h1>
+            <h1>{comicId ? 'Modificar datos del comic' : 'Crear comic'}</h1>
             <p className="lead">
               {comicId
-                ? 'Estás modificando los datos del comic. Cambia los campos que quieras y guarda.'
-                : 'Completa los datos principales para guardar el comic en tu colección.'}
+                ? 'Asegurate de completar todos los campos'
+                : 'Completa los datos principales para crear un comic. Luego podrás agregarle tomos.'}
             </p>
-          </div>
-
-          <div className="hero-actions">
-            <Button className="back-button" onClick={onBack} type="button" variant="secondary">
-              Volver al inicio
-            </Button>
           </div>
         </div>
 

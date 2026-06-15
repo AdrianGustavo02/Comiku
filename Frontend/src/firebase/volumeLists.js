@@ -20,6 +20,10 @@ const LIST_ROOT_DOCUMENT = 'coleccion'
 const COMICS_SUBCOLLECTION = 'comics'
 const VOLUMES_SUBCOLLECTION = 'tomos'
 
+function toSortableText(value) {
+  return String(value ?? '').toLowerCase().trim()
+}
+
 function ensureFirestoreReady() {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Falta configurar Firebase. Revisa tus variables VITE_FIREBASE_*.')
@@ -273,6 +277,8 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
       batch.set(
         targetVolumeReference,
         {
+          ComicId: comicId,
+          TomoID: volumeId,
           FechaLectura: [],
           Leido: false,
         },
@@ -282,6 +288,8 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
       batch.set(
         targetVolumeReference,
         {
+          ComicId: comicId,
+          TomoID: volumeId,
           FechaAgregado: Timestamp.now(),
         },
         { merge: true },
@@ -562,7 +570,7 @@ async function getUserListItems({ uid, listCollection }) {
   return groupedItems
     .filter(Boolean)
     .filter((groupedItem) => groupedItem.volumes.length > 0)
-    .sort((a, b) => a.comic.nombre.localeCompare(b.comic.nombre, 'es'))
+    .sort((a, b) => toSortableText(a.comic.nombre).localeCompare(toSortableText(b.comic.nombre), 'es'))
 }
 
 export async function getUserLibraryItems({ uid }) {

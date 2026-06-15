@@ -323,6 +323,42 @@ export async function deleteNotificationsByActorUid(userId, actorUid) {
   }
 }
 
+export async function deleteFriendRequestNotification({ userId, actorUid }) {
+  ensureFirestoreReady()
+
+  if (!userId || !actorUid) {
+    throw new Error('userId y actorUid son obligatorios.')
+  }
+
+  const notificationsQuery = query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('UserID', '==', userId),
+  )
+
+  const snapshots = await getDocs(notificationsQuery)
+
+  const toDelete = snapshots.docs.filter((docSnap) => {
+    const data = docSnap.data()
+
+    return (
+      data.type === NOTIFICATION_TYPES.FRIEND_REQUEST &&
+      data.ActorUserID === actorUid
+    )
+  })
+
+  if (toDelete.length === 0) {
+    return
+  }
+
+  const batch = writeBatch(db)
+
+  toDelete.forEach((docSnap) => {
+    batch.delete(docSnap.ref)
+  })
+
+  await batch.commit()
+}
+
 /**
  * Elimina notificaciones relacionadas a un tipo específico y objeto
  * Usado cuando se elimina una actividad, lista temática, etc.
@@ -352,7 +388,7 @@ export async function deleteNotificationsByMetadata({
     const data = docSnap.data()
     if (data.metadata?.[metadataKey] !== metadataValue) return false
 
-    if (actorUid && data.actorUid !== actorUid) return false
+    if (actorUid && data.ActorUserID !== actorUid) return false
 
     return true
   })

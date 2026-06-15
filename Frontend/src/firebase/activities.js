@@ -15,6 +15,7 @@ import {
   startAfter,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
 import { getUserProfile } from './user'
@@ -656,4 +657,83 @@ export async function appendThematicListActivityForToday({
     },
     fecha: Timestamp.now(),
   })
+}
+
+/**
+ * Elimina todos los likes y comentarios que un usuario hizo en las actividades de otro usuario
+ * Se usa cuando se bloquea o termina amistad
+ */
+export async function deleteUserContentFromActivities(activityOwnerUid, contentCreatorUid) {
+  ensureFirestoreReady()
+
+  if (!activityOwnerUid || !contentCreatorUid) {
+    throw new Error('UIDs son obligatorios.')
+  }
+
+  try {
+    // Buscar todas las actividades del propietario
+    const activitiesQuery = query(
+      collection(db, ACTIVITIES_COLLECTION),
+      where('UserID', '==', activityOwnerUid),
+    )
+
+    const activitiesSnapshot = await getDocs(activitiesQuery)
+
+    const batch = writeBatch(db)
+    let hasChanges = false
+
+    // Para cada actividad, buscar y eliminar likes y comentarios del usuario
+    for (const activityDoc of activitiesSnapshot.docs) {
+      const activityRef = activityDoc.ref
+      let likesToDelete = 0
+      let commentsToDelete = 0
+
+      // Verificar si existe like
+      const likeRef = doc(activityRef, LIKES_SUBCOLLECTION, contentCreatorUid)
+      const likeSnapshot = await getDoc(likeRef)
+      
+      if (likeSnapshot.exists()) {
+        batch.delete(likeRef)
+        likesToDelete = 1
+        hasChanges = true
+      }
+
+      // Buscar comentarios del usuario
+      const commentsQuery = query(
+        collection(activityRef, COMMENTS_SUBCOLLECTION),
+        where('UserID', '==', contentCreatorUid),
+      )
+
+      const commentsSnapshot = await getDocs(commentsQuery)
+      commentsToDelete = commentsSnapshot.docs.length
+      
+      commentsSnapshot.docs.forEach((commentDoc) => {
+        batch.delete(commentDoc.ref)
+        hasChanges = true
+      })
+
+      // Actualizar contadores en la actividad
+      if (likesToDelete > 0 || commentsToDelete > 0) {
+        const updates = {}
+        
+        if (likesToDelete > 0) {
+          updates.CantidadLikes = increment(-likesToDelete)
+        }
+        
+        if (commentsToDelete > 0) {
+          updates.CantidadComentarios = increment(-commentsToDelete)
+        }
+        
+        batch.update(activityRef, updates)
+      }
+    }
+
+    // Ejecutar todas las operaciones en lote
+    if (hasChanges) {
+      await batch.commit()
+    }
+  } catch (error) {
+    console.error('Error deleting user content from activities:', error)
+    throw error
+  }
 }

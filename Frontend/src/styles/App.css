@@ -1,20 +1,21 @@
 .app-shell {
   min-height: 100svh;
   display: grid;
-  place-items: center;
-  padding: 32px;
+  justify-items: center;
+  align-items: start;
+  padding: 20px 24px 40px;
 }
 
 .app-card {
-  width: min(1040px, 100%);
+  width: min(1180px, 100%);
   padding: 32px;
   border-radius: 28px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    linear-gradient(180deg, rgba(13, 18, 32, 0.86), rgba(7, 12, 23, 0.94)),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 36%),
-    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.12), transparent 42%);
-  box-shadow: 0 28px 90px rgba(2, 6, 23, 0.45);
+    linear-gradient(180deg, rgba(34, 16, 52, 0.94), rgba(20, 9, 33, 0.98)),
+    radial-gradient(circle at top right, rgba(255, 138, 31, 0.16), transparent 34%),
+    radial-gradient(circle at bottom left, rgba(163, 94, 255, 0.18), transparent 40%);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(18px);
 }
 
@@ -28,7 +29,7 @@
 
 .eyebrow {
   margin: 0 0 12px;
-  color: #93c5fd;
+  color: #ffb05c;
   font-size: 0.78rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -36,24 +37,28 @@
 
 h1 {
   margin: 0;
-  font-size: clamp(2.6rem, 5vw, 4.8rem);
+  font-size: 2em;
   line-height: 0.94;
   letter-spacing: -0.06em;
-  color: #f8fafc;
-  font-family: Georgia, 'Times New Roman', serif;
-  max-width: 11ch;
+  color: rgb(35, 35, 35);
+  font-family: 'Segoe UI Variable', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: bold;
+  margin-block-start: 0.67em;
+  margin-block-end: 0.67em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
 }
 
 .lead {
   max-width: 60ch;
   margin-top: 16px;
-  color: #cbd5e1;
+  color: rgba(35, 35, 35, 0.90);
   font-size: 1.05rem;
 }
 
 .session-user {
   margin-top: 14px;
-  color: #93c5fd;
+  color: #ffb05c;
 }
 
 .hero-actions {
@@ -78,9 +83,9 @@ h1 {
 }
 
 .switch-button {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(15, 23, 42, 0.5);
-  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cdbfe3;
   border-radius: 12px;
   padding: 11px 14px;
   font-weight: 700;
@@ -88,8 +93,8 @@ h1 {
 }
 
 .switch-button.active {
-  color: #04111f;
-  background: linear-gradient(135deg, #7dd3fc, #34d399);
+  color: #1b0f08;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
   border-color: transparent;
 }
 
@@ -99,25 +104,25 @@ h1 {
 }
 
 .auth-form label {
-  color: #e2e8f0;
+  color: #f8f3ff;
   font-size: 0.94rem;
   font-weight: 600;
 }
 
 .auth-form input {
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.5);
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
   padding: 12px 14px;
 }
 
 .auth-form input::placeholder {
-  color: #64748b;
+  color: #a98dc9;
 }
 
 .auth-form input:focus-visible {
-  outline: 3px solid rgba(125, 211, 252, 0.5);
+  outline: 3px solid rgba(255, 138, 31, 0.42);
   outline-offset: 2px;
 }
 
@@ -132,14 +137,14 @@ h1 {
 }
 
 .auth-submit {
-  color: #04111f;
-  background: linear-gradient(135deg, #7dd3fc, #34d399);
+  color: #1b0f08;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
 }
 
 .logout-button {
-  color: #f8fafc;
-  background: rgba(239, 68, 68, 0.22);
-  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #ffe4e6;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.32);
 }
 
 .auth-submit:disabled {
@@ -155,15 +160,15 @@ h1 {
 }
 
 .form-message.error {
-  background: rgba(239, 68, 68, 0.16);
-  border: 1px solid rgba(248, 113, 113, 0.34);
-  color: #fecaca;
+  background: rgba(155, 47, 47, 0.8);
+  border: 1px solid rgba(239, 68, 68, 0.34);
+  color: #fcfcfc;
 }
 
 .form-message.success {
-  background: rgba(16, 185, 129, 0.18);
-  border: 1px solid rgba(52, 211, 153, 0.35);
-  color: #bbf7d0;
+  background: rgba(44, 172, 125, 0.8);
+  border: 1px solid rgba(52, 211, 153, 0.34);
+  color: #fcfcfc;
 }
 
 .auth-message-panel {
@@ -171,8 +176,10 @@ h1 {
 }
 
 .loading-card {
-  max-width: 500px;
+  max-width: 450px;
   text-align: center;
+  background: rgb(25, 14, 42);
+  border-radius: 20px;
 }
 
 .status-badge {
@@ -182,9 +189,9 @@ h1 {
   padding: 12px 16px;
   border-radius: 999px;
   font-weight: 700;
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #f8f3ff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   white-space: nowrap;
 }
 
@@ -197,7 +204,7 @@ h1 {
 }
 
 .status-connected {
-  color: #86efac;
+  color: #ffb05c;
 }
 
 .status-checking {
@@ -212,8 +219,8 @@ h1 {
 .status-panel,
 .info-card {
   border-radius: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(25, 14, 42);
 }
 
 .status-panel {
@@ -226,14 +233,20 @@ h1 {
 
 .status-title {
   margin: 0 0 8px;
-  color: #f8fafc;
+  color: #f8f3ff;
   font-size: 1.05rem;
   font-weight: 700;
 }
 
 .status-message {
-  margin: 0;
-  color: #cbd5e1;
+  color: white;
+  text-align: center;
+}
+
+.status-message-black {
+  color: rgb(35, 35, 35);
+  text-align: center;
+  font-weight: bold;
 }
 
 .status-metrics {
@@ -245,8 +258,8 @@ h1 {
 .status-metrics > div {
   padding: 16px;
   border-radius: 18px;
-  background: rgba(2, 6, 23, 0.45);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .metric-value {
@@ -276,7 +289,7 @@ h1 {
   margin: 0 0 10px;
   color: #f8fafc;
   font-size: 1.3rem;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-sans);
 }
 
 .info-card p {
@@ -300,8 +313,8 @@ h1 {
   border: 0;
   border-radius: 14px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #38bdf8, #22c55e);
-  color: #04111f;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
   font-weight: 800;
   cursor: pointer;
 }
@@ -311,17 +324,36 @@ h1 {
 }
 
 .retry-button:focus-visible {
-  outline: 3px solid rgba(147, 197, 253, 0.7);
+  outline: 3px solid rgba(255, 138, 31, 0.42);
   outline-offset: 3px;
+}
+
+.danger-button{
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 12px;
+    padding: 11px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #ffffff;
+    background: rgba(239, 68, 68, 0.80);
+}
+
+.danger-button:hover {
+  background: rgba(157, 44, 44, 0.80);
 }
 
 @media (max-width: 900px) {
   .app-shell {
-    padding: 16px;
+    padding: 0 0 16px;
   }
 
   .app-card {
+    width: 100%;
     padding: 22px;
+  }
+
+  .app-card.loading-card {
+    width: min(450px, calc(100% - 24px));
   }
 
   .app-hero,

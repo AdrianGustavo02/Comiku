@@ -22,6 +22,7 @@ import {
 } from '../firebase/volumeLists'
 import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacters'
 import '../styles/VolumeDetailPage.css'
+import '../styles/Modal.css'
 import FileInput from '../Components/FileInput'
 import Button from '../Components/Button'
 
@@ -610,16 +611,16 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
 
   if (loading) {
     return (
-      <main className="app-shell">
+      <main className="app-shell volume-detail-page loading">
         <section className="app-card loading-card">
-          <p className="status-message">Cargando detalle del tomo...</p>
+          <p className="status-message">Cargando informacion del tomo...</p>
         </section>
       </main>
     )
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell volume-detail-page">
       <section className="app-card volume-detail-card">
         {error ? <p className="form-message error">{error}</p> : null}
         {listError ? <p className="form-message error">{listError}</p> : null}
@@ -629,14 +630,11 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
         {!volume || !comic ? null : (
           <div className="volume-detail-grid">
             <section>
-              <p className="eyebrow">Comiku / Detalle tomo</p>
               <h1>
                 {volume.numeroTomo !== null
-                  ? `Tomo ${volume.numeroTomo}`
-                  : 'Tomo único'}
+                  ? `${comic.nombre} - Tomo ${volume.numeroTomo}`
+                  : `${comic.nombre} - Tomo único`}
               </h1>
-              <p className="lead">Comic: {comic.nombre}</p>
-
               <div className="volume-detail-meta">
                 <p>
                   <strong>ISBN:</strong> {volume.isbn || 'No definido'}
@@ -645,12 +643,11 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
                   <strong>Publicación:</strong>{' '}
                   {formatPublicationDate(volume.fechaPublicacion)}
                 </p>
-                <p>
-                  <strong>Tipo:</strong> {volume.tomoUnico ? 'Tomo único' : 'Numerado'}
-                </p>
-                <p>
-                  <strong>Leído:</strong> {libraryData.leido ? 'Sí' : 'No'}
-                </p>
+                {membership.inLibrary ? (
+                  <p>
+                    <strong>Leído:</strong> {libraryData.leido ? 'Sí' : 'No'}
+                  </p>
+                ) : null}
               </div>
 
               {canDeleteVolume ? (
@@ -696,7 +693,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
 
               {canReportVolume ? (
                 <section className="report-content-panel">
-                  <h2>Reportes</h2>
+                  <h2 style={{color: 'black'}}>Reportes</h2>
                   {hasPendingVolumeReport ? (
                     <p className="helper-text">
                       Ya tienes un reporte pendiente para este tomo. Podrás volver a reportarlo cuando se resuelva.
@@ -704,7 +701,7 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
                   ) : (
                     <button
                       type="button"
-                      className="report-content-button"
+                      className="danger-button"
                       onClick={openReportModal}
                     >
                       Reportar tomo
@@ -784,41 +781,27 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
         )}
 
         {deleteModalOpen ? (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.55)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999,
-            }}
-            role="presentation"
-            onClick={closeDeleteVolumeModal}
-          >
+          <div className="modal-backdrop" role="presentation" onClick={closeDeleteVolumeModal}>
             <section
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 24,
-                maxWidth: 520,
-                width: 'calc(100% - 32px)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.24)',
-              }}
+              className="modal-card"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-volume-modal-title"
               onClick={(event) => event.stopPropagation()}
             >
-              <p className="eyebrow">ATENCION</p>
-              <h2 id="delete-volume-modal-title">Eliminar tomo</h2>
-              <p className="confirm-modal-text">
+              <header className="modal-header">
+                <p className="attention">ATENCION</p>
+                <h3 id="delete-volume-modal-title">Eliminar tomo</h3>
+              </header>
+
+              <div className="modal-body">
+                <p>
                 Esta acción eliminará el tomo y todas sus referencias asociadas.
-              </p>
+                </p>
+              </div>
               {deleteError ? <p className="form-message error">{deleteError}</p> : null}
 
-              <div className="confirm-modal-actions">
+              <div className="modal-footer">
                 <button
                   type="button"
                   className="secondary-button"
@@ -843,7 +826,6 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
         {isReportModalOpen ? (
           <div className="report-modal-backdrop" role="presentation">
             <div className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-volume-modal-title">
-              <p className="eyebrow">Comiku / Reportar tomo</p>
               <h2 id="report-volume-modal-title">Reportar tomo</h2>
 
               {reportError ? <p className="form-message error">{reportError}</p> : null}

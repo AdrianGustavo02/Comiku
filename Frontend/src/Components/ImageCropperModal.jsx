@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Cropper from 'react-easy-crop'
 import { createCompressedImageDataUrl } from '../constants/imageUpload'
 import { createCroppedImageDataUrl } from '../constants/imageCrop'
+import '../styles/ImageCropperModal.css'
 
 function ImageCropperModal({
   open,
@@ -19,6 +20,7 @@ function ImageCropperModal({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
+  const dialogRef = useRef(null)
 
   useEffect(() => {
     if (!open) {
@@ -31,6 +33,15 @@ function ImageCropperModal({
     setIsProcessing(false)
     setError('')
   }, [open, imageSrc])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    dialogRef.current?.focus({ preventScroll: false })
+    dialogRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [open])
 
   if (!open || !imageSrc) {
     return null
@@ -67,39 +78,25 @@ function ImageCropperModal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        backgroundColor: 'rgba(15, 23, 42, 0.78)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
+      className="image-cropper-backdrop"
       role="presentation"
       onClick={onCancel}
     >
       <section
+        className="image-cropper-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="image-cropper-title"
+        tabIndex={-1}
+        ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
-        style={{
-          width: 'min(920px, 100%)',
-          borderRadius: 20,
-          background: 'linear-gradient(180deg, #ffffff, #f8fafc)',
-          boxShadow: '0 30px 80px rgba(0, 0, 0, 0.35)',
-          overflow: 'hidden',
-        }}
       >
-        <div style={{ padding: '20px 20px 12px' }}>
-          <p className="eyebrow">Comiku / Foto de perfil</p>
-          <h2 id="image-cropper-title" style={{ margin: '6px 0 8px' }}>{title}</h2>
-          <p className="helper-text" style={{ margin: 0 }}>{subtitle}</p>
+        <div className="image-cropper-header">
+          <h2 id="image-cropper-title" className="image-cropper-title">{title}</h2>
+          <p className="helper-text image-cropper-subtitle">{subtitle}</p>
         </div>
 
-        <div style={{ position: 'relative', width: '100%', height: 'min(64vh, 560px)', background: '#0f172a' }}>
+        <div className="image-cropper-crop-area">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -113,8 +110,8 @@ function ImageCropperModal({
           />
         </div>
 
-        <div style={{ padding: '16px 20px 20px' }}>
-          <label htmlFor="image-cropper-zoom" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
+        <div className="image-cropper-footer">
+          <label htmlFor="image-cropper-zoom" className="image-cropper-zoom-label">
             Zoom
           </label>
           <input
@@ -125,17 +122,17 @@ function ImageCropperModal({
             step="0.01"
             value={zoom}
             onChange={(event) => setZoom(Number(event.target.value))}
-            style={{ width: '100%' }}
+            className="image-cropper-zoom-input"
             disabled={isProcessing}
           />
 
-          {error ? <p className="form-message error" style={{ marginTop: 12 }}>{error}</p> : null}
+          {error ? <p className="form-message error image-cropper-error">{error}</p> : null}
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 16, flexWrap: 'wrap' }}>
-            <button type="button" className="profile-back-button" onClick={onCancel} disabled={isProcessing}>
+          <div className="image-cropper-actions">
+            <button type="button" className="image-cropper-button image-cropper-button-cancel" onClick={onCancel} disabled={isProcessing}>
               {cancelLabel}
             </button>
-            <button type="button" className="delete-account-button" onClick={handleConfirm} disabled={isProcessing}>
+            <button type="button" className="image-cropper-button image-cropper-button-confirm" onClick={handleConfirm} disabled={isProcessing}>
               {isProcessing ? 'Recortando...' : confirmLabel}
             </button>
           </div>

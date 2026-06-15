@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { STREAM_MAX_UPLOAD_SIZE_BYTES, STREAM_SUPPORTED_IMAGE_MIME_TYPES, sendMessageWithFiles } from '../firebase/stream'
+import { canSendMessageTo } from '../firebase/user'
 
 const STREAM_IMAGE_ACCEPT = [
   '.bmp',
@@ -21,15 +22,65 @@ const STREAM_IMAGE_ACCEPT = [
   'image/svg+xml',
 ].join(',')
 
+const PREFERRED_AUDIO_MIME_TYPES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+  'audio/mp4',
+]
+
+function getSupportedAudioMimeType() {
+  if (typeof MediaRecorder === 'undefined') {
+    return 'audio/webm'
+  }
+
+  return PREFERRED_AUDIO_MIME_TYPES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || 'audio/webm'
+}
+
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function AudioRecorderInput({ channel }) {
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M2 3v7.5l12 1.5-12 1.5V21l20-9L2 3Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function MicrophoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 1 1-14 0 1 1 0 1 1 2 0 5 5 0 1 0 10 0Zm-4 8.93V22a1 1 0 1 1-2 0v-2.07a1 1 0 1 1 2 0Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+    </svg>
+  )
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 4a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H5Zm0 2h14a1 1 0 0 1 1 1v7.3l-3.35-3.36a1 1 0 0 0-1.4 0l-2.7 2.7-1.95-1.95a1 1 0 0 0-1.42 0L4 16.82V7a1 1 0 0 1 1-1Zm0 12 4.85-4.85 1.95 1.95a1 1 0 0 0 1.42 0l2.7-2.7L20 16.48V17a1 1 0 0 1-1 1H5Zm10-7.75a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
   const [text, setText] = useState('')
   const [recording, setRecording] = useState(false)
+  const [sendingDisabled, setSendingDisabled] = useState(false)
+  const [disabledReason, setDisabledReason] = useState('')
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [audioUrl, setAudioUrl] = useState(null)
   const [audioBlob, setAudioBlob] = useState(null)
@@ -43,7 +94,30 @@ export default function AudioRecorderInput({ channel }) {
   const timerRef = useRef(null)
   const pendingAutoSendRef = useRef(false)
   const imageInputRef = useRef(null)
+  const messageInputRef = useRef(null)
   const selectedImagesRef = useRef([])
+  const audioMimeTypeRef = useRef('audio/webm')
+
+  useEffect(() => {
+    const textarea = messageInputRef.current
+
+    if (!textarea) {
+      return
+    }
+
+    const computedStyle = window.getComputedStyle(textarea)
+    const lineHeight = parseFloat(computedStyle.lineHeight) || 20
+    const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+    const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+    const minHeight = 44
+    const maxHeight = Math.round(lineHeight * 4 + paddingTop + paddingBottom)
+
+    textarea.style.height = `${minHeight}px`
+
+    const nextHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight)
+    textarea.style.height = `${nextHeight}px`
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+  }, [text])
 
   useEffect(() => {
     return () => {
@@ -63,6 +137,34 @@ export default function AudioRecorderInput({ channel }) {
   useEffect(() => {
     selectedImagesRef.current = selectedImages
   }, [selectedImages])
+
+  useEffect(() => {
+    // Check if messaging is allowed for 1:1 chats
+    if (isGroupChat || !authUser || !channel) {
+      setSendingDisabled(false)
+      setDisabledReason('')
+      return
+    }
+
+    const checkPermission = async () => {
+      try {
+        const allowed = await canSendMessageTo(authUser.uid, channel)
+        if (!allowed) {
+          setSendingDisabled(true)
+          setDisabledReason('No puedes enviar mensajes a este usuario')
+        } else {
+          setSendingDisabled(false)
+          setDisabledReason('')
+        }
+      } catch (err) {
+        console.error('Error checking messaging permission:', err)
+        setSendingDisabled(false)
+        setDisabledReason('')
+      }
+    }
+
+    checkPermission()
+  }, [authUser, channel, isGroupChat])
 
   function clearSelectedImages() {
     selectedImagesRef.current.forEach((image) => {
@@ -137,8 +239,9 @@ export default function AudioRecorderInput({ channel }) {
 
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl)
-      setAudioUrl(null)
     }
+
+    setAudioUrl(null)
 
     setUploadProgress(0)
   }
@@ -148,7 +251,11 @@ export default function AudioRecorderInput({ channel }) {
       pendingAutoSendRef.current = false
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
-      mediaRecorderRef.current = new MediaRecorder(stream)
+      const selectedMimeType = getSupportedAudioMimeType()
+      audioMimeTypeRef.current = selectedMimeType
+      mediaRecorderRef.current = MediaRecorder.isTypeSupported(selectedMimeType)
+        ? new MediaRecorder(stream, { mimeType: selectedMimeType })
+        : new MediaRecorder(stream)
       chunksRef.current = []
       setRecordingSeconds(0)
       setAudioBlob(null)
@@ -166,11 +273,15 @@ export default function AudioRecorderInput({ channel }) {
       }
 
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const url = URL.createObjectURL(blob)
-        setAudioBlob(blob)
-        setAudioUrl(url)
-        drawWaveformFromBlob(blob)
+        const blob = new Blob(chunksRef.current, { type: audioMimeTypeRef.current || 'audio/webm' })
+        const shouldAutoSend = pendingAutoSendRef.current
+
+        if (!shouldAutoSend) {
+          const url = URL.createObjectURL(blob)
+          setAudioBlob(blob)
+          setAudioUrl(url)
+          drawWaveformFromBlob(blob)
+        }
 
         if (timerRef.current) {
           clearInterval(timerRef.current)
@@ -182,7 +293,7 @@ export default function AudioRecorderInput({ channel }) {
           streamRef.current = null
         }
 
-        if (pendingAutoSendRef.current) {
+        if (shouldAutoSend) {
           pendingAutoSendRef.current = false
           await uploadAudioAndSend(blob)
         }
@@ -212,10 +323,12 @@ export default function AudioRecorderInput({ channel }) {
       const filesToSend = [...selectedImagesRef.current.map((image) => image.file)]
 
       if (blobToSend) {
-        const fileName = `audio-${Date.now()}.webm`
+        const mimeType = blobToSend.type || audioMimeTypeRef.current || 'audio/webm'
+        const audioExtension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm'
+        const fileName = `audio-${Date.now()}.${audioExtension}`
         const file = blobToSend instanceof File
           ? blobToSend
-          : new File([blobToSend], fileName, { type: blobToSend.type || 'audio/webm' })
+          : new File([blobToSend], fileName, { type: mimeType })
 
         filesToSend.unshift(file)
       }
@@ -251,6 +364,11 @@ export default function AudioRecorderInput({ channel }) {
   }
 
   async function handleSend() {
+    if (sendingDisabled) {
+      alert(disabledReason)
+      return
+    }
+
     if (recording) {
       pendingAutoSendRef.current = true
       stopRecording()
@@ -313,20 +431,54 @@ export default function AudioRecorderInput({ channel }) {
 
   return (
     <div className="audio-input">
-      <div className="audio-controls">
-        {!recording && (
-          <button type="button" onClick={startRecording} className="btn-record">
-            Grabar
+      <div className="composer-row">
+        <div className="text-send text-send-inline">
+          <textarea
+            ref={messageInputRef}
+            placeholder="Escribe un mensaje..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSend()
+              }
+            }}
+            disabled={isUploading || sendingDisabled}
+          />
+          <button
+            type="button"
+            onClick={handleSend}
+            className="btn-send btn-send-icon"
+            disabled={isUploading || sendingDisabled || (!text.trim() && !audioBlob && selectedImages.length === 0 && !recording)}
+            aria-label={recording ? 'Detener y enviar' : audioBlob ? 'Enviar audio' : selectedImages.length > 0 ? 'Enviar imagenes' : 'Enviar mensaje'}
+            title={recording ? 'Detener y enviar' : audioBlob ? 'Enviar audio' : selectedImages.length > 0 ? 'Enviar imagenes' : 'Enviar mensaje'}
+          >
+            <SendIcon />
           </button>
-        )}
-        {recording && (
-          <button type="button" onClick={stopRecording} className="btn-stop">
-            Detener
+        </div>
+
+        <div className="attachment-tools attachment-tools-inline">
+          <button
+            type="button"
+            onClick={recording ? stopRecording : startRecording}
+            className={`btn-round-icon ${recording ? 'btn-stop' : 'btn-record'}`}
+            disabled={isUploading || sendingDisabled}
+            aria-label={recording ? 'Detener grabacion' : 'Grabar audio'}
+            title={recording ? 'Detener grabacion' : 'Grabar audio'}
+          >
+            {recording ? <StopIcon /> : <MicrophoneIcon />}
           </button>
-        )}
-        <div className="attachment-tools">
-          <button type="button" onClick={() => imageInputRef.current?.click()} className="btn-attach" disabled={isUploading || recording}>
-            Adjuntar imagen
+
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="btn-round-icon btn-attach"
+            disabled={isUploading || recording}
+            aria-label="Adjuntar imagen"
+            title="Adjuntar imagen"
+          >
+            <ImageIcon />
           </button>
           <input
             ref={imageInputRef}
@@ -336,21 +488,18 @@ export default function AudioRecorderInput({ channel }) {
             onChange={handleImageSelection}
             className="attachment-input"
           />
-          <span className="attachment-hint">
-            JPG, PNG, WEBP, GIF, BMP, HEIC, HEIF o SVG. Máx. 100 MB por archivo.
-          </span>
         </div>
-        {audioUrl && (
-          <div className="audio-preview">
-            <div className="audio-preview-header">
-              <span className="audio-preview-title">Audio listo</span>
-              <button type="button" onClick={removeAudio} className="btn-remove">Eliminar</button>
-            </div>
-            <canvas ref={canvasRef} width={220} height={34} />
-            <audio controls src={audioUrl} />
-          </div>
-        )}
       </div>
+
+      {audioUrl && (
+        <div className="audio-preview audio-preview-inline">
+          <div className="audio-preview-meta">
+            <canvas ref={canvasRef} width={220} height={34} />
+          </div>
+          <audio controls src={audioUrl} className="audio-preview-player-control" />
+          <button type="button" onClick={removeAudio} className="btn-remove audio-remove-button">Eliminar</button>
+        </div>
+      )}
 
       {selectedImages.length > 0 && (
         <div className="image-preview-grid">
@@ -384,18 +533,6 @@ export default function AudioRecorderInput({ channel }) {
           </div>
         </div>
       )}
-
-      <div className="text-send">
-        <input
-          placeholder="Escribe un mensaje o graba audio"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          disabled={isUploading}
-        />
-        <button type="button" onClick={handleSend} className="btn-send" disabled={isUploading || (!text.trim() && !audioBlob && selectedImages.length === 0 && !recording)}>
-          {recording ? 'Detener y enviar' : audioBlob ? 'Enviar audio' : selectedImages.length > 0 ? 'Enviar imágenes' : 'Enviar'}
-        </button>
-      </div>
 
       {uploadProgress > 0 && (
         <div className="upload-progress">

@@ -1,11 +1,11 @@
+@import './Base.css';
+
 :root {
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
   color: #cbd5e1;
-  background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 30%),
-    linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  background: rgba(21, 21, 21, 0.85);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,12 +18,15 @@
 
 html {
   min-height: 100%;
+  background: rgba(21, 21, 21, 0.85);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: rgba(21, 21, 21, 0.85);
+  color: #f8f3ff;
 }
 
 button,
@@ -31,6 +34,42 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+input[type="date"] {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8f3ff;
+  padding: 10px 12px;
+  min-height: 44px;
+  color-scheme: dark;
+}
+
+input[type="date"]:focus-visible {
+  outline: 3px solid rgba(255, 138, 31, 0.42);
+  outline-offset: 2px;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.9;
+  filter: invert(1) brightness(0.9) saturate(0.9);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-sans);
 }
 
 a {
@@ -53,42 +92,83 @@ a {
   border: 0;
 }
 
+
+  :root {
+    --font-sans: 'Segoe UI Variable', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --bg-0: rgba(21, 21, 21, 0.85);
+    --bg-1: rgba(21, 21, 21, 0.85);
+    --bg-2: rgba(21, 21, 21, 0.85);
+    --surface-0: rgba(22, 12, 36, 0.94);
+    --surface-1: rgba(30, 17, 47, 0.9);
+    --surface-2: rgba(44, 24, 66, 0.86);
+    --surface-soft: rgba(255, 255, 255, 0.04);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text: #f8f3ff;
+    --muted: #cdbfe3;
+    --muted-strong: #a98dc9;
+    --accent: #ff8a1f;
+    --accent-strong: #ffb05c;
+    --accent-soft: rgba(255, 138, 31, 0.16);
+    --accent-soft-2: rgba(255, 176, 92, 0.14);
+    --danger: #ef4444;
+    --danger-soft: rgba(239, 68, 68, 0.18);
+    --success: #ffb05c;
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    font-weight: 400;
+    color: var(--text);
+    background:
+      radial-gradient(circle at top left, rgba(255, 138, 31, 0.16), transparent 28%),
+      radial-gradient(circle at top right, rgba(163, 94, 255, 0.22), transparent 35%),
+      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-2) 100%);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 .file-input-control {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 138, 31, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(163, 94, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-2));
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(2, 6, 23, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .file-input-trigger {
-  border: 1px solid rgba(148, 163, 184, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 8px 12px;
+  text-decoration: none;
   font-weight: 700;
   cursor: pointer;
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.72);
+  color: #f8f3ff;
+  background: rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
 }
 
 .file-input-trigger:disabled {
   opacity: 0.6;
-  cursor: not-allowed;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-soft);
 }
-
 .file-input-name {
-  min-width: 0;
+  flex: 1 1 220px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 0.9rem;
+  word-break: break-word;
 }
-
 .file-input-name.has-file {
-  color: #e2e8f0;
+  color: #f8f3ff;
 }

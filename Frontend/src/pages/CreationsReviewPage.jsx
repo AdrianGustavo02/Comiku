@@ -5,7 +5,7 @@ import { getUserProfile } from '../firebase/user'
 import ConfirmModal from '../Components/ConfirmModal'
 import '../styles/CreationsReview.css'
 
-function CreationsReviewPage({ onBack }) {
+function CreationsReviewPage({ onBack, onPageReady }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,7 +18,6 @@ function CreationsReviewPage({ onBack }) {
       try {
         const list = await listPendingCreations()
 
-        // resolve nicks for user ids
         const userIds = Array.from(new Set(list.map((i) => i.UserID).filter(Boolean)))
         const nickMap = {}
 
@@ -31,7 +30,6 @@ function CreationsReviewPage({ onBack }) {
           }
         }))
 
-        // For pending creations of type 'tomos', try to fetch comic metadata when not provided
         const comicIdsToFetch = Array.from(new Set(
           list
             .filter((i) => i.tipo === 'tomos' && i.comicId)
@@ -51,7 +49,6 @@ function CreationsReviewPage({ onBack }) {
         const enriched = list.map((l) => ({
           ...l,
           remitenteNick: nickMap[l.UserID] || '',
-          // if metadata is missing and we have comicId for tomos, use fetched comic metadata
           metadata: l.metadata || (l.tipo === 'tomos' && l.comicId ? (comicMap[l.comicId] ? {
             nombre: comicMap[l.comicId].nombre || '',
             autores: comicMap[l.comicId].autores || [],
@@ -68,7 +65,10 @@ function CreationsReviewPage({ onBack }) {
       } catch {
         if (!cancelled) setError('No fue posible cargar las creaciones pendientes.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
+        }
       }
     }
 
@@ -82,7 +82,7 @@ function CreationsReviewPage({ onBack }) {
   const handleDismiss = async (id) => {
     try {
       await deletePendingCreation(id)
-      setItems((s) => s.filter((i) => i.id !== id))
+      setItems((currentItems) => currentItems.filter((item) => item.id !== id))
       setConfirmingId(null)
     } catch {
       setError('No fue posible desestimar la creación.')
@@ -90,21 +90,21 @@ function CreationsReviewPage({ onBack }) {
   }
 
   return (
-    <main className="app-shell">
-      <section className="app-card">
-        <div className="app-hero">
+    <main className="app-shell creations-review-page">
+      <section className="app-card creations-review-page-card">
+        <div className="creation-page-hero">
           <div>
-            <p className="eyebrow">Admin / Creations</p>
-            <h1>Pending creations</h1>
-            <p className="lead">Antes de aprobar una creación, asegúrate de que el comic o tomo no exista en el sistema.</p>
-          </div>
-          <div className="hero-actions">
-            <button className="back-button" onClick={onBack} type="button">Volver</button>
+            <h1>Creaciones de comics/tomos</h1>
+            <p className="">Antes de aprobar una creación, asegúrate de que el comic o tomo no exista en el sistema.</p>
           </div>
         </div>
 
-        {loading ? <p className="status-message">Cargando...</p> : null}
+        {loading ? <p className="status-message creations-review-loading">Cargando...</p> : null}
         {error ? <p className="form-message error">{error}</p> : null}
+
+        {!loading && !error && items.length === 0 ? (
+          <p className="status-message">No hay creaciones pendientes para revisar</p>
+        ) : null}
 
         <div className="creations-grid">
           {items.map((item) => (
@@ -142,6 +142,7 @@ function CreationsReviewPage({ onBack }) {
             </article>
           ))}
         </div>
+
         {confirmingId ? (
           <ConfirmModal
             title="Desestimar creación"

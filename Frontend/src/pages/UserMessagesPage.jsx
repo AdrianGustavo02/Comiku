@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getFirstMessagesPage, getMessagesPage, markMessageAsRead, getMaxDescriptionLength } from '../firebase/userMessages';
 import '../styles/UserMessagesPage.css';
 
-export default function UserMessagesPage({ onBack }) {
+export default function UserMessagesPage({ onBack, onPageReady }) {
   const [messages, setMessages] = useState([]);
   const [expandedMessageId, setExpandedMessageId] = useState(null);
   const [error, setError] = useState('');
@@ -16,6 +16,12 @@ export default function UserMessagesPage({ onBack }) {
   useEffect(() => {
     loadInitialMessages();
   }, []);
+
+  useEffect(() => {
+    if (!isLoading && typeof onPageReady === 'function') {
+      onPageReady();
+    }
+  }, [isLoading, onPageReady]);
 
   const loadInitialMessages = async () => {
     setIsLoading(true);
@@ -129,19 +135,19 @@ export default function UserMessagesPage({ onBack }) {
 
   if (isLoading) {
     return (
-      <div className="user-messages-page">
-        <div className="loading-container">
+      <main className="app-shell">
+        <section className="app-card loading-card loading-container">
           <p>Cargando mensajes...</p>
-        </div>
-      </div>
+        </section>
+      </main>
     );
   }
 
   return (
-    <div className="user-messages-page">
-      <div className="user-messages-container">
+    <main className="app-shell user-messages-page">
+      <section className="app-card user-messages-container">
         <div className="user-messages-header">
-          <h1>Mensajes de Usuarios</h1>
+          <h1>Mensajes de usuarios</h1>
           <p>
             {messages.length} mensaje{messages.length !== 1 ? 's' : ''} en total
           </p>
@@ -213,13 +219,7 @@ export default function UserMessagesPage({ onBack }) {
             )}
           </>
         )}
-
-        {onBack && (
-          <button className="btn-back" onClick={onBack}>
-            Atrás
-          </button>
-        )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

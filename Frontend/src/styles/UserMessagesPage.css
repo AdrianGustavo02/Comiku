@@ -1,60 +1,65 @@
 /* MensajesUsuariosPage.css */
 
-.mensajes-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px;
+.user-messages-page.app-shell {
+  min-height: auto;
+  place-items: start center;
+  padding-top: 0;
 }
 
-.mensajes-container {
-  max-width: 900px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 12px;
+.user-messages-container.app-card {
+  width: min(1180px, 100%);
+  max-width: 1180px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 28px 28px;
   padding: 30px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
 }
 
-.mensajes-header {
+.user-messages-header {
   margin-bottom: 30px;
   text-align: center;
 }
 
-.mensajes-header h1 {
-  font-size: 28px;
-  color: #333;
+.user-messages-header h1 {
+  font-size: 2em;
+  color: #f8f3ff;
   margin-bottom: 8px;
-  font-weight: 600;
+  font-weight: bold;
 }
 
-.mensajes-header p {
-  color: #666;
+.user-messages-header p {
+  color: #cdbfe3;
   font-size: 14px;
 }
 
 .loading-container {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: #cdbfe3;
   font-size: 16px;
+}
+
+.loading-container.loading-card {
+  max-width: 450px;
 }
 
 .error-message {
   padding: 15px;
-  background-color: #ffebee;
-  color: #c62828;
-  border-radius: 6px;
+  background-color: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
+  border-radius: 14px;
   margin-bottom: 20px;
-  border-left: 4px solid #c62828;
+  border-left: 4px solid #ef4444;
 }
 
 .no-messages {
   text-align: center;
   padding: 40px;
-  color: #999;
+  color: #cdbfe3;
   font-size: 16px;
-  background: #f9f9f9;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
 }
 
 .mensajes-list {
@@ -65,33 +70,33 @@
 }
 
 .mensaje-card {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
   padding: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: white;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .mensaje-card.no-leido {
-  background: linear-gradient(to right, #f5f3ff 0%, #ffffff 10%);
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  background: linear-gradient(to right, rgba(255, 138, 31, 0.12) 0%, rgba(255, 255, 255, 0.05) 10%);
+  border-color: rgba(255, 138, 31, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .mensaje-card.no-leido:hover {
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
-  border-color: #764ba2;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 138, 31, 0.45);
 }
 
 .mensaje-card.leido {
-  background: white;
-  border-color: #e0e0e0;
+  background: rgb(25, 14, 42);
+  border-color: rgba(255, 255, 255, 0.08);
   opacity: 0.85;
 }
 
 .mensaje-card.leido:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(255, 138, 31, 0.58);
 }
 
 .mensaje-header {
@@ -126,23 +131,23 @@
 }
 
 .mensaje-tipo.tipo-sugerencia {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: rgba(255, 138, 31, 0.14);
+  color: #ffd2a6;
 }
 
 .mensaje-tipo.tipo-queja {
-  background-color: #fff3e0;
-  color: #f57c00;
+  background-color: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
 }
 
 .mensaje-tipo.tipo-otros {
-  background-color: #f3e5f5;
-  color: #7b1fa2;
+  background-color: rgba(163, 94, 255, 0.14);
+  color: #e9d5ff;
 }
 
 .mensaje-fecha {
   font-size: 13px;
-  color: #999;
+  color: #cdbfe3;
 }
 
 .badge-no-leido {
@@ -150,7 +155,7 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: #667eea;
+  color: #ffb05c;
   font-weight: 600;
 }
 
@@ -159,7 +164,7 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: #4caf50;
+  color: #ffb05c;
   font-weight: 600;
 }
 
@@ -176,7 +181,7 @@
 }
 
 .mensaje-description {
-  color: #333;
+  color: #f8f3ff;
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
@@ -186,19 +191,19 @@
 .btn-expand {
   margin-top: 8px;
   padding: 6px 12px;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
   font-size: 12px;
-  color: #667eea;
+  color: #ffd2a6;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-expand:hover {
-  background: #e8e8e8;
-  border-color: #667eea;
+  background: rgba(255, 138, 31, 0.12);
+  border-color: rgba(255, 138, 31, 0.35);
 }
 
 .btn-expand:active {
@@ -208,11 +213,11 @@
 .mensaje-footer {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .fecha-lectura {
-  color: #999;
+  color: #cdbfe3;
   font-size: 12px;
 }
 
@@ -223,10 +228,10 @@
 
 .btn-load-more {
   padding: 12px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #ffb05c, #ff8a1f);
+  color: #1b0f08;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -235,7 +240,7 @@
 
 .btn-load-more:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 12px 28px rgba(255, 138, 31, 0.2);
 }
 
 .btn-load-more:disabled {
@@ -247,26 +252,26 @@
   width: 100%;
   padding: 12px;
   margin-top: 20px;
-  background: #f0f0f0;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: #f8f3ff;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .btn-back:hover {
-  background: #e8e8e8;
+  background: rgba(255, 138, 31, 0.12);
 }
 
-@media (max-width: 768px) {
-  .mensajes-container {
+@media (max-width: 900px) {
+  .user-messages-container.app-card {
     padding: 20px;
   }
 
-  .mensajes-header h1 {
+  .user-messages-header h1 {
     font-size: 24px;
   }
 

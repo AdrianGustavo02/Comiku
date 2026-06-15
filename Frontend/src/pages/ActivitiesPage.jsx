@@ -6,10 +6,10 @@ import { getActivitiesPage, getActivityById } from '../firebase/activities'
 import { getBlockedUsers, getUserFriends, getUsersWhoBlockedUser } from '../firebase/user'
 import '../styles/ActivitiesPage.css'
 
-function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, selectedActivityId }) {
+function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, onOpenProfile, selectedActivityId, onPageReady }) {
   const [activities, setActivities] = useState([])
   const [cursor, setCursor] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(null)
 
@@ -54,7 +54,10 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
           setError(e instanceof Error ? e.message : 'No fue posible cargar las actividades.')
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          if (typeof onPageReady === 'function') onPageReady()
+        }
       }
     }
 
@@ -135,24 +138,30 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
     })
   }
 
+  if (loading) {
+    return (
+      <main className="app-shell">
+        <section className="app-card loading-card">
+          <p className="activities-status-message">Cargando actividades...</p>
+        </section>
+      </main>
+    )
+  }
+
   return (
-    <main className="app-shell">
+    <main className="app-shell activities-page-shell">
       <section className="app-card">
         <div className="app-hero">
           <div>
-            <p className="eyebrow">Comiku / Actividad</p>
             <h1>Actividad de amigos</h1>
             <p className="lead">Aquí verás las actividades recientes de tus amigos.</p>
-          </div>
-          <div className="hero-actions">
-            <Button className="profile-back-button" onClick={onBack} type="button" variant="secondary">Volver</Button>
           </div>
         </div>
 
         <div className="activities-list">
-          {error ? <p className="status-message">{error}</p> : null}
+          {error ? <p className="activities-status-message">{error}</p> : null}
 
-          {activities.length === 0 && !loading && !error ? <p className="status-message">No hay actividades por ahora.</p> : null}
+          {activities.length === 0 && !loading && !error ? <p className="activities-status-message">No hay actividades por ahora.</p> : null}
 
           {activities.map((a) => (
             <ActivityCard key={a.id} activity={a} onOpen={(act) => setSelected(act)} />
@@ -173,6 +182,7 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, se
           onClose={() => setSelected(null)}
           onOpenVolume={onOpenVolume}
           onOpenThematicList={onOpenThematicList}
+          onOpenProfile={onOpenProfile}
           onActivityStatsChange={handleActivityStatsChange}
         />
       ) : null}
