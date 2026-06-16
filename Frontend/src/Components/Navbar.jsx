@@ -86,7 +86,6 @@ function Navbar({
   onOpenReports,
   onOpenCreationsReview,
   onOpenMyProfile,
-  onOpenContacto,
   onOpenMensajesUsuarios,
   activePage,
   currentUserRole,
@@ -198,7 +197,7 @@ function Navbar({
               id="comic-search-input-mobile"
               className="search-input"
               type="text"
-              placeholder="Busca un comic por su nombre. Ejemplo: One Piece"
+              placeholder="Busca un comic por su nombre"
               aria-label="Buscar un comic por su nombre"
               value={query}
               onChange={(event) => {
@@ -325,9 +324,6 @@ function Navbar({
               </div>
             ) : null}
 
-            {!canSeeReports && onOpenContacto ? (
-              <button type="button" className={`navbar-mobile-menu-item ${activePage === 'contacto' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenContacto)}>Contacto</button>
-            ) : null}
           </div>
         ) : null}
 
@@ -471,15 +467,6 @@ function Navbar({
               <span className="navbar-profile-text">{currentUserProfile?.nick || 'Mi perfil'}</span>
             </button>
           ) : null}
-          {!canSeeReports && onOpenContacto ? (
-            <button
-              type="button"
-              className={`navbar-link-button ${activePage === 'contacto' ? 'active' : ''}`}
-              onClick={onOpenContacto}
-            >
-              Contacto
-            </button>
-          ) : null}
         </div>
 
         <div className="navbar-search-area">
@@ -487,7 +474,7 @@ function Navbar({
             id="comic-search-input"
             className="search-input"
             type="text"
-            placeholder="Busca un comic por su nombre. Ejemplo: One Piece"
+            placeholder="Busca un comic por su nombre"
             aria-label="Buscar un comic por su nombre"
             value={query}
             onChange={(event) => {

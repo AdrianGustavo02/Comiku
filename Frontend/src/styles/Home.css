@@ -7,7 +7,6 @@
 .app-card {
 width: min(1180px, 100%);
   padding: 32px;
-  border-radius: 0 0 28px 28px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: white;
   box-shadow: 0 28px 90px rgba(2, 6, 23, 0.45);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Navbar from '../Components/Navbar'
+import Footer from '../Components/Footer'
 import { logout, subscribeToAuthChanges } from '../firebase/auth'
 import { getAllComics, getComicVolumes, getComicById } from '../firebase/comics'
 import { deleteCurrentAccountData, getUserProfile } from '../firebase/user'
@@ -137,6 +138,7 @@ function parseRoute(pathname) {
 
   if (pathname === '/listas-tematicas/mis-listas') {
     return { page: 'my-thematic-lists', comicId: '', volumeId: '' }
+  }
 
   const editListMatch = pathname.match(/^\/listas-tematicas\/editar\/([^/]+)$/)
 
@@ -951,7 +953,6 @@ function Home() {
             setActiveComicId('')
           }}
           onOpenReports={goToReports}
-          onOpenContacto={goToContacto}
           onOpenMensajesUsuarios={goToMensajesUsuarios}
           onOpenActivities={goToActivities}
           onOpenNotifications={goToNotifications}
@@ -963,10 +964,19 @@ function Home() {
         />
       )
     } catch (error) {
+
       console.error('Error rendering navbar:', error)
       return null
     }
   }
+
+  const renderWithFooter = (content, includeFooter = true) => (
+    <>
+      {renderNavbar()}
+      {content}
+      {includeFooter && !isNavHidden ? <Footer onOpenContacto={goToContacto} /> : null}
+    </>
+  )
 
   if (authLoading) {
     return (
@@ -1003,10 +1013,8 @@ function Home() {
   }
 
   if (activePage === 'profile') {
-    return (
-      <>
-        {renderNavbar()}
-        <ProfilePage
+    return renderWithFooter(
+      <ProfilePage
           authUser={authUser}
           onLogout={handleLogout}
           onBack={() => {
@@ -1039,29 +1047,23 @@ function Home() {
           onGoToBlockedUsers={goToBlockedUsers}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'chats') {
-    return (
-      <>
-        {renderNavbar()}
-        <ChatsPage
+    return renderWithFooter(
+      <ChatsPage
           authUser={authUser}
           onOpenProfile={(uid) => goToProfileByUid(uid)}
           onOpenFriends={goToFriends}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'friends') {
-    return (
-      <>
-        {renderNavbar()}
-        <FriendsPage
+    return renderWithFooter(
+      <FriendsPage
           authUser={authUser}
           onOpenProfile={(uid) => goToProfileByUid(uid)}
           onBack={() => {
@@ -1070,15 +1072,12 @@ function Home() {
           }}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'blocked-users') {
-    return (
-      <>
-        {renderNavbar()}
-        <BlockedUsersPage
+    return renderWithFooter(
+      <BlockedUsersPage
           authUser={authUser}
           onBack={() => {
             setActivePage('profile')
@@ -1087,24 +1086,16 @@ function Home() {
           }}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'reports') {
-    return (
-      <>
-        {renderNavbar()}
-        <ReportsPage authUser={authUser} currentUserRole={currentUserRole} />
-      </>
-    )
+    return renderWithFooter(<ReportsPage authUser={authUser} currentUserRole={currentUserRole} />)
   }
 
   if (activePage === 'activities') {
-    return (
-      <>
-        {renderNavbar()}
-        <ActivitiesPage
+    return renderWithFooter(
+      <ActivitiesPage
           authUser={authUser}
           selectedActivityId={activeComicId || undefined}
           onBack={() => {
@@ -1120,24 +1111,16 @@ function Home() {
           onOpenProfile={(uid) => goToProfileByUid(uid)}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'notifications') {
-    return (
-      <>
-        {renderNavbar()}
-        <NotificationsPage authUser={authUser} onPageReady={handlePageReady} />
-      </>
-    )
+    return renderWithFooter(<NotificationsPage authUser={authUser} onPageReady={handlePageReady} />, false)
   }
 
   if (activePage === 'contacto') {
-    return (
-      <>
-        {renderNavbar()}
-        <ContactPage
+    return renderWithFooter(
+      <ContactPage
           authUser={authUser}
           onBack={() => {
             setActivePage('home')
@@ -1145,30 +1128,24 @@ function Home() {
           }}
           onPageReady={handlePageReady}
         />
-      </>
-    )
+    , false)
   }
 
   if (activePage === 'mensajes-usuarios') {
-    return (
-      <>
-        {renderNavbar()}
-        <UserMessagesPage
+    return renderWithFooter(
+      <UserMessagesPage
           onBack={() => {
             setActivePage('home')
             goToHome()
           }}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'create-comic') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreateComicPage
+    return renderWithFooter(
+      <CreateComicPage
           onBack={() => {
             setActivePage('home')
             setActiveComicDraft(null)
@@ -1182,15 +1159,12 @@ function Home() {
           }}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'create-comic-volumes') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreateComicVolumesPage
+    return renderWithFooter(
+      <CreateComicVolumesPage
           comicDraft={createVolumesFromDetail ? null : activeComicDraft}
           comicId={createVolumesFromDetail ? activeComicId : ''}
           onBackToHome={() => {
@@ -1225,266 +1199,226 @@ function Home() {
           }}
           onPageReady={handlePageReady}
         />
-      </>
     )
   }
 
   if (activePage === 'edit-comic') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreateComicPage
-          onBack={() => {
-            setActivePage('home')
-            setActiveComicDraft(null)
-            goToHome()
-          }}
-          comicId={activeComicId}
-          onComicUpdated={() => {
-            setAuthError('')
-            setAuthNotice('Comic actualizado correctamente.')
-            setActivePage('comic-detail')
-            goToComicDetail(activeComicId)
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <CreateComicPage
+        onBack={() => {
+          setActivePage('home')
+          setActiveComicDraft(null)
+          goToHome()
+        }}
+        comicId={activeComicId}
+        onComicUpdated={() => {
+          setAuthError('')
+          setAuthNotice('Comic actualizado correctamente.')
+          setActivePage('comic-detail')
+          goToComicDetail(activeComicId)
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'edit-volume') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreateComicVolumesPage
-          comicId={activeComicId}
-          volumeId={activeVolumeId}
-          onBackToHome={() => {
-            setActivePage('home')
-            goToHome()
-          }}
-          onVolumeUpdated={() => {
-            setAuthError('')
-            setAuthNotice('Tomo actualizado correctamente.')
-            setActivePage('volume-detail')
-            goToVolumeDetail({ comicId: activeComicId, volumeId: activeVolumeId })
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <CreateComicVolumesPage
+        comicId={activeComicId}
+        volumeId={activeVolumeId}
+        onBackToHome={() => {
+          setActivePage('home')
+          goToHome()
+        }}
+        onVolumeUpdated={() => {
+          setAuthError('')
+          setAuthNotice('Tomo actualizado correctamente.')
+          setActivePage('volume-detail')
+          goToVolumeDetail({ comicId: activeComicId, volumeId: activeVolumeId })
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'comic-detail') {
-    return (
-      <>
-        {renderNavbar()}
-        <ComicDetailPage
-          authUser={authUser}
-          comicId={activeComicId}
-          globalNotice={authNotice}
-          globalError={authError}
-          onOpenVolume={(volume) => {
-            goToVolumeDetail({ comicId: activeComicId, volumeId: volume.id })
-          }}
-          onEditComic={(id) => goToEditComic(id)}
-          onCreateVolume={() => {
-            ;(async () => {
-              try {
-                const comic = await getComicById(activeComicId)
-                setCreateVolumesFromDetail(true)
-                setActiveComicDraft(comic)
-                setActivePage('create-comic-volumes')
-                goToCreateComicVolumes()
-              } catch {
-                setAuthError('No fue posible cargar los datos del cómic para crear tomos.')
-              }
-            })()
-          }}
-          onDeleteComic={() => {
-            setAuthNotice('Comic eliminado correctamente.')
-            goToLibrary()
-          }}
-          onOpenProfile={(uid) => goToProfileByUid(uid)}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <ComicDetailPage
+        authUser={authUser}
+        comicId={activeComicId}
+        globalNotice={authNotice}
+        globalError={authError}
+        onOpenVolume={(volume) => {
+          goToVolumeDetail({ comicId: activeComicId, volumeId: volume.id })
+        }}
+        onEditComic={(id) => goToEditComic(id)}
+        onCreateVolume={() => {
+          ;(async () => {
+            try {
+              const comic = await getComicById(activeComicId)
+              setCreateVolumesFromDetail(true)
+              setActiveComicDraft(comic)
+              setActivePage('create-comic-volumes')
+              goToCreateComicVolumes()
+            } catch {
+              setAuthError('No fue posible cargar los datos del cómic para crear tomos.')
+            }
+          })()
+        }}
+        onDeleteComic={() => {
+          setAuthNotice('Comic eliminado correctamente.')
+          goToLibrary()
+        }}
+        onOpenProfile={(uid) => goToProfileByUid(uid)}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'creations-review') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreationsReviewPage
-          onBack={() => {
-            setActivePage('home')
-            goToHome()
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <CreationsReviewPage
+        onBack={() => {
+          setActivePage('home')
+          goToHome()
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'creation-detail') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreationDetailPage
-          creationId={activeComicId}
-          onBack={() => {
-            setActivePage('creations-review')
-            goToCreationsReview()
-          }}
-          onApproved={() => {
-            setAuthNotice('Creación aprobada correctamente.')
-            setActivePage('creations-review')
-            goToCreationsReview()
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <CreationDetailPage
+        creationId={activeComicId}
+        onBack={() => {
+          setActivePage('creations-review')
+          goToCreationsReview()
+        }}
+        onApproved={() => {
+          setAuthNotice('Creación aprobada correctamente.')
+          setActivePage('creations-review')
+          goToCreationsReview()
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'volume-detail') {
-    return (
-      <>
-        {renderNavbar()}
-        <VolumeDetailPage
-          comicId={activeComicId}
-          volumeId={activeVolumeId}
-          authUser={authUser}
-          onEditVolume={({ comicId, volumeId }) => goToEditVolume({ comicId, volumeId })}
-          onDeleteVolume={({ comicId }) => {
-            setAuthNotice('Tomo eliminado correctamente.')
-            goToComicDetail(comicId)
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <VolumeDetailPage
+        comicId={activeComicId}
+        volumeId={activeVolumeId}
+        authUser={authUser}
+        onEditVolume={({ comicId, volumeId }) => goToEditVolume({ comicId, volumeId })}
+        onDeleteVolume={({ comicId }) => {
+          setAuthNotice('Tomo eliminado correctamente.')
+          goToComicDetail(comicId)
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'library') {
-    return (
-      <>
-        {renderNavbar()}
-        <LibraryPage
-          authUser={authUser}
-          onOpenComic={(comicId) => {
-            goToComicDetail(comicId)
-          }}
-          libraryUid={typeof activeLibraryUid === 'string' && activeLibraryUid ? activeLibraryUid : undefined}
-          libraryOwnerNick={typeof activeLibraryNick === 'string' && activeLibraryNick ? activeLibraryNick : undefined}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <LibraryPage
+        authUser={authUser}
+        onOpenComic={(comicId) => {
+          goToComicDetail(comicId)
+        }}
+        libraryUid={typeof activeLibraryUid === 'string' && activeLibraryUid ? activeLibraryUid : undefined}
+        libraryOwnerNick={typeof activeLibraryNick === 'string' && activeLibraryNick ? activeLibraryNick : undefined}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'wishlist') {
-    return (
-      <>
-        {renderNavbar()}
-        <WishlistPage
-          authUser={authUser}
-          onOpenVolume={({ comicId, volumeId }) => {
-            goToVolumeDetail({ comicId, volumeId })
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <WishlistPage
+        authUser={authUser}
+        onOpenVolume={({ comicId, volumeId }) => {
+          goToVolumeDetail({ comicId, volumeId })
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
     if (activePage === 'thematic-lists') {
-    return (
-      <>
-        {renderNavbar()}
-        <ThematicListsPage
-          authUser={authUser}
-          onOpenList={(listId) => goToThematicListDetail(listId)}
-          onCreateList={goToCreateThematicList}
-          onOpenMyLists={goToMyThematicLists}
-          onOpenVolume={({ comicId, volumeId }) => {
-            goToVolumeDetail({ comicId, volumeId })
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <ThematicListsPage
+        authUser={authUser}
+        onOpenList={(listId) => goToThematicListDetail(listId)}
+        onCreateList={goToCreateThematicList}
+        onOpenMyLists={goToMyThematicLists}
+        onOpenVolume={({ comicId, volumeId }) => {
+          goToVolumeDetail({ comicId, volumeId })
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'create-thematic-list') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreateThematicListPage
-          authUser={authUser}
-          listId={null}
-          onBack={goToThematicLists}
-          onFinishCreation={() => {
-            goToThematicLists()
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <CreateThematicListPage
+        authUser={authUser}
+        listId={null}
+        onBack={goToThematicLists}
+        onFinishCreation={() => {
+          goToThematicLists()
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'edit-thematic-list') {
-    return (
-      <>
-        {renderNavbar()}
-        <CreateThematicListPage
-          authUser={authUser}
-          listId={activeComicId}
-          onBack={goToMyThematicLists}
-          onFinishCreation={() => {
-            goToMyThematicLists()
-          }}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <CreateThematicListPage
+        authUser={authUser}
+        listId={activeComicId}
+        onBack={goToMyThematicLists}
+        onFinishCreation={() => {
+          goToMyThematicLists()
+        }}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
   if (activePage === 'thematic-list-detail') {
-    return (
-      <>
-        {renderNavbar()}
-        <ThematicListDetailPage
-          authUser={authUser}
-          listId={activeComicId}
-          onBack={goToThematicLists}
-          onOpenVolume={({ comicId, volumeId }) => {
-            goToVolumeDetail({ comicId, volumeId })
-          }}
-          onDeleteList={() => {
-            setAuthNotice('Lista temática eliminada correctamente.')
-            goToThematicLists()
-          }}
-          onOpenProfile={(uid) => goToProfileByUid(uid)}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <ThematicListDetailPage
+        authUser={authUser}
+        listId={activeComicId}
+        onBack={goToThematicLists}
+        onOpenVolume={({ comicId, volumeId }) => {
+          goToVolumeDetail({ comicId, volumeId })
+        }}
+        onDeleteList={() => {
+          setAuthNotice('Lista temática eliminada correctamente.')
+          goToThematicLists()
+        }}
+        onOpenProfile={(uid) => goToProfileByUid(uid)}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
     if (activePage === 'my-thematic-lists') {
-    return (
-      <>
-        {renderNavbar()}
-        <MyThematicListsPage
-          authUser={authUser}
-          onEditList={(listId) => goToEditThematicList(listId)}
-          onBack={goToThematicLists}
-          onOpenList={(listId) => goToThematicListDetail(listId)}
-          onPageReady={handlePageReady}
-        />
-      </>
+    return renderWithFooter(
+      <MyThematicListsPage
+        authUser={authUser}
+        onEditList={(listId) => goToEditThematicList(listId)}
+        onBack={goToThematicLists}
+        onOpenList={(listId) => goToThematicListDetail(listId)}
+        onPageReady={handlePageReady}
+      />
     )
   }
 
@@ -1727,9 +1661,9 @@ function Home() {
           </div>
         </section>
       </main>
+      <Footer onOpenContacto={goToContacto} />
     </>
   )
-}
 }
 
 export default Home
