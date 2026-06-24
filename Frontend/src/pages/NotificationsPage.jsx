@@ -40,7 +40,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
           cursor: null,
         })
 
-        // Enriquecer notificaciones con detalles de actividad cuando aplique
+        //Enriquezco las notificaciones con detalles de actividad para los tipos que lo requieren.
         try {
           const enriched = await Promise.all(
             result.notifications.map(async (n) => {
@@ -62,7 +62,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
 
           setNotifications(enriched)
         } catch {
-          // si falla el enriquecimiento, usar las notificaciones sin enriquecer
+          //Si falla el enriquecimiento, uso las notificaciones sin enriquecer.
           setNotifications(result.notifications)
         }
         setCursor(result.lastCursor)
@@ -71,7 +71,6 @@ export default function NotificationsPage({ authUser, onPageReady }) {
         const count = await getUnreadNotificationsCount(authUser.uid)
         setUnreadCount(count)
       } catch (error) {
-        console.error('Error loading notifications:', error)
         setErrorMessage(error instanceof Error ? error.message : 'No fue posible cargar las notificaciones.')
       } finally {
         setLoading(false)
@@ -92,7 +91,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
         cursor,
       })
 
-      // Enriquecer las nuevas notificaciones antes de agregarlas
+      //Enriquezco las nuevas notificaciones antes de agregarlas
       try {
         const enrichedNew = await Promise.all(
           result.notifications.map(async (n) => {
@@ -119,13 +118,13 @@ export default function NotificationsPage({ authUser, onPageReady }) {
       setCursor(result.lastCursor)
       setHasMore(result.notifications.length >= PAGE_SIZE)
     } catch (error) {
-      console.error('Error loading more notifications:', error)
+      console.error('Error al cargar mas notificaciones:', error)
       setErrorMessage(error instanceof Error ? error.message : 'No fue posible cargar más notificaciones.')
     }
   }
 
   const handleNotificationClick = async (notification) => {
-    // Marcar como leída
+    //Marcar como leida.
     if (!notification.leido) {
       try {
         await markNotificationAsRead(notification.id)
@@ -140,7 +139,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
       }
     }
 
-    // Navegar según el tipo
+    //Navegar a otras paginas segun el tipo de notificacion.
     let targetPath = ''
     switch (notification.type) {
       case NOTIFICATION_TYPES.ACTIVITY_LIKE:
@@ -163,7 +162,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
 
     if (targetPath) {
       window.history.pushState({}, '', targetPath)
-      // Disparar evento popstate para que Home se refresque
+      //Fuerzo popstate para que los componentes detecten el cambio de ruta.
       window.dispatchEvent(new PopStateEvent('popstate'))
     }
   }
@@ -179,7 +178,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
       )
       setUnreadCount(0)
     } catch (error) {
-      console.error('Error marking all as read:', error)
+      console.error('Error al marcar todas las notificaciones como leidas:', error)
     } finally {
       setMarkingAllAsRead(false)
     }

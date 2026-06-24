@@ -178,7 +178,7 @@ function ComicDetailPage({
           setCurrentUserRole('')
           setHasPendingComicReport(false)
         }
-        // load first page of reviews
+
         try {
           setReviewsLoading(true)
           const { reviews: firstReviews, lastId, hasMore } = await getComicReviews(comicId, 10)
@@ -214,7 +214,6 @@ function ComicDetailPage({
   }, [comicId, authUser?.uid])
 
   useEffect(() => {
-    // precargar perfiles de reseñas visibles
     const missing = Array.from(new Set(reviews.map((r) => r.usuarioId))).filter(
       (uid) => uid && !userProfiles[uid],
     )
@@ -224,7 +223,6 @@ function ComicDetailPage({
     missing.forEach((uid) => {
       ensureUserProfile(uid)
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviews])
 
   const scrollVolumes = (direction, ref) => {
@@ -281,7 +279,7 @@ function ComicDetailPage({
     }
   }
 
-  // ---- reseñas helpers y manejadores ----
+
   const [userProfiles, setUserProfiles] = useState({})
 
   function sanitizeInput(text) {
@@ -342,13 +340,12 @@ function ComicDetailPage({
         setUserRating(my?.calificacion ?? 0)
         setUserComment(my?.descripcion || '')
       }
-      // Recargar datos del cómic para actualizar promedio y cantidad de calificaciones
+      //Recargo los datos del cómic para actualizar el promedio y la cantidad de calificaciones.
       const updatedComicData = await getComicById(comicId)
       if (updatedComicData) {
         setComic(updatedComicData)
       }
     } catch {
-      // ignore
     } finally {
       setReviewsLoading(false)
     }

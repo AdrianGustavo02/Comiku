@@ -1,3 +1,4 @@
+//Patrón de caracteres prohibidos en los inputs.
 const FORBIDDEN_INPUT_CHARS_PATTERN = /[@#$^&*{}[\]<>]/g
 const INPUT_NUMBERS_PATTERN = /\d/g
 const HAS_NUMBER_PATTERN = /\d/

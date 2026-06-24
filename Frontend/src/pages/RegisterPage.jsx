@@ -27,12 +27,14 @@ import Button from '../Components/Button'
 const MINIMUM_AGE = 18
 
 function getAgeFromDateString(dateString) {
+  //Recibo una fecha del formulario.
   const birthDate = new Date(`${dateString}T00:00:00`)
 
   if (Number.isNaN(birthDate.getTime())) {
     return null
   }
 
+  // Calculo de edad considerando si ya tuvo cumpleaños este año o no.
   const now = new Date()
   let age = now.getFullYear() - birthDate.getFullYear()
   const hasNotHadBirthdayYetThisYear =
@@ -69,7 +71,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
   const fotoInputRef = useRef(null)
 
   useEffect(() => {
-    // Cargar la preview de la foto por defecto
+    //Cargo la imagen por defecto para mostrarla al usuario antes de que seleccione una foto.
     const loadDefaultPreview = async () => {
       try {
         const response = await fetch(defaultProfilePicture)
@@ -77,12 +79,13 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
         const url = URL.createObjectURL(blob)
         setDefaultPreviewUrl(url)
       } catch (error) {
-        console.error('Error loading default profile picture:', error)
+        console.error('Error al cargar la imagen por defecto:', error)
       }
     }
 
     loadDefaultPreview()
 
+  //Cuando cargo una imagen, el navegador crea un URL temporal. Limpio los URLs creados para evitar fugas de memoria
     return () => {
       if (fotoPerfilPreviewUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(fotoPerfilPreviewUrl)
@@ -93,6 +96,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     }
   }, [fotoPerfilPreviewUrl, defaultPreviewUrl])
 
+  //Muestra un error y hace scroll hacia arriba para que el usuario lo vea.
   const showErrorAndScrollTop = (message) => {
     onError(message)
 
@@ -114,17 +118,18 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     }
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      showErrorAndScrollTop('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
+      showErrorAndScrollTop('La foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
       if (fotoInputRef.current) fotoInputRef.current.value = ''
       return
     }
 
     if (file.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
-      showErrorAndScrollTop('Foto de perfil demasiado pesada. Usa una imagen menor a 500 KB.')
+      showErrorAndScrollTop('La foto de perfil es demasiado pesada. Usa una imagen menor a 500 KB.')
       if (fotoInputRef.current) fotoInputRef.current.value = ''
       return
     }
 
+    //Si la imagen es válida, la muestro en el recortador y que el usuario pueda ajustarla antes de subirla.
     try {
       const previewUrl = await readFileAsDataUrl(file)
       setPendingFotoSrc(previewUrl)
@@ -138,6 +143,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     }
   }
 
+  //Si se cancela el recorte, limpio la imagen y cierro el modal.
   const handleCropCancel = () => {
     setIsCropOpen(false)
     setPendingFotoSrc('')
@@ -145,6 +151,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
     if (fotoInputRef.current) fotoInputRef.current.value = ''
   }
 
+  //Cuando se confirma el recorte, guardo la imagen para mostrarla en el preview.
   const handleCropConfirm = async (croppedDataUrl) => {
     if (!croppedDataUrl) {
       handleCropCancel()
@@ -243,6 +250,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
       let fotoPefilObject = null
 
       if (fotoPerfilData) {
+        //Si el usuario seleccionó una foto, la convierto a blob para obtener su tipo y tamaño.
         const response = await fetch(fotoPerfilData.dataUrl)
         const blob = await response.blob()
         fotoPefilObject = {
@@ -252,7 +260,8 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
           sizeBytes: blob.size,
         }
       } else {
-        // Usuario no seleccionó foto, usar la imagen por defecto
+        //Si el usuario no selecciono una foto, se usa la imagen por defecto. 
+        //Obtengo el blob de la imagen por defecto para tener su tipo y tamaño.
         const response = await fetch(defaultProfilePicture)
         const blob = await response.blob()
         fotoPefilObject = {
@@ -306,7 +315,7 @@ function RegisterPage({ onAuthenticated, onError, onNotice }) {
           fechaNacimiento,
           fotoPerfil: fotoPefilObject?.dataUrl || defaultProfilePicture,
         },
-        notice: 'Registro exitoso. Tu perfil fue guardado correctamente.',
+        notice: 'Registro exitoso. ¡Bienvenido a Comiku!',
       })
     } catch (error) {
       if (createdAuthUser && auth?.currentUser?.uid === createdAuthUser.uid) {

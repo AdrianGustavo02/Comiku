@@ -16,23 +16,17 @@ import {
 export const MENSAJE_TYPES = ['Sugerencia', 'Queja', 'Otros'];
 const MAX_DESCRIPTION_LENGTH = 300;
 
-/**
- * Sanitiza texto eliminando caracteres especiales no permitidos
- */
+//Sanitizo el texto eliminando caracteres especiales no permitidos.
 export const sanitizeText = (text) => {
   return sanitizeForbiddenInputChars(text).trim();
 };
 
-/**
- * Valida el tipo de mensaje
- */
+//Valido el tipo de mensaje.
 export const isValidMessageType = (type) => {
   return MENSAJE_TYPES.includes(type);
 };
 
-/**
- * Convierte un snapshot de mensaje a objeto
- */
+
 export const mapMessageSnapshot = (doc) => {
   const data = doc.data();
   return {
@@ -46,9 +40,7 @@ export const mapMessageSnapshot = (doc) => {
   };
 };
 
-/**
- * Crea un nuevo mensaje de usuario
- */
+//Creo un nuevo mensaje de usuario.
 export const createMessage = async ({
   tipo,
   descripcion,
@@ -101,9 +93,7 @@ export const createMessage = async ({
   }
 };
 
-/**
- * Obtiene una página de mensajes para el administrador
- */
+//Obtengo una página de mensajes para el administrador.
 export const getMessagesPage = async (pageSize = 15, lastDocId = null) => {
   if (!isFirebaseConfigured) {
     throw new Error('Firebase no configurado');
@@ -146,9 +136,7 @@ export const getMessagesPage = async (pageSize = 15, lastDocId = null) => {
   }
 };
 
-/**
- * Obtiene los primeros mensajes sin filtro, ordenados por fecha descending
- */
+//Obtengo los primeros mensajes sin filtro.
 export const getFirstMessagesPage = async (pageSize = 15) => {
   if (!isFirebaseConfigured) {
     throw new Error('Firebase no configurado');
@@ -182,9 +170,8 @@ export const getFirstMessagesPage = async (pageSize = 15) => {
   }
 };
 
-/**
- * Marca un mensaje como leído
- */
+
+//Marco un mensaje como leído.
 export const markMessageAsRead = async (messageId) => {
   if (!isFirebaseConfigured) {
     throw new Error('Firebase no configurado');
@@ -208,9 +195,6 @@ export const markMessageAsRead = async (messageId) => {
   }
 };
 
-/**
- * Obtiene la longitud máxima de descripción antes de colapsarse
- */
 export const getMaxDescriptionLength = () => MAX_DESCRIPTION_LENGTH;
 
 export default {

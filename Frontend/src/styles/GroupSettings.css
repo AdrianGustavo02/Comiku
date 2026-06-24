@@ -1,11 +1,9 @@
-/* ── Contenedor principal ── */
 .group-settings {
   padding: 20px;
   max-width: 600px;
   margin: 0 auto;
 }
 
-/* ── Barra de título ── */
 .group-settings-header {
   display: flex;
   justify-content: space-between;
@@ -21,7 +19,6 @@
   font-size: 20px;
 }
 
-/* ── Alertas ── */
 .group-settings-success {
   padding: 12px;
   background: #dcfce7;
@@ -44,7 +41,6 @@
   margin-top: 4px;
 }
 
-/* ── Pestañas ── */
 .group-settings-tabs {
   display: flex;
   gap: 12px;
@@ -69,7 +65,6 @@
   color: #0f172a;
 }
 
-/* ── Cabecera de info (imagen + nombre + creado por) ── */
 .group-info-header {
   display: flex;
   align-items: flex-start;
@@ -128,7 +123,6 @@
   margin: 0;
 }
 
-/* ── Botones de acción ── */
 .group-settings-actions {
   display: flex;
   flex-wrap: wrap;
@@ -188,7 +182,6 @@
   color: #64748b;
 }
 
-/* ── Formulario de edición ── */
 .group-settings-form-field {
   margin-bottom: 16px;
 }
@@ -261,7 +254,6 @@
   margin-top: 20px;
 }
 
-/* ── Lista de miembros ── */
 .group-settings-members-list {
   list-style: none;
   padding: 0;
@@ -373,7 +365,6 @@
   background: #fef2f2;
 }
 
-/* ── Panel agregar miembros ── */
 .group-settings-friends-list {
   list-style: none;
   padding: 0;
@@ -406,7 +397,6 @@
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
 }
 
-/* ── Modales ── */
 .group-settings-modal-overlay {
   position: fixed;
   inset: 0;

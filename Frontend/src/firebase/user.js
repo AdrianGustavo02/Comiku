@@ -44,11 +44,11 @@ function normalizeNick(nick) {
 
 function validateNameFieldsWithoutNumbers({ nombre, apellido }) {
   if (typeof nombre === 'string' && containsNumbers(nombre)) {
-    throw new Error('Nombre y apellido no pueden contener números.')
+    throw new Error('El nombre y apellido no pueden contener números.')
   }
 
   if (typeof apellido === 'string' && containsNumbers(apellido)) {
-    throw new Error('Nombre y apellido no pueden contener números.')
+    throw new Error('El nombre y apellido no pueden contener números.')
   }
 }
 
@@ -59,8 +59,8 @@ async function assertUniqueNick({ nick, uidToIgnore = null }) {
     throw new Error('El campo "Nick" es obligatorio.')
   }
 
-  // Consultar por Nick exacto para evitar leer toda la colección.
-  // Permite variaciones de capitalización (batman, BATMAN, BaTmAn son usuarios diferentes).
+  //Consultar por nick exacto para evitar leer toda la colección.
+  //Permite variaciones: batman, BATMAN y BaTmAn son usuarios diferentes.
     const q = query(
     collection(db, USER_COLLECTION),
     where('Nick', '==', nick),
@@ -70,7 +70,7 @@ async function assertUniqueNick({ nick, uidToIgnore = null }) {
   const snapshot = await getDocs(q)
 
   if (snapshot.docs.length === 0) {
-    // No existe duplicado
+    //No existe duplicado.
     return normalizedNick
   }
 
@@ -84,6 +84,7 @@ async function assertUniqueNick({ nick, uidToIgnore = null }) {
   throw new Error('Ese nick ya está registrado. Elige otro.')
 }
 
+//Verifico si un nick ya esta registrado en la base de datos.
 export async function isNickRegistered(nick, uidToIgnore = null) {
   try {
     await assertUniqueNick({ nick, uidToIgnore })
@@ -97,6 +98,7 @@ export async function isNickRegistered(nick, uidToIgnore = null) {
   }
 }
 
+//Actualizo el perfil de un usuario.
 export async function updateUserProfile({
   uid,
   nombre,
@@ -132,7 +134,7 @@ export async function updateUserProfile({
     updatePayload.FechaNacimiento = Timestamp.fromDate(dateValue)
   }
 
-  // Solo setear FotoPerfil si se proporcionó (puede ser objeto con dataUrl)
+
   if (typeof fotoPerfil !== 'undefined') {
     updatePayload.FotoPerfil = fotoPerfil
   }
@@ -140,6 +142,7 @@ export async function updateUserProfile({
   await setDoc(doc(db, USER_COLLECTION, uid), updatePayload, { merge: true })
 }
 
+//Creo el perfil de un usuario.
 export async function createUserProfile({
   uid,
   nombre,
@@ -173,7 +176,6 @@ export async function createUserProfile({
     Rol: 'usuario',
     FechaNacimiento: Timestamp.fromDate(dateValue),
     FotoPerfil: fotoPerfil,
-    // Campos denormalizados para conteos en perfil
     totalComics: 0,
     totalTomos: 0,
     cantidadAmigos: 0,
@@ -181,6 +183,7 @@ export async function createUserProfile({
   })
 }
 
+//Obtengo el perfil de un usuario.
 export async function getUserProfile(uid) {
   ensureFirestoreReady()
 
@@ -223,6 +226,7 @@ export async function getUserProfile(uid) {
   }
 }
 
+//Actualizo los comics destacados de un usuario.
 export async function updateUserFeaturedComicIds({ uid, comicIds }) {
   ensureFirestoreReady()
 
@@ -249,6 +253,7 @@ export async function updateUserFeaturedComicIds({ uid, comicIds }) {
   return nextComicIds
 }
 
+//Elimino la cuenta del usuario.
 export async function deleteCurrentAccountData({ idToken }) {
   if (!idToken) {
     throw new Error('No se pudo eliminar la cuenta: token inválido.')
@@ -283,6 +288,7 @@ export async function deleteCurrentAccountData({ idToken }) {
   return payload
 }
 
+//Elimino la cuenta de un usuario desde el panel de administracion.
 export async function deleteUserAccountByAdmin({ idToken, uid }) {
   if (!idToken || !uid) {
     throw new Error('No se pudo eliminar la cuenta: datos inválidos.')
@@ -339,6 +345,7 @@ export async function getAllUsers() {
   })
 }
 
+//Envío una solicitud de amistad a otro usuario.
 export async function sendFriendRequest(fromUid, toUid) {
   ensureFirestoreReady()
 
@@ -350,7 +357,7 @@ export async function sendFriendRequest(fromUid, toUid) {
     throw new Error('No puedes enviarte una solicitud de amistad a ti mismo.')
   }
 
-  // Verificar si el receptor tiene bloqueado al remitente
+  //Verifico si el receptor tiene bloqueado al remitente.
   const isBlockedByRecipient = await isUserBlocked(fromUid, toUid)
   if (isBlockedByRecipient) {
     throw new Error('No puedes enviar solicitud de amistad a este usuario.')
@@ -385,10 +392,11 @@ export async function sendFriendRequest(fromUid, toUid) {
       metadata: {},
     })
   } catch (error) {
-    console.error('Error creating friend request notification:', error)
+    console.error('Error al crear la notificación de solicitud de amistad:', error)
   }
 }
 
+//Obtengo las solicitudes de amistad pendientes para un usuario.
 export async function getFriendRequests(uid) {
   ensureFirestoreReady()
 
@@ -414,6 +422,7 @@ export async function getFriendRequests(uid) {
   })
 }
 
+//Acepto una solicitud de amistad.
 export async function acceptFriendRequest(uid, senderUid) {
   ensureFirestoreReady()
 
@@ -433,38 +442,38 @@ export async function acceptFriendRequest(uid, senderUid) {
     throw new Error('No se encontró tu perfil.')
   }
 
-  // Verificar si el receptor ha bloqueado al remitente
+  //Verifico si el receptor ha bloqueado al remitente..
   const isBlockedByRecipient = await isUserBlocked(senderUid, uid)
   if (isBlockedByRecipient) {
     throw new Error('No puedes aceptar la solicitud de amistad de este usuario.')
   }
 
-  // Verificar si el remitente ha bloqueado al receptor
+  //Verifico si el remitente ha bloqueado al receptor.
   const isBlockedBySender = await isUserBlocked(uid, senderUid)
   if (isBlockedBySender) {
     throw new Error('No puedes aceptar la solicitud de amistad de este usuario.')
   }
 
-  // Agregar amigo del lado del receptor
+  //Agrego amigo del lado del receptor.
   await setDoc(doc(db, USER_COLLECTION, uid, 'Amigos', senderUid), {
     UserID: senderUid,
     fechaAmistad: Timestamp.now(),
   })
 
-  // Agregar amigo del lado del remitente
+  //Agrego amigo del lado del remitente.
   await setDoc(doc(db, USER_COLLECTION, senderUid, 'Amigos', uid), {
     UserID: uid,
     fechaAmistad: Timestamp.now(),
   })
 
-  // Eliminar solicitud pendiente
+  //Elimino la solicitud pendiente.
   try {
     await deleteDoc(doc(db, USER_COLLECTION, uid, 'SolicitudesAmistad', senderUid))
   } catch (error) {
     void error
   }
 
-  // Actualizar contador de amigos
+  //Actualizo el contador de amigos.
   const batch = writeBatch(db)
 
   batch.update(doc(db, USER_COLLECTION, uid), {
@@ -514,7 +523,7 @@ export async function cancelSentFriendRequest(fromUid, toUid) {
   try {
     await deleteFriendRequestNotification({ userId: toUid, actorUid: fromUid })
   } catch (error) {
-    console.error('Error deleting friend request notification on cancel:', error)
+    console.error('Error al eliminar la notificación de solicitud de amistad al cancelar:', error)
   }
 }
 
@@ -586,14 +595,14 @@ export async function removeFriend(uid1, uid2) {
     await deleteNotificationsByActorUid(uid1, uid2)
     await deleteNotificationsByActorUid(uid2, uid1)
   } catch (error) {
-    console.error('Error deleting notifications on removeFriend:', error)
+    console.error('Error al eliminar notificaciones en removeFriend:', error)
   }
 
   try {
     await deleteUserContentFromActivities(uid1, uid2)
     await deleteUserContentFromActivities(uid2, uid1)
   } catch (error) {
-    console.error('Error deleting user content on removeFriend:', error)
+    console.error('Error al eliminar contenido de usuario en removeFriend:', error)
   }
 }
 
@@ -616,13 +625,13 @@ export async function blockUser(uid, userToBlockUid) {
 
   const batch = writeBatch(db)
 
-  // Agregar a la lista de bloqueados
+  //Agrego a la lista de bloqueados.
   batch.set(doc(db, USER_COLLECTION, uid, 'UsuariosBloqueados', userToBlockUid), {
     UserID: userToBlockUid,
     fechaBloqueo: Timestamp.now(),
   })
 
-  // Si son amigos, eliminar amistad
+  //Si son amigos, elimino la amistad.
   const isFriend = await areFriends(uid, userToBlockUid)
 
   if (isFriend) {
@@ -644,26 +653,26 @@ export async function blockUser(uid, userToBlockUid) {
     await deleteNotificationsByActorUid(uid, userToBlockUid)
     await deleteNotificationsByActorUid(userToBlockUid, uid)
   } catch (error) {
-    console.error('Error deleting notifications on blockUser:', error)
+    console.error('Error al eliminar notificaciones en blockUser:', error)
   }
 
   try {
-    // Eliminar solicitudes de amistad pendientes en ambas direcciones
+    //Elimino solicitudes de amistad pendientes en ambas direcciones.
     await deleteDoc(doc(db, USER_COLLECTION, uid, 'SolicitudesAmistad', userToBlockUid))
     await deleteDoc(doc(db, USER_COLLECTION, userToBlockUid, 'SolicitudesAmistad', uid))
   } catch (error) {
-    console.error('Error deleting friend requests on blockUser:', error)
+    console.error('Error al eliminar solicitudes de amistad en blockUser:', error)
   }
 
   try {
     await deleteUserContentFromActivities(uid, userToBlockUid)
     await deleteUserContentFromActivities(userToBlockUid, uid)
   } catch (error) {
-    console.error('Error deleting user content on blockUser:', error)
+    console.error('Error al eliminar contenido de usuario en blockUser:', error)
   }
 
-  // Si el usuario bloqueado tenía listas guardadas creadas por quien bloquea,
-  // se eliminan de su subcolección de listas guardadas.
+  //Si el usuario bloqueado tenía listas guardadas creadas por quien bloquea,
+  //se eliminan de su subcolección de listas guardadas.
   const blockerListsSnapshot = await getDocs(
     query(
       collection(db, THEMATIC_LISTS_COLLECTION),
@@ -690,6 +699,7 @@ export async function blockUser(uid, userToBlockUid) {
   }
 }
 
+//Desbloqueo a un usuario.
 export async function unblockUser(uid, blockedUid) {
   ensureFirestoreReady()
 
@@ -700,6 +710,7 @@ export async function unblockUser(uid, blockedUid) {
   await deleteDoc(doc(db, USER_COLLECTION, uid, 'UsuariosBloqueados', blockedUid))
 }
 
+//Verifico si un usuario bloqueó a otro.
 export async function isUserBlocked(uid, byUid) {
   ensureFirestoreReady()
 
@@ -795,7 +806,7 @@ export async function getUsersNicksByUids(uids) {
   const nickMap = {}
 
   try {
-    // Cargar todos los usuarios de una vez
+    //Cargo todos los usuarios de una vez.
     const userDocs = await Promise.all(
       uids.map((uid) => getDoc(doc(db, USER_COLLECTION, uid)))
     )
@@ -810,8 +821,8 @@ export async function getUsersNicksByUids(uids) {
       }
     })
   } catch (error) {
-    console.error('Error cargando nicks de usuarios:', error)
-    // Fallback: devolver los UIDs como nicks
+    console.error('Error al cargar los nicks de usuarios:', error)
+    //Devuelvo los UIDs como nicks.
     uids.forEach((uid) => {
       nickMap[uid] = uid
     })
@@ -823,12 +834,12 @@ export async function getUsersNicksByUids(uids) {
 export async function canSendMessageTo(senderId, channel) {
   ensureFirestoreReady()
 
-  // Only apply restrictions to 1:1 chats
+  // Solo aplico restricciones a los chats 1:1.
   if (!channel?.data?.members || channel.data.members.length !== 2) {
     return true
   }
 
-  // Get the other user's ID
+  // Obtengo el ID del otro usuario.
   const members = channel.data.members
   const recipientId = members.find((uid) => uid !== senderId)
 
@@ -837,19 +848,19 @@ export async function canSendMessageTo(senderId, channel) {
   }
 
   try {
-    // Check if sender blocked the recipient
+    //Verifico si el remitente bloqueo al destinatario.
     const senderBlockedRecipient = await isUserBlocked(recipientId, senderId)
     if (senderBlockedRecipient) {
       return false
     }
 
-    // Check if recipient blocked the sender
+    //Verifico si el destinatario bloqueo al remitente.
     const recipientBlockedSender = await isUserBlocked(senderId, recipientId)
     if (recipientBlockedSender) {
       return false
     }
 
-    // Check if they are still friends
+    //Verifico si son amigos, si no lo son, no pueden enviarse mensajes.
     const areFriendsValue = await areFriends(senderId, recipientId)
     if (!areFriendsValue) {
       return false
@@ -857,8 +868,7 @@ export async function canSendMessageTo(senderId, channel) {
 
     return true
   } catch (error) {
-    console.error('Error checking message permission:', error)
-    // On error, allow sending (fail-open)
+    console.error('Error al verificar el permiso para enviar mensajes:', error)
     return true
   }
 }

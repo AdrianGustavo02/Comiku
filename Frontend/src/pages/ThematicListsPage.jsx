@@ -92,7 +92,7 @@ function ThematicListsPage({
           authUser?.uid ? getUsersWhoBlockedUser(authUser.uid) : Promise.resolve([]),
         ])
 
-        // Cargar perfiles de creadores
+        //Cargo el perfil del creador
         const uniqueCreatorIds = [...new Set(nextLists.map((l) => l.userId).filter(Boolean))]
         const profiles = {}
 
@@ -149,6 +149,7 @@ function ThematicListsPage({
       return nextLists.sort((a, b) => getListDateValue(b) - getListDateValue(a))
     }
 
+    //Para 'guia de lectura', primero filtro por ese criterio, y luego ordeno por popularidad y fecha para destacar las guías más valoradas y recientes.
     if (activeFilter === 'reading-guide') {
       return nextLists
         .filter((list) => list.esGuiaDeLectura)
@@ -163,6 +164,7 @@ function ThematicListsPage({
         })
     }
 
+    //Para 'popular' y 'saved', ordeno por popularidad, luego por fecha, y finalmente por nombre para romper empates.
     return nextLists.sort((a, b) => {
       const scoreDiff = getPopularityScore(b) - getPopularityScore(a)
 
@@ -180,6 +182,7 @@ function ThematicListsPage({
     })
   }, [activeFilter, visibleLists])
 
+  //Filtrar por término de búsqueda
   const filteredLists = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 

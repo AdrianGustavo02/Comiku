@@ -4,7 +4,6 @@
   padding-top: 0;
 }
 
-/* Centrar la tarjeta de carga verticalmente cuando aparece */
 .volume-detail-page.loading {
   min-height: calc(100svh - 64px);
   place-items: center;

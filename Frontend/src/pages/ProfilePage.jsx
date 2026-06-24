@@ -111,7 +111,7 @@ function ProfilePage({
   const [deleteTargetNick, setDeleteTargetNick] = useState('')
   const [deleteConfirmNick, setDeleteConfirmNick] = useState('')
   const [processingDeleteAccount, setProcessingDeleteAccount] = useState(false)
-  const [friendshipStatus, setFriendshipStatus] = useState('none') // 'none', 'friends', 'pending', 'requested'
+  const [friendshipStatus, setFriendshipStatus] = useState('none')
   const [processingFriendship, setProcessingFriendship] = useState(false)
   const [isBlockedByProfileUser, setIsBlockedByProfileUser] = useState(false)
   const [isBlockingProfileUser, setIsBlockingProfileUser] = useState(false)
@@ -178,7 +178,7 @@ function ProfilePage({
     }
   }, [authUser?.uid, profileUid])
 
-  // Cargar estado de amistad cuando vemos otro perfil
+  //Cargar el estado de amistad cuando se ve otro perfil.
   useEffect(() => {
     let cancelled = false
 
@@ -195,7 +195,7 @@ function ProfilePage({
           if (isFriend) {
             setFriendshipStatus('friends')
           } else {
-            // Verificar si hay solicitud pendiente
+            //Verifico si hay solicitud pendiente.
             const requests = await getFriendRequests(profileUid)
             const hasRequest = requests.some((r) => r.senderUid === authUser.uid)
 
@@ -221,6 +221,7 @@ function ProfilePage({
     }
   }, [authUser?.uid, profileUid])
 
+  //Envio de solicitud de amistad.
   const handleSendFriendRequest = async () => {
     if (!profileUid) return
 
@@ -237,6 +238,7 @@ function ProfilePage({
     }
   }
 
+  //Cancelar solicitud de amistad enviada.
   const handleCancelSentFriendRequest = async () => {
     if (!profileUid) return
 
@@ -253,6 +255,7 @@ function ProfilePage({
     }
   }
 
+  //Eliminacion de amigo.
   const handleRemoveFriend = async () => {
     if (!profileUid) return
 
@@ -269,6 +272,7 @@ function ProfilePage({
     }
   }
 
+  //Bloqueo de usuario.
   const handleBlockUser = async () => {
     if (!profileUid) return
 
@@ -292,6 +296,7 @@ function ProfilePage({
     }
   }
 
+  //Desbloqueo de usuario.
   const handleUnblockUser = async () => {
     if (!profileUid) return
 
@@ -403,7 +408,6 @@ function ProfilePage({
   const [pendingEditFotoName, setPendingEditFotoName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editFotoInputRef = useRef(null)
-  // Report user state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_USER[0])
   const [reportDescription, setReportDescription] = useState('')
@@ -413,6 +417,8 @@ function ProfilePage({
   const [reportError, setReportError] = useState('')
   const isOwnProfile = !profileUid || profileUid === authUser?.uid
 
+  //Cuando se carga el perfil o se actualiza la información, actualizo los campos 
+  // del formulario de edición para que reflejen los datos actuales del perfil.
   useEffect(() => {
     if (profileData) {
       setEditForm({
@@ -505,7 +511,7 @@ function ProfilePage({
     }
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setProfileError('Foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
+      setProfileError('La foto de perfil debe ser .jpg, .jpeg, .png o .webp.')
       if (editFotoInputRef.current) editFotoInputRef.current.value = ''
       return
     }
@@ -552,6 +558,7 @@ function ProfilePage({
     if (editFotoInputRef.current) editFotoInputRef.current.value = ''
   }
 
+  //Valido los campos y guardo los cambios en el perfil.
   const handleSaveProfile = async () => {
     setIsSaving(true)
     try {
@@ -644,6 +651,7 @@ function ProfilePage({
     })
   }
 
+  //Obtengo los items de la biblioteca correspondientes a los comics destacados, respetando el orden definido por el usuario.
   const featuredComicItems = useMemo(() => {
     const selectedIds = Array.isArray(profileData?.featuredComicIds)
       ? profileData.featuredComicIds
@@ -684,7 +692,7 @@ function ProfilePage({
     setReportScreenshotPreview('')
     setReportReason(REPORT_REASON_OPTIONS_FOR_USER[0])
 
-    // verificar si ya hay un reporte pendiente
+    //Verifico si ya hay un reporte pendiente.
     try {
       if (!authUser?.uid || !profileUid) {
         setReportError('No es posible reportar: usuario inválido.')
@@ -711,6 +719,7 @@ function ProfilePage({
     setIsReportModalOpen(false)
   }
 
+  //Manejo el cambio de captura de pantalla en el reporte.
   const handleReportScreenshotChange = (e) => {
     const file = e.target.files?.[0] || null
 
@@ -727,6 +736,7 @@ function ProfilePage({
     }
   }
 
+  //Envio de reporte y validaciones.
   const handleSubmitUserReport = async (ev) => {
     ev.preventDefault()
     setReportError('')
@@ -739,6 +749,7 @@ function ProfilePage({
       setIsSubmittingReport(true)
 
       let captura = null
+      //Si existe una captura de pantalla, la convierto a data URL para guardarla junto con el reporte.
       if (reportScreenshotFile) {
         const dataUrl = await readFileAsDataUrl(reportScreenshotFile)
         captura = {
@@ -749,6 +760,7 @@ function ProfilePage({
         }
       }
 
+      //Creo el reporte.
       await createReport({
         usuarioIdReporta: authUser.uid,
         objetoReportadoId: profileUid,
@@ -768,7 +780,6 @@ function ProfilePage({
   }
 
   const handleConfirmChangeRole = () => {
-    // advance to final confirmation step
     setRoleModalStep(2)
     setRoleConfirmInput('')
   }
@@ -781,6 +792,7 @@ function ProfilePage({
     optionsOpenRef.current = optionsOpen
   }, [optionsOpen])
 
+  //Cierro el menu de opciones al hacer click afuera.
   useEffect(() => {
     function handleOutsideClick(ev) {
       if (!optionsOpenRef.current) return
@@ -801,6 +813,7 @@ function ProfilePage({
     setRoleConfirmInput('')
   }
 
+  //Cambio el rol del usuario. Si el usuario ya es admin, se revoca el rol, si no lo es, se le otorga.
   const handlePerformChangeRole = async () => {
     if (!profileUid) return
     const isRevoking = isAdminRole(profileData?.rol)
@@ -809,7 +822,6 @@ function ProfilePage({
       setIsSaving(true)
       setProfileError('')
       setProfileNotice('')
-      // call firebase: toggle role based on current role
       const nextRole = isRevoking ? 'usuario' : 'admin'
       await setUserRole(profileUid, nextRole)
       const refreshed = await getUserProfile(profileUid)
@@ -1307,11 +1319,11 @@ function ProfilePage({
                   Esta acción es permanente y eliminará todos los datos del usuario <strong>{deleteTargetNick}</strong>. Para confirmar, escribe el nick exacto.
                 </p>
                 <input
+                 className="profile-nick-input"
                   type="text"
                   value={deleteConfirmNick}
                   onChange={(event) => setDeleteConfirmNick(sanitizeForbiddenInputChars(event.target.value))}
                   placeholder={`Escribe ${deleteTargetNick || 'el nick'} para confirmar`}
-                  style={{ width: '100%', padding: '8px', marginTop: 12 }}
                 />
               </>
             )}
@@ -1351,31 +1363,11 @@ function ProfilePage({
       ) : null}
 
       {isReportModalOpen ? (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}
+        <div className="confirm-modal-backdrop"
           role="presentation"
           onClick={closeReportModal}
         >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              padding: '20px',
-              maxWidth: '580px',
-              width: '100%',
-              boxShadow: '0 6px 18px rgba(0,0,0,0.18)'
-            }}
+          <div className="confirm-modal"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -1410,7 +1402,7 @@ function ProfilePage({
                 </div>
               ) : null}
 
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
+                <div className="profile-edit-actions">
                   <Button variant="secondary" className="profile-back-button" type="button" onClick={closeReportModal} disabled={isSubmittingReport}>Cancelar</Button>
                   <Button variant="primary" className="delete-account-button" type="submit" disabled={isSubmittingReport}>{isSubmittingReport ? 'Enviando reporte...' : 'Enviar reporte'}</Button>
                 </div>
@@ -1465,31 +1457,11 @@ function ProfilePage({
       ) : null}
 
       {roleModalOpen ? (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}
+        <div className="confirm-modal-backdrop"
           role="presentation"
           onClick={handleCancelChangeRole}
         >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              padding: '24px',
-              maxWidth: '520px',
-              width: '100%',
-              boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
-            }}
+          <div className="confirm-modal"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -1505,7 +1477,7 @@ function ProfilePage({
                     <>Estás a punto de convertir a <strong>{profileData?.nick}</strong> en administrador. Esta acción le dará acceso a funciones sensibles.</>
                   )}
                 </p>
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                <div className="profile-edit-actions">
                   <button className="profile-back-button" type="button" onClick={handleCancelChangeRole}>
                     Cancelar
                   </button>
@@ -1524,14 +1496,14 @@ function ProfilePage({
                   )}
                 </p>
                 <input
+                className="profile-nick-input"
                   type="text"
                   value={roleConfirmInput}
                   onChange={(e) => setRoleConfirmInput(e.target.value)}
                   placeholder={`Escribe ${profileData?.nick} para confirmar`}
-                  style={{ width: '100%', padding: '8px', marginTop: 12 }}
                 />
 
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                <div  className="profile-edit-actions">
                   <button className="profile-back-button" type="button" onClick={handleCancelChangeRole} disabled={isSaving}>
                     Cancelar
                   </button>

@@ -1,3 +1,4 @@
+//Devuelvo una data URL de la imagen recortada.
 export async function createCroppedImageDataUrl(imageSrc, croppedAreaPixels, { mimeType = 'image/jpeg', quality = 0.92 } = {}) {
   if (typeof imageSrc !== 'string' || !imageSrc) {
     throw new Error('No se pudo recortar la imagen seleccionada.')

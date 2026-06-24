@@ -22,6 +22,7 @@ function LoginPage({ onAuthenticated, onError }) {
     }
 
     try {
+      //IsSubmitting deshabilita los botones mientras se procesa el login.
       setIsSubmitting(true)
       const user = await loginWithEmail({ email: email.trim(), password })
       setLoginForm({ email: '', password: '' })

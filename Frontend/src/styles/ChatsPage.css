@@ -24,6 +24,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  margin-top: 18px;
 }
 
 .chats-page-shell .status-message {
@@ -39,6 +40,11 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+.group-form-buttons-chats-page{
+  margin-top: 20px;
+  display: flex;
+  gap: 8px;
+}
 .search-suggestion-list {
   padding: 0;
   list-style: none;
@@ -68,6 +74,21 @@
   background: rgba(255, 138, 31, 0.14);
 }
 
+.search-suggestion-avatar{
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 12px;
+}
+
+.search-suggestion-nick{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
 .thematic-search-input {
   width: 100%;
   max-width: 600px;
@@ -95,6 +116,48 @@
   max-width: 100%;
 }
 
+.group-form-image-preview-wrapper{
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.group-form-image-preview{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.group-form-error{
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.group-form-label{
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.group-form-input{
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d7d7d7;
+  border-radius: 10px;
+}
+
+.group-form-length{
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.group-form-section{
+  margin-bottom: 16px;
+}
 @media (max-width: 900px) {
   .chats-page-shell .app-card.user-list-page {
     padding: 12px;

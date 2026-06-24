@@ -25,7 +25,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: rgba(21, 21, 21, 0.85);
+  background: rgba(40, 40, 40, 0.85);
   color: #f8f3ff;
 }
 
@@ -95,9 +95,9 @@ a {
 
   :root {
     --font-sans: 'Segoe UI Variable', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-    --bg-0: rgba(21, 21, 21, 0.85);
-    --bg-1: rgba(21, 21, 21, 0.85);
-    --bg-2: rgba(21, 21, 21, 0.85);
+    --bg-0: rgba(40, 40, 40, 0.85);
+    --bg-1: rgba(40, 40, 40, 0.85);
+    --bg-2: rgba(40, 40, 40, 0.85);
     --surface-0: rgba(22, 12, 36, 0.94);
     --surface-1: rgba(30, 17, 47, 0.9);
     --surface-2: rgba(44, 24, 66, 0.86);
@@ -118,10 +118,6 @@ a {
     line-height: 1.5;
     font-weight: 400;
     color: var(--text);
-    background:
-      radial-gradient(circle at top left, rgba(255, 138, 31, 0.16), transparent 28%),
-      radial-gradient(circle at top right, rgba(163, 94, 255, 0.22), transparent 35%),
-      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-2) 100%);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;

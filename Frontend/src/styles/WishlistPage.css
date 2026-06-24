@@ -40,7 +40,6 @@
 }
 
 
-/* Specific override to ensure orange focus border and subtle halo */
 .app-shell.wishlist-page-shell .wishlist-filter-group select:focus,
 .app-shell.wishlist-page-shell .wishlist-filter-group input:focus,
 .app-shell.wishlist-page-shell .wishlist-filter-group select:focus-visible,

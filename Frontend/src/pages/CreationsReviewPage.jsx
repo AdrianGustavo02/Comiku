@@ -15,6 +15,7 @@ function CreationsReviewPage({ onBack, onPageReady }) {
     let cancelled = false
 
     async function load() {
+      //Cargo la lista de creaciones pendientes y le agrego los nicks de los remitentes y la metadata de los comics.
       try {
         const list = await listPendingCreations()
 
@@ -42,7 +43,6 @@ function CreationsReviewPage({ onBack, onPageReady }) {
             const comicData = await getComicById(cid)
             if (comicData) comicMap[cid] = comicData
           } catch {
-            // ignore fetch errors
           }
         }))
 
@@ -79,6 +79,7 @@ function CreationsReviewPage({ onBack, onPageReady }) {
     }
   }, [])
 
+  //Desestimo una creacion pendiente.
   const handleDismiss = async (id) => {
     try {
       await deletePendingCreation(id)

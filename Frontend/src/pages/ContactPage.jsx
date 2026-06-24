@@ -37,6 +37,7 @@ export default function ContactPage({ authUser, onBack, onPageReady }) {
     setError('');
   };
 
+  //Manejo el envio del formulario validando los campos.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');

@@ -4,7 +4,7 @@
   max-height: clamp(540px, 78vh, 860px);
   width: 100%;
   max-width: 100%;
-  border: 1px solid #dbe2ea;
+  border: 2px solid #ccd1d6;
   border-radius: 16px;
   overflow: hidden;
   background: #ffffff;
@@ -13,7 +13,7 @@
 .chat-panel-left {
   width: 320px;
   min-width: 0;
-  border-right: 1px solid #e6e6e6;
+  border-right: 2px solid #ccd1d6;
   height: 100%;
   overflow: auto;
 }
@@ -66,7 +66,7 @@
 .channel-preview {
   width: 100%;
   border: 0;
-  border-bottom: 1px solid #eef1f4;
+  border-bottom: 1px solid #b5bbc2;
   background: #ffffff;
   color: #0f172a;
   display: grid;
@@ -80,16 +80,16 @@
 }
 
 .channel-preview:hover {
-  background: #f5f7fa;
+  background: #bdbdc6b7
 }
 
 .channel-preview:focus-visible {
-  outline: 2px solid #25d366;
+  outline: 2px solid #3e5696c5;
   outline-offset: -2px;
 }
 
 .channel-preview-selected {
-  background: #e9f6ef;
+  background: #4f6cbcc5;
 }
 
 .channel-preview-title {
@@ -246,7 +246,7 @@
   flex: 1;
   min-width: 0;
   margin-top: 0;
-  border: 1px solid #d4dbe3;
+  border: 1px solid #b5bbc2;
   border-radius: 18px;
   background: #ffffff;
   overflow: hidden;
@@ -637,7 +637,6 @@
   .chat-panel-left {
     border-right: 0;
     border-bottom: 1px solid #e6e6e6;
-    height: 38vh;
     max-height: 38vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

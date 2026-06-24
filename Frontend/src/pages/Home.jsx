@@ -32,6 +32,7 @@ import '../styles/ComicDetailPage.css'
 import '../styles/Home.css'
 import '../styles/VolumeCoverCard.css'
 
+//Parseo la ruta para determinar que pagina mostrar y que parametros cargar.
 function parseRoute(pathname) {
   const volumeMatch = pathname.match(/^\/comic\/([^/]+)\/tomo\/([^/]+)$/)
 
@@ -163,6 +164,7 @@ function parseRoute(pathname) {
   return { page: 'home', comicId: '', volumeId: '' }
 }
 
+
 function getDateTime(value) {
   if (!value) {
     return 0
@@ -189,6 +191,8 @@ function getVolumePublicationTime(volume) {
   return 0
 }
 
+//Para ordenar los tomos, primero detecto a los tomos unicos y luego ordeno por numero de tomo. 
+// Los tomos sin numero quedan al final.
 function getVolumeOrderValue(volume) {
   if (volume.tomoUnico) {
     return Number.MAX_SAFE_INTEGER
@@ -205,6 +209,8 @@ function toSortableText(value) {
   return String(value ?? '').toLowerCase().trim()
 }
 
+//Ordeno los ultimos tomos agregados de la biblioteca por fecha de agregado, mas recientes primero. 
+// Luego por nombre del comic y finalmente por numero de tomo.
 function sortLatestLibraryVolumes(a, b) {
   const dateDiff = getDateTime(b.fechaAgregado) - getDateTime(a.fechaAgregado)
 
@@ -221,6 +227,8 @@ function sortLatestLibraryVolumes(a, b) {
   return getVolumeOrderValue(b) - getVolumeOrderValue(a)
 }
 
+//Ordeno los tomos faltantes por fecha de publicacion, mas recientes primero. 
+// Luego por numero de tomo y finalmente por nombre del comic.
 function sortMissingLibraryVolumes(a, b) {
   const publicationDiff = getVolumePublicationTime(b) - getVolumePublicationTime(a)
 
@@ -237,6 +245,7 @@ function sortMissingLibraryVolumes(a, b) {
   return toSortableText(a.comicNombre).localeCompare(toSortableText(b.comicNombre), 'es')
 }
 
+//Selecciono el tomo destacado para una recomendación, dando prioridad a tomos únicos y al tomo 1.
 function getFeaturedRecommendationVolume(volumes) {
   if (!Array.isArray(volumes) || volumes.length === 0) {
     return null
@@ -333,8 +342,7 @@ function Home() {
     setIsNavHidden(false)
   }
 
-  // Safety fallback: if pages don't call `onPageReady()` (navegación muy rápida
-  // o rutas sin carga asíncrona), mostramos el navbar automáticamente tras 800ms.
+
   useEffect(() => {
     if (!isNavHidden) return undefined
 
@@ -346,6 +354,7 @@ function Home() {
     return typeof value === 'string' ? value.trim() : ''
   }
 
+  //Voy a inicio.
   const goToHome = () => {
     setIsNavHidden(true)
     window.history.replaceState({}, '', '/')
@@ -357,12 +366,14 @@ function Home() {
     setHomeRefreshTick((currentTick) => currentTick + 1)
   }
 
+  //Voy a mi perfil.
   const goToProfile = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/perfil')
     setActivePage('profile')
   }
 
+  //Voy al perfil de un usuario.
   const goToProfileByUid = (uid) => {
     setIsNavHidden(true)
     const safeUid = normalizeRouteValue(uid)
@@ -372,6 +383,7 @@ function Home() {
     setActiveComicId(safeUid)
   }
 
+  //Voy a la lista de amigos.
   const goToFriends = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/amigos')
@@ -379,6 +391,7 @@ function Home() {
     setActiveComicId('')
   }
 
+  //Voy a los usuarios bloqueados.
   const goToBlockedUsers = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/usuarios-bloqueados')
@@ -386,6 +399,7 @@ function Home() {
     setActiveComicId('')
   }
 
+  //Voy a los reportes.
   const goToReports = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/reportes')
@@ -394,6 +408,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a revisar las creaciones de usuarios.
   const goToCreationsReview = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/admin/creations')
@@ -402,6 +417,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a la pagina de contacto.
   const goToContacto = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/contacto')
@@ -410,6 +426,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a los mensajes de usuarios.
   const goToMensajesUsuarios = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/mensajes-usuarios')
@@ -418,6 +435,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a las actividades.
   const goToActivities = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/actividades')
@@ -426,6 +444,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a las notificaciones.
   const goToNotifications = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/notificaciones')
@@ -434,12 +453,14 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a crear un comic.
   const goToCreateComic = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/crear-comic')
     setActivePage('create-comic')
   }
 
+  //Voy a crear los tomos de un comic.
   const goToCreateComicVolumes = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/crear-comic/tomos')
@@ -479,7 +500,6 @@ function Home() {
     }
   }, [authNotice, activePage])
 
-  // Navbar visibility is controlled by pages via `onPageReady()`.
 
   const homeHeroSlides = [
     {
@@ -505,6 +525,7 @@ function Home() {
   const [activeLibraryUid, setActiveLibraryUid] = useState('')
   const [activeLibraryNick, setActiveLibraryNick] = useState('')
 
+  //Voy a la biblioteca.
   const goToLibrary = (uid, nick) => {
     setIsNavHidden(true)
     const safeUid = normalizeRouteValue(uid)
@@ -518,6 +539,7 @@ function Home() {
     setActiveLibraryNick(safeNick)
   }
 
+  //Voy a la lista de deseados.
   const goToWishlist = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/deseados')
@@ -526,6 +548,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a las listas tematicas.
   const goToThematicLists = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/listas-tematicas')
@@ -534,6 +557,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a crear una lista tematica.
   const goToCreateThematicList = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/listas-tematicas/crear')
@@ -542,6 +566,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a mis listas tematicas.
   const goToMyThematicLists = () => {
     setIsNavHidden(true)
     window.history.pushState({}, '', '/listas-tematicas/mis-listas')
@@ -550,6 +575,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a la informacion de una lista tematica.
   const goToThematicListDetail = (listId) => {
     setIsNavHidden(true)
     window.history.pushState({}, '', `/listas-tematicas/ver/${encodeURIComponent(listId)}`)
@@ -558,6 +584,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a editar un comic.
   const goToEditComic = (comicId) => {
     setIsNavHidden(true)
     window.history.pushState({}, '', `/comic/editar/${encodeURIComponent(comicId)}`)
@@ -566,6 +593,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a editar un tomo.
   const goToEditVolume = ({ comicId, volumeId }) => {
     setIsNavHidden(true)
     window.history.pushState(
@@ -578,6 +606,7 @@ function Home() {
     setActiveVolumeId(volumeId)
   }
 
+  //Voy a editar una lista tematica.
   const goToEditThematicList = (listId) => {
     window.history.pushState({}, '', `/listas-tematicas/editar/${encodeURIComponent(listId)}`)
     setActivePage('edit-thematic-list')
@@ -585,6 +614,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a la informacion de un comic.
   const goToComicDetail = (comicId) => {
     window.history.pushState({}, '', `/comic/${encodeURIComponent(comicId)}`)
     setActivePage('comic-detail')
@@ -592,6 +622,7 @@ function Home() {
     setActiveVolumeId('')
   }
 
+  //Voy a la informacion de un tomo.
   const goToVolumeDetail = ({ comicId, volumeId }) => {
     window.history.pushState(
       {},
@@ -603,6 +634,7 @@ function Home() {
     setActiveVolumeId(volumeId)
   }
 
+  //Manejo el usuario autenticado, guardando su información en el estado global y redirigiendo a inicio.
   const handleAuthenticated = ({ user, profile = null, notice = '' }) => {
     setAuthUser(user)
     if (profile && typeof profile === 'object') {
@@ -615,6 +647,7 @@ function Home() {
     goToHome()
   }
 
+  //Escucho cambios en la autenticación para mantener el estado de sesion actualizado.
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges((user) => {
       setAuthUser(user)
@@ -636,6 +669,7 @@ function Home() {
       })
     }
 
+    //Cargo el perfil del usuario autenticado, con reintentos en caso de que no esté disponible inmediatamente.
     async function loadCurrentUserProfile() {
       if (!authUser?.uid) {
         setCurrentUserRole(null)
@@ -835,6 +869,7 @@ function Home() {
           })
           .slice(0, 20)
 
+        //Comics recomendados con su tomo destacado.
         const nextRecommendations = await Promise.all(
           recommendationCandidates.map(async ({ comic, matchedGenres, score }) => {
             try {

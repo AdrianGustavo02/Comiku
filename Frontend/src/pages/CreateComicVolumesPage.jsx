@@ -129,14 +129,13 @@ function CreateComicVolumesPage({
         setNumeroTomo(data.numeroTomo !== null ? String(data.numeroTomo) : '')
         setIsbn(data.isbn !== null ? String(data.isbn) : '')
         setFechaPublicacion(data.fechaPublicacion || '')
-        // portada is object with dataUrl; we won't convert to File, but show preview
+        
         if (data.portada && data.portada.dataUrl) {
           setCoverPreviewUrl(data.portada.dataUrl)
           setCoverFileName(data.portada.fileName || '')
           setCoverFile(null)
         }
       } catch {
-        // ignore
       } finally {
         if (!cancelled) null
       }
@@ -205,6 +204,7 @@ function CreateComicVolumesPage({
     return ''
   }
 
+  //Construyo el tomo a guardar, sin escribir nada aún.
   const buildVolumeDraft = async () => {
     const validationError = validateForm({
       requireComicDraft: !isExistingComicMode,
@@ -267,7 +267,7 @@ function CreateComicVolumesPage({
         return
       }
 
-      // Estimar tamaño del documento
+      //Estimar tamaño del documento
       const estimatedSize = estimateVolumeDocumentSize(volume.portada.dataUrl, {
         NumeroTomo: volume.numeroTomo,
         TomoUnico: volume.tomoUnico,
@@ -275,10 +275,10 @@ function CreateComicVolumesPage({
         FechaPublicacion: volume.fechaPublicacion,
       })
 
-      // Firebase límite: 1 MB por documento
+      //Limite de Firebase: 1 MB por documento
       const MAX_DOCUMENT_SIZE = 1024 * 1024
       if (estimatedSize > MAX_DOCUMENT_SIZE * 0.95) {
-        // 95% del límite como margen de seguridad
+        //95% del límite como margen de seguridad
         const sizeDisplay = formatBytesForDisplay(estimatedSize)
         setFormError(
           `La información del tomo es demasiado pesada (${sizeDisplay}). Intenta usar una portada más comprimida.`
@@ -334,7 +334,7 @@ function CreateComicVolumesPage({
         return
       }
 
-      // Decide if we must create immediately or store as pending depending on user role
+
       const currentUser = auth.currentUser
       let userRole = 'usuario'
 
@@ -344,11 +344,9 @@ function CreateComicVolumesPage({
           userRole = profile?.rol || 'usuario'
         }
       } catch {
-        // ignore
       }
 
       if (userRole && String(userRole).toLowerCase() === 'usuario') {
-        // Save as pending creation instead of writing to Firestore directly
           const pendingPayload = {
             tipo: isExistingComicMode ? 'tomos' : 'comic_y_tomos',
             UserID: currentUser?.uid || null,
@@ -359,7 +357,6 @@ function CreateComicVolumesPage({
 
           await addPendingCreation(pendingPayload)
         setFormNotice('Creación enviada para revisión por un administrador.')
-        // don't write anything yet
         if (onFinishCreation) onFinishCreation(finalVolumes.length, true)
         return
       }
@@ -372,7 +369,7 @@ function CreateComicVolumesPage({
       }
 
       for (const volume of finalVolumes) {
-        // Estimar tamaño antes de enviar
+        //Estimar el tamaño antes de enviar.
         const estimatedSize = estimateVolumeDocumentSize(volume.portada.dataUrl, {
           NumeroTomo: volume.numeroTomo,
           TomoUnico: volume.tomoUnico,
@@ -401,7 +398,6 @@ function CreateComicVolumesPage({
       if (onFinishCreation) onFinishCreation(finalVolumes.length, false)
     } catch (error) {
       let message = error instanceof Error ? error.message : 'No fue posible finalizar la carga.'
-      // Mapear errores técnicos de Firebase a mensajes amigables
       if (message.includes('Document too large') || message.includes('too large')) {
         message = 'La información del tomo es demasiado pesada. Intenta usar una portada más comprimida.'
       }
@@ -412,13 +408,14 @@ function CreateComicVolumesPage({
     }
   }
 
+  //Actualizar un tomo existente.
   const handleUpdateVolume = async () => {
     setFormError('')
     try {
       setSavingAction('update')
       setSaving(true)
 
-      // validate
+
       const validation = validateForm({
         requireComicDraft: false,
         requireCover: !coverPreviewUrl,
@@ -433,7 +430,7 @@ function CreateComicVolumesPage({
         return
       }
 
-      // decide portada payload: if coverFile is set, upload inline, else undefined to keep existing
+
       let portadaPayload = undefined
 
       if (coverFile) {
@@ -470,7 +467,7 @@ function CreateComicVolumesPage({
       const numeroTomoValue = mode === 'numero' ? Number.parseInt(numeroTomo, 10) : null
       const tomoUnicoValue = mode === 'unico'
 
-      // Estimar tamaño si se actualiza la portada
+      //Estimar tamaño si se actualiza la portada
       if (portadaPayload) {
         const estimatedSize = estimateVolumeDocumentSize(portadaPayload.dataUrl, {
           NumeroTomo: numeroTomoValue,
@@ -505,7 +502,7 @@ function CreateComicVolumesPage({
       if (!message) {
         message = 'No fue posible actualizar el tomo.'
       }
-      // Mapear errores técnicos de Firebase a mensajes amigables
+
       if (message.includes('Document too large') || message.includes('too large')) {
         message = 'La información del tomo es demasiado pesada. Intenta usar una portada más comprimida.'
       } else if (/ERR_BLOCKED_BY_CLIENT|Failed to fetch|NetworkError/i.test(message)) {

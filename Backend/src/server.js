@@ -50,6 +50,7 @@ function getBlockedEmailDocId(email) {
   return encodeURIComponent(normalizeEmail(email));
 }
 
+//Valido si un email esta bloqueado para registrarse nuevamente.
 async function isEmailBlockedForRegistration(adminDb, email) {
   const normalizedEmail = normalizeEmail(email);
 
@@ -65,6 +66,7 @@ async function isEmailBlockedForRegistration(adminDb, email) {
   return snapshot.exists;
 }
 
+//Bloqueo un email para que no pueda ser usado en futuros registros.
 async function blockEmailForFutureRegistration(adminDb, { email, blockedByUid = '', deletedUid = '' }) {
   const normalizedEmail = normalizeEmail(email);
 
@@ -89,6 +91,7 @@ async function blockEmailForFutureRegistration(adminDb, { email, blockedByUid = 
   return true;
 }
 
+//Busco el email del usuario para bloquearlo de futuros registros.
 async function resolveUserEmailForBlocking(adminAuth, adminDb, uid) {
   if (!uid) {
     return '';
@@ -120,6 +123,7 @@ async function resolveUserEmailForBlocking(adminAuth, adminDb, uid) {
   }
 }
 
+//Inicio Firebase.
 function initializeFirebaseAdmin() {
   if (getApps().length > 0) {
     return;
@@ -144,6 +148,7 @@ function initializeFirebaseAdmin() {
   });
 }
 
+//Obtengo los servicios de administrador de Firebase.
 function getAdminServices() {
   initializeFirebaseAdmin();
 
@@ -157,6 +162,7 @@ function isAdminRoleValue(role) {
   return String(role || '').toLowerCase().includes('admin');
 }
 
+//Obtengo el rol del usuario para validar si es admin o no.
 async function getUserRole(adminDb, uid) {
   const snapshot = await adminDb.collection('usuario').doc(uid).get();
 
@@ -176,6 +182,7 @@ async function assertAdminRequest(adminDb, uid) {
   }
 }
 
+//Elimina todos los documentos de una coleccion.
 async function deleteDocsInCollection(collectionRef) {
   const snapshots = await collectionRef.get();
 
@@ -186,6 +193,7 @@ async function deleteDocsInCollection(collectionRef) {
   return snapshots.size;
 }
 
+//Elimino los documentos de una coleccion que cumplan con la condicion dada.
 async function deleteDocsByPredicate(collectionRef, predicate) {
   const snapshots = await collectionRef.get();
   let deleted = 0;
@@ -202,6 +210,7 @@ async function deleteDocsByPredicate(collectionRef, predicate) {
   return deleted;
 }
 
+//Elimino los reportes relacionados a un usuario u objeto especifico.
 async function deleteMatchingReports(adminDb, predicate) {
   const rootReportsRef = adminDb.collection('Reportes');
   const resolvedReportsRef = adminDb.collection('Reportes').doc('Estados').collection('Resueltos');
@@ -215,11 +224,14 @@ async function deleteMatchingReports(adminDb, predicate) {
   return deleted;
 }
 
+//Elimino las notificaciones relacionadas a un usuario especifico.
 async function deleteMatchingNotifications(adminDb, predicate) {
   const notificationsRef = adminDb.collection('notificaciones');
   return deleteDocsByPredicate(notificationsRef, (docSnapshot) => predicate(docSnapshot.data() || {}));
 }
 
+//Elimino los documentos de las subcolecciones que tengan un campo igual al valor dado, 
+// y ajusto los contadores en el documento padre si es necesario.
 async function deleteGroupedSubcollectionDocs(adminDb, collectionName, fieldName, fieldValue) {
   const snapshots = await adminDb.collectionGroup(collectionName).get();
   const parentAdjustments = new Map();
@@ -280,6 +292,8 @@ async function deleteGroupedSubcollectionDocs(adminDb, collectionName, fieldName
   return deleted;
 }
 
+//Elimino las referencias de amistad de un usuario y actualizo los contadores 
+// de amigos en los perfiles.
 async function deleteFriendReferencesAndUpdateCounts(adminDb, uid) {
   const ownFriendsSnapshot = await adminDb.collection('usuario').doc(uid).collection('Amigos').get();
   let deleted = 0;
@@ -306,6 +320,8 @@ async function deleteFriendReferencesAndUpdateCounts(adminDb, uid) {
   return deleted;
 }
 
+//Elimino las referencias de comics y tomos de un usuario en sus listas, 
+// y actualizo los contadores en su perfil.
 async function deleteUserComicReferencesAndUpdateCounts(adminDb, comicId, volumeId = null) {
   const volumeFieldNames = ['TomoID', 'VolumeId'];
   const listTypes = ['biblioteca', 'listaDeseados'];
@@ -404,6 +420,8 @@ async function deleteUserComicReferencesAndUpdateCounts(adminDb, comicId, volume
   return deleted;
 }
 
+//Elimino las menciones de un comic o tomo en las actividades, 
+// y si quedan sin menciones las elimino completamente.
 async function pruneActivityMentionsByVolume(adminDb, matchesVolume) {
   const activitiesRef = adminDb.collection('actividades');
   const snapshots = await activitiesRef.get();
@@ -443,6 +461,7 @@ async function pruneActivityMentionsByVolume(adminDb, matchesVolume) {
   return deletedOrPruned;
 }
 
+//Elimino las menciones de una lista temática en las actividades.
 async function pruneActivityMentionsByList(adminDb, matchesList) {
   const activitiesRef = adminDb.collection('actividades');
   const snapshots = await activitiesRef.get();
@@ -482,6 +501,7 @@ async function pruneActivityMentionsByList(adminDb, matchesList) {
   return deletedOrPruned;
 }
 
+//Elimino un canal de StreamChat y su documento en Firestore.
 async function deleteStreamChannelAndMapping(adminDb, channelId) {
   if (!channelId) {
     return false;
@@ -500,18 +520,19 @@ async function deleteStreamChannelAndMapping(adminDb, channelId) {
   try {
     await channel.delete();
   } catch (error) {
-    console.error('Warning: no se pudo eliminar canal en Stream:', error?.message || error);
+    console.error('Adventencia: No se pudo eliminar el canal en StreamChat:', error?.message || error);
   }
 
   try {
     await adminDb.collection('streamChannels').doc(channelId).delete();
   } catch (error) {
-    console.error('Warning: no se pudo eliminar streamChannels doc:', error?.message || error);
+    console.error('Adventencia: no se pudo eliminar el documento de streamChannels:', error?.message || error);
   }
 
   return true;
 }
 
+//Elimino los canales de StreamChat relacionados a un usuario por ser creador, miembro o admin,
 async function deleteUserStreamChannels(adminDb, uid) {
   const channelsRef = adminDb.collection('streamChannels');
   const snapshots = await channelsRef.get();
@@ -538,6 +559,7 @@ async function deleteUserStreamChannels(adminDb, uid) {
   return channelIds.size;
 }
 
+//Elimino las listas temáticas creadas por un usuario y todo su contenido relacionado.
 async function deleteUserOwnedThematicLists(adminDb, uid) {
   const listsRef = adminDb.collection('listasTematicas');
   const snapshots = await listsRef.get();
@@ -556,20 +578,19 @@ async function deleteUserOwnedThematicLists(adminDb, uid) {
     try {
       await deleteThematicListCascade(adminDb, listId);
     } catch (error) {
-      console.error('Warning: no se pudo eliminar lista temática en cascada:', error?.message || error);
+      console.error('Adventencia: No se pudo eliminar lista temática:', error?.message || error);
     }
   }
 
   return ownedListIds.size;
 }
 
+//Elimino las reseñas de un usuario.
 async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
-  // Buscar todas las reseñas del usuario en la colección 'Resenas' (subcollection de comics)
   const reviewsSnapshots = await adminDb.collectionGroup('Resenas').get();
   const reviewsByComicId = new Map();
   let deletedReviews = 0;
 
-  // Agrupar reseñas por comicId y calcular delta por comic
   for (const reviewSnapshot of reviewsSnapshots.docs) {
     const reviewData = reviewSnapshot.data() || {};
     const reviewUserIdFields = [reviewData.UserID, reviewData.userId, reviewData.uid];
@@ -578,7 +599,6 @@ async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
       continue;
     }
 
-    // Obtener el comicId desde la ruta: comics/{comicId}/Resenas/{reviewId}
     const path = reviewSnapshot.ref.path;
     const pathParts = path.split('/');
     
@@ -599,12 +619,10 @@ async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
     comicData.reviews.push(reviewSnapshot.ref);
   }
 
-  // Actualizar agregados en cada comic y borrar las reseñas
   for (const [comicId, comicData] of reviewsByComicId.entries()) {
     const comicRef = adminDb.collection('comics').doc(comicId);
 
     try {
-      // Usar transacción para leer y actualizar de forma atómica
       await adminDb.runTransaction(async (transaction) => {
         const comicSnapshot = await transaction.get(comicRef);
 
@@ -614,26 +632,23 @@ async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
 
         const comicDataDoc = comicSnapshot.data() || {};
         const currentCount = comicDataDoc.CantidadCalificaciones ?? 0;
-        const currentSum = comicDataDoc.PromedioCalificacion ?? 0; // Field used for average, we'll store sum
+        const currentSum = comicDataDoc.PromedioCalificacion ?? 0;
 
-        // Calcular nuevo count y sum
+
         const newCount = Math.max(0, currentCount - comicData.count);
         let newSum = currentSum;
 
-        // Nota: El frontend usa PromedioCalificacion para guardar el promedio.
-        // Para mantener consistencia, debemos trabajar con él.
-        // Si currentCount > 0, currentSum es el promedio. Convertimos a suma para restar.
         let totalSum = currentCount > 0 ? currentSum * currentCount : 0;
         totalSum = Math.max(0, totalSum - comicData.sum);
 
         if (newCount === 0) {
-          // Si no quedan reseñas, limpiar los campos
+            //Si no quedan reseñas, limpio los campos de cantidad y promedio.
           transaction.update(comicRef, {
             CantidadCalificaciones: 0,
             PromedioCalificacion: null,
           });
         } else {
-          // Calcular nuevo promedio
+          //Calculo nuevo promedio.
           const newAverage = totalSum / newCount;
           transaction.update(comicRef, {
             CantidadCalificaciones: newCount,
@@ -641,7 +656,7 @@ async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
           });
         }
 
-        // Borrar todas las reseñas del usuario para este comic
+        //Borro todas las reseñas del usuario para este comic.
         for (const reviewRef of comicData.reviews) {
           transaction.delete(reviewRef);
         }
@@ -649,13 +664,15 @@ async function deleteUserReviewsWithAggregateUpdate(adminDb, uid) {
 
       deletedReviews += comicData.reviews.length;
     } catch (error) {
-      console.error(`Warning: no se pudo actualizar agregados para comic ${comicId}:`, error?.message || error);
+      console.error(`Advertencia: No se pudo actualizar los totales calculados para el comic ${comicId}:`, error?.message || error);
     }
   }
 
   return deletedReviews;
 }
 
+//Elimino todos los datos de un usuario, incluyendo su perfil, referencias en otras colecciones, 
+// actividades, notificaciones, reportes, amistades, listas tematicas y canales de StreamChat.
 async function deleteUserDataWithFullCleanup(adminDb, uid) {
   const referenceFields = getReferenceFields();
   const summary = {
@@ -672,10 +689,11 @@ async function deleteUserDataWithFullCleanup(adminDb, uid) {
     reviews: 0,
   };
 
+  //Elimino listas tematicas creadas por el usuario y sus referencias,
   summary.thematicLists = await deleteUserOwnedThematicLists(adminDb, uid);
   summary.friends = await deleteFriendReferencesAndUpdateCounts(adminDb, uid);
 
-  // Eliminar reseñas y actualizar agregados de cómics
+  //Elimino reseñas y actualizo los totales calculados de comics.
   summary.reviews = await deleteUserReviewsWithAggregateUpdate(adminDb, uid);
 
   const userProfileRef = adminDb.collection('usuario').doc(uid);
@@ -724,6 +742,8 @@ async function deleteUserDataWithFullCleanup(adminDb, uid) {
   return summary;
 }
 
+//Elimino un comic y todo su contenido relacionado, 
+// incluyendo referencias en listas de usuarios, reportes, actividades, notificaciones y subcolecciones.
 async function deleteComicCascade(adminDb, comicId) {
   if (!comicId) {
     throw new Error('comicId es obligatorio.');
@@ -755,6 +775,8 @@ async function deleteComicCascade(adminDb, comicId) {
   return true;
 }
 
+//Elimino un tomo y todo su contenido relacionado, 
+// incluyendo referencias en listas de usuarios, reportes, actividades, notificaciones y subcolecciones.
 async function deleteVolumeCascade(adminDb, comicId, volumeId) {
   if (!comicId || !volumeId) {
     throw new Error('comicId y volumeId son obligatorios.');
@@ -782,7 +804,7 @@ async function deleteVolumeCascade(adminDb, comicId, volumeId) {
     return entry?.comicId === comicId && entry?.volumeId === volumeId;
   });
 
-  // Eliminar el tomo de todas las listas temáticas
+  //Elimino el tomo de todas las listas tematicas.
   const thematicListsRef = adminDb.collection('listasTematicas');
   const allThematicListsSnapshot = await thematicListsRef.get();
   
@@ -797,11 +819,11 @@ async function deleteVolumeCascade(adminDb, comicId, volumeId) {
 
   await volumeRef.delete();
 
-  // Si el cómic no tiene más tomos, eliminar el cómic también
+  //Si el comic no tiene mas tomos, elimino el comic tambien.
   const remainingVolumesSnapshot = await comicRef.collection('tomos').limit(1).get();
 
   if (remainingVolumesSnapshot.empty) {
-    // eliminar el cómic y todo su contenido relacionado
+    //Elimino el comic y todo su contenido relacionado.
     await deleteComicCascade(adminDb, comicId);
     return { comicDeleted: true };
   }
@@ -809,6 +831,8 @@ async function deleteVolumeCascade(adminDb, comicId, volumeId) {
   return { comicDeleted: false };
 }
 
+//Elimino una lista tematica y todo su contenido relacionado, 
+// incluyendo referencias en actividades, reportes, notificaciones y subcolecciones.
 async function deleteThematicListCascade(adminDb, listId) {
   if (!listId) {
     throw new Error('listId es obligatorio.');
@@ -838,6 +862,7 @@ async function deleteThematicListCascade(adminDb, listId) {
   return true;
 }
 
+//Elimino un grupo de chat.
 async function deleteGroupCascade(adminDb, channelId) {
   if (!channelId) {
     throw new Error('channelId es obligatorio.');
@@ -854,12 +879,13 @@ async function deleteGroupCascade(adminDb, channelId) {
   return true;
 }
 
+//Elimino el perfil de usuario y referencias a su UID.
 async function deleteUserDataAcrossCollections(adminDb, uid) {
   const referenceFields = getReferenceFields();
   const deletedDocPaths = [];
   const deletionSummary = {};
 
-  // 1. Eliminar el documento del usuario en la colección raíz 'usuario'
+  //1.Elimino el documento del usuario en la coleccion raiz 'usuario'
   const userProfileRef = adminDb.collection('usuario').doc(uid);
   const userProfileSnapshot = await userProfileRef.get();
 
@@ -869,14 +895,13 @@ async function deleteUserDataAcrossCollections(adminDb, uid) {
     deletionSummary['usuario'] = 1;
   }
 
-  // 2. Buscar y eliminar documentos en TODAS las colecciones raíz que referencien al usuario
+  //2.Busco y elimino documentos en todas las colecciones raíz que referencien al usuario.
   const rootCollections = await adminDb.listCollections();
 
   for (const collectionRef of rootCollections) {
     const collectionName = collectionRef.id;
     let deletedInCollection = 0;
 
-    // Buscar en cada campo de referencia configurado
     for (const fieldName of referenceFields) {
       try {
         const matchingDocs = await collectionRef.where(fieldName, '==', uid).get();
@@ -884,7 +909,7 @@ async function deleteUserDataAcrossCollections(adminDb, uid) {
         for (const documentSnapshot of matchingDocs.docs) {
           const path = documentSnapshot.ref.path;
 
-          // Evitar duplicados si el documento ya fue eliminado
+          //Evito duplicados si el documento ya fue eliminado.
           if (!deletedDocPaths.includes(path)) {
             await adminDb.recursiveDelete(documentSnapshot.ref);
             deletedDocPaths.push(path);
@@ -892,7 +917,6 @@ async function deleteUserDataAcrossCollections(adminDb, uid) {
           }
         }
       } catch (error) {
-        // El campo puede no existir en esta colección, ignorar error
         continue;
       }
     }
@@ -910,6 +934,9 @@ async function deleteUserDataAcrossCollections(adminDb, uid) {
   };
 }
 
+//Elimino las actividades donde el usuario es actor o sujeto, 
+// y las interacciones que haya hecho el usuario en actividades de otros, 
+// ajustando los contadores correspondientes.
 async function deleteActivityAssociations(adminDb, uid) {
   const activitiesRef = adminDb.collection('actividades');
   const activitiesSnapshot = await activitiesRef.get();
@@ -1001,6 +1028,7 @@ async function deleteUserDataWithActivityCleanup(adminDb, uid) {
   };
 }
 
+//Endpoint: Valido si un email esta bloqueado para registro.
 app.post('/api/auth/validate-registration-email', async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email || '');
@@ -1025,6 +1053,7 @@ app.post('/api/auth/validate-registration-email', async (req, res) => {
   }
 });
 
+//Endpoint: Elimino la cuenta del usuario autenticado y todos sus datos relacionados.
 app.delete('/api/users/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1071,6 +1100,8 @@ app.delete('/api/users/me', async (req, res) => {
   }
 });
 
+//Endpoint: Elimino la cuenta de un usuario especifico y todos sus datos relacionados.
+// Esto se usa cuando un admin elimina una cuenta.
 app.delete('/api/admin/users/:uid', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1101,7 +1132,7 @@ app.delete('/api/admin/users/:uid', async (req, res) => {
     try {
       await adminAuth.deleteUser(uid);
     } catch (error) {
-      console.error('Warning: no se pudo eliminar usuario de Auth:', error?.message || error);
+      console.error('Advertencia: No se pudo eliminar el usuario de Auth:', error?.message || error);
     }
 
     return res.json({
@@ -1118,6 +1149,7 @@ app.delete('/api/admin/users/:uid', async (req, res) => {
   }
 });
 
+//Endpoint: Elimino un comic y todo su contenido relacionado.
 app.delete('/api/admin/comics/:comicId', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1140,6 +1172,7 @@ app.delete('/api/admin/comics/:comicId', async (req, res) => {
   }
 });
 
+//Endpoint: Elimino un tomo y todo su contenido relacionado. Si el comic queda sin tomos, se elimina tambien.
 app.delete('/api/admin/comics/:comicId/volumes/:volumeId', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1166,6 +1199,7 @@ app.delete('/api/admin/comics/:comicId/volumes/:volumeId', async (req, res) => {
   }
 });
 
+//Endpoint: Elimino una lista temática y todo su contenido relacionado.
 app.delete('/api/admin/thematic-lists/:listId', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1188,6 +1222,7 @@ app.delete('/api/admin/thematic-lists/:listId', async (req, res) => {
   }
 });
 
+//Endpoint: Elimino un grupo de chat y todo su contenido relacionado.
 app.delete('/api/admin/channels/:channelId', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1221,7 +1256,7 @@ app.delete('/api/admin/channels/:channelId', async (req, res) => {
   }
 });
 
-// Endpoint: generar token de Stream para un usuario autenticado
+// Endpoint: Genero token de StreamChat para un usuario autenticado.
 app.post('/api/stream/token', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1249,19 +1284,18 @@ app.post('/api/stream/token', async (req, res) => {
 
     const serverClient = new StreamChat(apiKey, apiSecret);
 
-    // Upsert minimal user info to Stream (optional but helpful)
     try {
       const userRecord = await getFirestore().collection('usuario').doc(uid).get();
       const profile = userRecord.exists ? userRecord.data() : null;
 
+      //Upsert: Update e Insert. Si el usuario no existe, lo crea. Si existe, actualiza su nombre e imagen.
       await serverClient.upsertUser({
         id: uid,
         name: profile?.nick || profile?.Nick || uid,
         image: getSafeStreamImage(profile),
       });
     } catch (err) {
-      // non-fatal
-      console.error('Warning: no se pudo upsertUser en Stream:', err?.message || err);
+      console.error('Advertencia: No se pudo upsertUser en StreamChat:', err?.message || err);
     }
 
     const token = serverClient.createToken(uid);
@@ -1273,7 +1307,7 @@ app.post('/api/stream/token', async (req, res) => {
   }
 });
 
-// Endpoint: crear canal en Stream con validación de amistad para 1:1
+//Endpoint: Creo canal en StreamChat con validacion de amistad para chat 1:1.
 app.post('/api/stream/channels/create', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1305,9 +1339,7 @@ app.post('/api/stream/channels/create', async (req, res) => {
     const sanitizedName = groupName ? groupName.trim().slice(0, 100) : null;
     const sanitizedDescription = groupDescription ? groupDescription.trim().slice(0, 1000) : null;
 
-    // If this is a 1:1 channel (members length == 2 and distinct), validate friendship
     if (members.length === 2) {
-      // ensure requester is one of members
       if (!members.includes(requesterUid)) {
         return res.status(403).json({ ok: false, message: 'No autorizado para crear este chat 1:1.' });
       }
@@ -1320,7 +1352,6 @@ app.post('/api/stream/channels/create', async (req, res) => {
         return res.status(403).json({ ok: false, message: 'Solo puedes crear chat 1:1 con amigos.' });
       }
     } else {
-      // For group channels, validate that requester is friend with each added member
       for (const uid of members) {
         if (uid === requesterUid) continue;
         const friendDoc = await adminDb.collection('usuario').doc(requesterUid).collection('Amigos').doc(uid).get();
@@ -1361,7 +1392,6 @@ app.post('/api/stream/channels/create', async (req, res) => {
 
     await serverClient.upsertUsers(streamUsers);
 
-    // Create a distinct channel id for 1:1 to avoid duplicates
     let channelId = null;
     const channelType = 'messaging';
 
@@ -1387,14 +1417,12 @@ app.post('/api/stream/channels/create', async (req, res) => {
 
     await channel.create();
 
-    // Update channel with custom data
     try {
       await channel.update(customData);
     } catch (err) {
-      console.error('Warning: no se pudo actualizar datos custom del canal:', err?.message || err);
+      console.error('Advertencia: No se pudo actualizar datos custom del canal:', err?.message || err);
     }
 
-    // Persist mapping in Firestore for local metadata and cascade operations
     try {
       await adminDb.collection('streamChannels').doc(channelId).set({
         streamChannelId: channelId,
@@ -1409,16 +1437,17 @@ app.post('/api/stream/channels/create', async (req, res) => {
         createdAt: new Date(),
       });
     } catch (err) {
-      console.error('Warning: no se pudo persistir streamChannels mapping:', err?.message || err);
+      console.error('Advertencia: No se pudo persistir streamChannels mapping:', err?.message || err);
     }
 
     return res.json({ ok: true, channel: { id: channelId, type: channelType, members } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'No fue posible crear canal Stream.';
+    const message = error instanceof Error ? error.message : 'No fue posible crear canal de StreamChat.';
     return res.status(500).json({ ok: false, message });
   }
 });
 
+//Endpoint: Actualizo datos de un canal de StreamChat, solo si el usuario es admin del grupo.
 app.post('/api/stream/channels/:channelId/update', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1434,7 +1463,6 @@ app.post('/api/stream/channels/:channelId/update', async (req, res) => {
     const { channelId } = req.params;
     const { groupName, groupDescription, groupImageUrl } = req.body || {};
 
-    // Fetch channel from Firestore to check if requester is admin
     const channelDoc = await adminDb.collection('streamChannels').doc(channelId).get();
     if (!channelDoc.exists) {
       return res.status(404).json({ ok: false, message: 'Canal no encontrado.' });
@@ -1467,7 +1495,6 @@ app.post('/api/stream/channels/:channelId/update', async (req, res) => {
 
     await channel.update(updateData);
 
-    // Update Firestore
     await adminDb.collection('streamChannels').doc(channelId).update({
       groupName: sanitizedName,
       groupDescription: sanitizedDescription,
@@ -1481,6 +1508,7 @@ app.post('/api/stream/channels/:channelId/update', async (req, res) => {
   }
 });
 
+//Endpoint: Agrego miembros a un canal de StreamChat, solo si el usuario es admin del grupo.
 app.post('/api/stream/channels/:channelId/add-members', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1500,7 +1528,6 @@ app.post('/api/stream/channels/:channelId/add-members', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'newMemberUids debe ser un array no vacío.' });
     }
 
-    // Fetch channel from Firestore
     const channelDoc = await adminDb.collection('streamChannels').doc(channelId).get();
     if (!channelDoc.exists) {
       return res.status(404).json({ ok: false, message: 'Canal no encontrado.' });
@@ -1512,7 +1539,7 @@ app.post('/api/stream/channels/:channelId/add-members', async (req, res) => {
       return res.status(403).json({ ok: false, message: 'Solo los administradores del grupo pueden agregar miembros.' });
     }
 
-    // Validate friendship with new members
+    //Valido amistad con los nuevos miembros para que el admin del grupo pueda agregarlos.
     for (const uid of newMemberUids) {
       const friendDoc = await adminDb.collection('usuario').doc(requesterUid).collection('Amigos').doc(uid).get();
       if (!friendDoc.exists) {
@@ -1528,7 +1555,6 @@ app.post('/api/stream/channels/:channelId/add-members', async (req, res) => {
 
     const serverClient = new StreamChat(apiKey, apiSecret);
 
-    // Upsert new members
     const newStreamUsers = await Promise.all(
       newMemberUids.map(async (memberUid) => {
         try {
@@ -1550,7 +1576,6 @@ app.post('/api/stream/channels/:channelId/add-members', async (req, res) => {
     const channel = serverClient.channel('messaging', channelId);
     await channel.addMembers(newMemberUids);
 
-    // Update Firestore
     const updatedMembers = [...(channelData.members || []), ...newMemberUids].filter((v, i, a) => a.indexOf(v) === i);
     await adminDb.collection('streamChannels').doc(channelId).update({
       members: updatedMembers,
@@ -1563,6 +1588,7 @@ app.post('/api/stream/channels/:channelId/add-members', async (req, res) => {
   }
 });
 
+//Endpoint: Promuevo a un miembro a admin de un canal de StreamChat, solo si el usuario es admin del grupo.
 app.post('/api/stream/channels/:channelId/make-admin', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1582,7 +1608,6 @@ app.post('/api/stream/channels/:channelId/make-admin', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'userUid es obligatorio.' });
     }
 
-    // Fetch channel from Firestore
     const channelDoc = await adminDb.collection('streamChannels').doc(channelId).get();
     if (!channelDoc.exists) {
       return res.status(404).json({ ok: false, message: 'Canal no encontrado.' });
@@ -1610,7 +1635,6 @@ app.post('/api/stream/channels/:channelId/make-admin', async (req, res) => {
 
     await channel.update({ admins: currentAdmins });
 
-    // Update Firestore
     await adminDb.collection('streamChannels').doc(channelId).update({
       admins: currentAdmins,
     });
@@ -1622,6 +1646,7 @@ app.post('/api/stream/channels/:channelId/make-admin', async (req, res) => {
   }
 });
 
+//Endpoint: Permito a un miembro abandonar un canal de StreamChat.
 app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1636,7 +1661,6 @@ app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
 
     const { channelId } = req.params;
 
-    // Fetch channel from Firestore
     const channelDoc = await adminDb.collection('streamChannels').doc(channelId).get();
     if (!channelDoc.exists) {
       return res.status(404).json({ ok: false, message: 'Canal no encontrado.' });
@@ -1666,7 +1690,6 @@ app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
 
     await channel.removeMembers([requesterUid]);
 
-    // Update Firestore
     const updatedMembers = channelData.members.filter((uid) => uid !== requesterUid);
     const updatedAdmins = remainingAdmins;
 
@@ -1674,7 +1697,7 @@ app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
       try {
         await channel.delete();
       } catch (err) {
-        console.error('Warning: no se pudo eliminar el canal vacío:', err?.message || err);
+        console.error('Advertencia: No se pudo eliminar el canal vacío:', err?.message || err);
       }
 
       await adminDb.collection('streamChannels').doc(channelId).delete();
@@ -1694,6 +1717,7 @@ app.post('/api/stream/channels/:channelId/leave', async (req, res) => {
   }
 });
 
+//Endpoint: Promuevo a un miembro a admin de un canal de StreamChat.
 app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1713,7 +1737,6 @@ app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'memberUid es obligatorio.' });
     }
 
-    // Fetch channel from Firestore
     const channelDoc = await adminDb.collection('streamChannels').doc(channelId).get();
     if (!channelDoc.exists) {
       return res.status(404).json({ ok: false, message: 'Canal no encontrado.' });
@@ -1749,7 +1772,6 @@ app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
 
     await channel.removeMembers([memberUid]);
 
-    // Update Firestore
     const updatedMembers = channelData.members.filter((uid) => uid !== memberUid);
     const updatedAdmins = (channelData.admins || []).filter((uid) => uid !== memberUid);
 
@@ -1765,7 +1787,8 @@ app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
   }
 });
 
-// Admin: buscar chats por userId o channelId (sin sumarse como miembro)
+//Endpoint: Busco canales de StreamChat donde el usuario es miembro o cuyo channelId coincide, 
+// para que el admin pueda observar su contenido.
 app.post('/api/stream/admin/search-chats', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1778,7 +1801,6 @@ app.post('/api/stream/admin/search-chats', async (req, res) => {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const requesterUid = decodedToken.uid;
 
-    // verificar rol de admin en Firestore
     await assertAdminRequest(adminDb, requesterUid)
 
     const { id } = req.body || {};
@@ -1786,7 +1808,7 @@ app.post('/api/stream/admin/search-chats', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'Se requiere id en el cuerpo.' });
     }
 
-    // Si parece un channelId explícito, intentar cargar ese canal
+
     if (String(id).startsWith('group-') || String(id).startsWith('dm-')) {
       const channelDoc = await adminDb.collection('streamChannels').doc(id).get();
       if (!channelDoc.exists) {
@@ -1795,7 +1817,7 @@ app.post('/api/stream/admin/search-chats', async (req, res) => {
       return res.json({ ok: true, channels: [{ id: channelDoc.id, ...channelDoc.data() }] });
     }
 
-    // Buscar canales donde el id aparezca como miembro
+    //Busco canales donde el ID aparezca como miembro.
     const collectionRef = adminDb.collection('streamChannels');
     const snapshots = await collectionRef.where('members', 'array-contains', id).get();
     const channels = [];
@@ -1811,7 +1833,7 @@ app.post('/api/stream/admin/search-chats', async (req, res) => {
   }
 });
 
-// Admin: obtener detalles de un canal y mensajes recientes para observacion (solo lectura)
+//Endpoint: Obtengo detalles de un canal de StreamChat y sus ultimos mensajes.
 app.get('/api/stream/admin/channel/:channelId', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1840,13 +1862,12 @@ app.get('/api/stream/admin/channel/:channelId', async (req, res) => {
     const serverClient = new StreamChat(apiKey, apiSecret);
     const channel = serverClient.channel('messaging', channelId);
 
-    // Intenta recuperar los ultimos mensajes
+    //Recupero los ultimos 50 mensajes.
     let messages = [];
     try {
       const queryResult = await channel.query({ messages: { limit: 50 } });
       messages = queryResult.messages || [];
     } catch (err) {
-      // non fatal
       messages = [];
     }
 
@@ -1860,7 +1881,8 @@ app.get('/api/stream/admin/channel/:channelId', async (req, res) => {
   }
 });
 
-// Admin: eliminar un grupo de chat
+//Endpoint: Obtengo detalles de un canal de StreamChat y sus ultimos mensajes, 
+// para que el admin pueda observar su contenido. Y si considera correcto, eliminarlo.
 app.post('/api/stream/admin/channel/:channelId/delete', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1892,15 +1914,13 @@ app.post('/api/stream/admin/channel/:channelId/delete', async (req, res) => {
     try {
       await channel.delete();
     } catch (err) {
-      // continue even if stream deletion fails
-      console.error('Warning: no se pudo eliminar canal en Stream:', err?.message || err);
+      console.error('Advertencia: No se pudo eliminar canal en StreamChat:', err?.message || err);
     }
 
-    // eliminar mapping en Firestore
     try {
       await adminDb.collection('streamChannels').doc(channelId).delete();
     } catch (err) {
-      console.error('Warning: no se pudo eliminar streamChannels doc:', err?.message || err);
+      console.error('Advertencia: No se pudo eliminar documento de streamChannels:', err?.message || err);
     }
 
     return res.json({ ok: true, message: 'Grupo eliminado (si existia).' });

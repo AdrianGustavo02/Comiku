@@ -150,6 +150,8 @@ export async function hasPendingObjectReport({
   })
 }
 
+//Creo un reporte para un comic, tomo, usuario o grupo de chat. 
+//Verifico que no exista un reporte pendiente del mismo usuario para el mismo objeto antes de crear uno nuevo.
 export async function createReport({
   usuarioIdReporta,
   objetoReportadoId,
@@ -188,8 +190,7 @@ export async function createReport({
     FechaReporte: serverTimestamp(),
   }
 
-  // Añadir `ComicId` solo si aplica (cuando se reporta un tomo),
-  // para evitar campos semánticamente incorrectos en reports de usuarios/comics.
+  // Añado ComicId solo cuando se reporta un tomo.
   if (validatedPayload.nombreObjetoReportado === 'tomo') {
     payload.ComicId = validatedPayload.comicId
   }
@@ -235,6 +236,7 @@ function mapReportSnapshot(snapshot) {
   }
 }
 
+//Obtengo los reportes de una coleccion, puede ser pendiente, resuelto o desestimado.
 async function getReportsPageFromCollection(collectionReference, pageSize = 10, startAfterId = null) {
   let reportQuery
 
@@ -284,6 +286,8 @@ export async function getDismissedReports(pageSize = 10, startAfterId = null) {
   return getReportsPageFromCollection(getArchiveCollection(REPORT_STATUS_DISMISSED), pageSize, startAfterId)
 }
 
+//Resuelvo o desestimo un reporte moviéndolo a la coleccion orrespondiente 
+// y eliminandolo de la colección principal.
 async function archiveReport({ reportId, adminId, status }) {
   ensureFirestoreReady()
 

@@ -256,7 +256,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
       return
     }
 
-    // Validate form data
+    
     const errors = {}
     if (!groupFormData.name.trim()) {
       errors.name = 'El nombre del grupo es obligatorio.'
@@ -305,7 +305,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
           <p className="">Los chats no cuentan con cifrado de extremo a extremo. Un administrador puede revisar los mensajes.</p>
         </header>
 
-        <div className="chats-toolbar" style={{ marginBottom: 12 }}>
+        <div className="chats-toolbar">
           <Button
             variant="primary"
             className="delete-account-button"
@@ -356,8 +356,8 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
                       disabled={creatingChatForUid === friend.uid}
                       style={{ display: 'flex', alignItems: 'center' }}
                     >
-                      <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', marginRight: 12 }} />
-                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                      <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} className="search-suggestion-avatar"/>
+                      <span className="search-suggestion-nick">
                         <strong>{friend.nick}</strong>
                         {creatingChatForUid === friend.uid ? (
                           <span style={{ fontSize: 12, opacity: 0.8 }}>Iniciando conversacion...</span>
@@ -394,8 +394,8 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
                           className="search-suggestion-button"
                           style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         >
-                          <span style={{ display: 'flex', alignItems: 'center' }}>
-                            <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', marginRight: 12 }} />
+                          <span  style={{ display: 'flex', alignItems: 'center' }}>
+                            <img src={friend.fotoPerfil} alt={`Foto de ${friend.nick}`} className="search-suggestion-avatar" />
                             <strong>{friend.nick}</strong>
                           </span>
                           <input
@@ -409,7 +409,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
                   })}
                 </ul>
 
-                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                <div className="group-form-buttons-chats-page">
                   <Button
                     variant="primary"
                     className="delete-account-button"
@@ -442,35 +442,35 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
           <section className="chat-start-card">
             <h2>Configurar grupo ({selectedGroupFriendUids.length + 1} miembros)</h2>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Nombre del grupo</label>
+            <div className="group-form-section">
+              <label className="group-form-label">Nombre del grupo</label>
               <input
                 type="text"
                 placeholder="Ej: Fans del manga"
                 value={groupFormData.name}
                 onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
-                style={{ width: '100%', padding: 10, border: '1px solid #d7d7d7', borderRadius: 10 }}
+                className="group-form-input"
                 maxLength={100}
               />
-              {groupFormErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{groupFormErrors.name}</p>}
-              <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{groupFormData.name.length}/100 caracteres</p>
+              {groupFormErrors.name && <p className="group-form-error">{groupFormErrors.name}</p>}
+              <p className="group-form-length">{groupFormData.name.length}/100 caracteres</p>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Descripción (opcional)</label>
+            <div className="group-form-section">
+              <label className="group-form-label">Descripción (opcional)</label>
               <textarea
                 placeholder="Ej: Grupo para fans de mangas clásicos"
                 value={groupFormData.description}
                 onChange={(e) => setGroupFormData({ ...groupFormData, description: e.target.value })}
-                style={{ width: '100%', padding: 10, border: '1px solid #d7d7d7', borderRadius: 10, fontFamily: 'inherit', resize: 'vertical', minHeight: 80 }}
+                className="group-form-input"
                 maxLength={500}
               />
-              {groupFormErrors.description && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{groupFormErrors.description}</p>}
-              <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{groupFormData.description.length}/500 caracteres</p>
+              {groupFormErrors.description && <p className="group-form-error">{groupFormErrors.description}</p>}
+              <p className="group-form-length">{groupFormData.description.length}/500 caracteres</p>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Foto del grupo (opcional)</label>
+            <div className="group-form-section">
+              <label className="group-form-label">Foto del grupo (opcional)</label>
               <FileInput
                 id="group-image-input"
                 accept={ALLOWED_IMAGE_TYPES.join(',')}
@@ -479,14 +479,14 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
                 initialFileName={groupImageFileName}
               />
               {groupFormData.imagePreview && (
-                <div style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
-                  <img src={groupFormData.imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div className="group-form-image-preview-wrapper">
+                  <img className="group-form-image-preview" src={groupFormData.imagePreview} alt=""/>
                 </div>
               )}
-              {groupFormErrors.image && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{groupFormErrors.image}</p>}
+              {groupFormErrors.image && <p className="group-form-error">{groupFormErrors.image}</p>}
             </div>
 
-            <div style={{ marginTop: 20, display: 'flex', gap: 8 }}>
+            <div className="group-form-buttons-chats-page">
               <Button
                 variant="primary"
                 className="delete-account-button"
@@ -552,8 +552,8 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
                         }}
                         disabled={Boolean(blockedByMeMap[u.uid])}
                       >
-                        <img src={u.fotoPerfil} alt={`Foto de ${u.nick}`} style={{width:40,height:40,borderRadius:'50%',objectFit:'cover',marginRight:12}} />
-                        <span style={{display:'flex',flexDirection:'column',alignItems:'flex-start',lineHeight:1.2}}>
+                        <img src={u.fotoPerfil} alt={`Foto de ${u.nick}`} className="search-suggestion-avatar"/>
+                        <span className="search-suggestion-nick">
                           <strong>{u.nick}</strong>
                           {blockedByMeMap[u.uid] ? (
                             <span className="chat-search-blocked-help">Desbloquea a este usuario para acceder a su perfil</span>
@@ -569,7 +569,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
           )
         ) : null}
 
-        <div className="chat-panel-wrapper" style={{ marginTop: 18 }}>
+        <div className="chat-panel-wrapper">
           <ChatPanel
             authUser={authUser}
             selectedChannel={selectedChannel}

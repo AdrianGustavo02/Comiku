@@ -121,7 +121,7 @@ function CreateThematicListPage({
   const [notice, setNotice] = useState('')
   const searchRef = useRef(null)
 
-  // Paso 1: Datos de la lista
+
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [esGuiaDeLectura, setEsGuiaDeLectura] = useState(false)
@@ -147,7 +147,7 @@ function CreateThematicListPage({
     }
   }, [])
 
-  // Cargar lista existente si estamos editando
+  //Cargar lista existente si estoy editando.
   useEffect(() => {
     let cancelled = false
 
@@ -226,7 +226,8 @@ function CreateThematicListPage({
     }
   }, [listId, authUser?.uid])
 
-  // Cargar todos los comics cuando llegamos al paso 2
+
+  //Cargar comics y tomos para mostrar en las sugerencias de búsqueda.
   useEffect(() => {
     if (step !== 2) return
 
@@ -407,7 +408,7 @@ function CreateThematicListPage({
       setSaving(true)
 
       if (listId) {
-        // Actualizar lista existente
+        //Actualizar lista existente
         await updateThematicList({
           listId,
           nombre,
@@ -417,18 +418,17 @@ function CreateThematicListPage({
 
         const currentVolumes = await getListVolumes({ listId })
 
-        // Eliminar tomos removidos y agregar nuevos (evitar duplicados)
+        //Eliminar tomos removidos y agregar nuevos
         const currentVolumeIds = new Set(currentVolumes.map((v) => v.tomoId))
         const selectedVolumeIds = new Set(selectedVolumes.map((v) => v.tomoId))
 
-        // Borrar los que estaban en BD pero el usuario removió
         for (const currentVolume of currentVolumes) {
           if (!selectedVolumeIds.has(currentVolume.tomoId)) {
             await removeVolumeFromList({ listId, tomoId: currentVolume.tomoId })
           }
         }
 
-        // Agregar los nuevos tomos que el usuario añadió
+        //Agregar los nuevos tomos que el usuario añadió
         for (let i = 0; i < selectedVolumes.length; i++) {
           const volume = selectedVolumes[i]
 
@@ -442,7 +442,7 @@ function CreateThematicListPage({
           }
         }
 
-        // Actualizar fotos de portadas con los primeros 3 tomos
+        //Actualizar fotos de portadas con los primeros 3 tomos
         const photos = await buildListCoverPhotos(selectedVolumes)
 
         await updateListPhotos({
@@ -453,7 +453,7 @@ function CreateThematicListPage({
         onFinishCreation(listId)
         return
       } else {
-        // Crear nueva lista
+        //Crear nueva lista
         if (!authUser?.uid) {
           setError('No hay sesión activa.')
           return
@@ -466,7 +466,7 @@ function CreateThematicListPage({
           esGuiaDeLectura,
         })
 
-        // Agregar tomos a la nueva lista
+        //Agregar tomos a la nueva lista
         for (let i = 0; i < selectedVolumes.length; i++) {
           const volume = selectedVolumes[i]
 
@@ -478,7 +478,7 @@ function CreateThematicListPage({
           })
         }
 
-        // Actualizar fotos de portadas con los primeros 3 tomos
+        //Actualizar las fotos de portadas con los primeros 3 tomos
         const photos = await buildListCoverPhotos(selectedVolumes)
 
         await updateListPhotos({

@@ -386,9 +386,7 @@ width: min(1180px, 100%);
   .home-carousel-track {
     min-height: clamp(360px, 78vw, 520px);
   }
-}
 
-@media (max-width: 900px) {
   .home-highlight-section {
     padding: 16px;
   }

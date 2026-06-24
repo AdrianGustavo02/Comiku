@@ -73,6 +73,7 @@ function splitInChunks(values, chunkSize) {
   return chunks
 }
 
+
 function mapActivitySnapshot(snapshot) {
   const data = snapshot.data()
 
@@ -102,6 +103,7 @@ function mapCommentSnapshot(snapshot) {
     fecha: data.fecha || null,
   }
 }
+
 
 async function hydrateProfilesByUid(items, uidField) {
   const uniqueUids = Array.from(
@@ -175,7 +177,6 @@ export async function getActivitiesPage({ friendUids, pageSize = 10, cursor = nu
 
       const combined = new Map()
       userIdSnapshots.docs.forEach((docSnap) => combined.set(docSnap.id, mapActivitySnapshot(docSnap)))
-        // legacySnapshots.docs.forEach((docSnap) => combined.set(docSnap.id, mapActivitySnapshot(docSnap)))
 
       return Array.from(combined.values())
     }),
@@ -234,6 +235,7 @@ export async function getActivitiesPage({ friendUids, pageSize = 10, cursor = nu
   }
 }
 
+//Obtengo una actividad por su ID.
 export async function getActivityById(activityId) {
   ensureFirestoreReady()
 
@@ -282,7 +284,7 @@ export async function toggleLikeActivity({ activityId, uid }) {
     }
 
     try {
-      // Eliminar notificación asociada al like (si existe)
+      //Elimino la notificacion asociada al like si es que existe.
       const activitySnapshot = await getDoc(activityReference)
       if (activitySnapshot.exists()) {
         const activityData = activitySnapshot.data()
@@ -319,7 +321,7 @@ export async function toggleLikeActivity({ activityId, uid }) {
       CantidadLikes: increment(1),
     })
 
-    // Crear notificación al propietario de la actividad
+    //Creo una notificacion al propietario de la actividad.
     const activitySnapshot = await getDoc(activityReference)
     if (activitySnapshot.exists()) {
       const activityData = activitySnapshot.data()
@@ -343,6 +345,7 @@ export async function toggleLikeActivity({ activityId, uid }) {
   return { liked: true }
 }
 
+//Obtengo la cantidad de likes de una actividad.
 export async function getCantidadLikes(activityId) {
   ensureFirestoreReady()
 
@@ -396,7 +399,7 @@ export async function addComment({ activityId, uid, texto }) {
       CantidadComentarios: increment(1),
     })
 
-    // Crear notificación al propietario de la actividad
+    //Creo una notificacion al propietario de la actividad.
     const activitySnapshot = await getDoc(activityReference)
     if (activitySnapshot.exists()) {
       const activityData = activitySnapshot.data()
@@ -420,6 +423,7 @@ export async function addComment({ activityId, uid, texto }) {
   }
 }
 
+//Elimino un comentario de una actividad. Solo el autor del comentario puede eliminarlo.
 export async function deleteComment({ activityId, commentId, uid }) {
   ensureFirestoreReady()
 
@@ -452,7 +456,7 @@ export async function deleteComment({ activityId, commentId, uid }) {
   }
 
   try {
-    // Eliminar notificación asociada al comentario (si existe)
+    //Eliminor la notificacion asociada al comentario si es que existe.
     const activitySnapshot = await getDoc(activityReference)
     if (activitySnapshot.exists()) {
       const activityData = activitySnapshot.data()
@@ -477,6 +481,7 @@ export async function deleteComment({ activityId, commentId, uid }) {
   }
 }
 
+//Obtengo los comentarios de una actividad, ordenados del mas nuevo al mas viejo.
 export async function getCommentsPage({ activityId, pageSize = 10, cursor = null }) {
   ensureFirestoreReady()
 
@@ -528,6 +533,7 @@ export async function getCommentsPage({ activityId, pageSize = 10, cursor = null
   }
 }
 
+//Busco si ya existe una actividad del tipo dado para el usuario y día.
 async function findTodayActivity({ actorUid, type, dayKey }) {
   const queries = [
     query(
@@ -550,6 +556,8 @@ async function findTodayActivity({ actorUid, type, dayKey }) {
   return null
 }
 
+ //Agrego una actividad de tipo "tomo agregado" al día de hoy. 
+ // Si ya existe una actividad de ese tipo para hoy, la actualizo.
 export async function appendVolumeActivityForToday({
   actorUid,
   type,
@@ -659,10 +667,9 @@ export async function appendThematicListActivityForToday({
   })
 }
 
-/**
- * Elimina todos los likes y comentarios que un usuario hizo en las actividades de otro usuario
- * Se usa cuando se bloquea o termina amistad
- */
+
+ //Elimino todos los likes y comentarios que un usuario hizo en las actividades de otro usuario.
+ //Se usa cuando se bloquea o termina amistad.
 export async function deleteUserContentFromActivities(activityOwnerUid, contentCreatorUid) {
   ensureFirestoreReady()
 
@@ -671,7 +678,7 @@ export async function deleteUserContentFromActivities(activityOwnerUid, contentC
   }
 
   try {
-    // Buscar todas las actividades del propietario
+    //Busco todas las actividades del usuario.
     const activitiesQuery = query(
       collection(db, ACTIVITIES_COLLECTION),
       where('UserID', '==', activityOwnerUid),
@@ -682,13 +689,13 @@ export async function deleteUserContentFromActivities(activityOwnerUid, contentC
     const batch = writeBatch(db)
     let hasChanges = false
 
-    // Para cada actividad, buscar y eliminar likes y comentarios del usuario
+    //Para cada actividad, busco y elimino likes y comentarios del usuario.
     for (const activityDoc of activitiesSnapshot.docs) {
       const activityRef = activityDoc.ref
       let likesToDelete = 0
       let commentsToDelete = 0
 
-      // Verificar si existe like
+      //Verifico si existe like.
       const likeRef = doc(activityRef, LIKES_SUBCOLLECTION, contentCreatorUid)
       const likeSnapshot = await getDoc(likeRef)
       
@@ -698,7 +705,7 @@ export async function deleteUserContentFromActivities(activityOwnerUid, contentC
         hasChanges = true
       }
 
-      // Buscar comentarios del usuario
+      //Busco comentarios del usuario.
       const commentsQuery = query(
         collection(activityRef, COMMENTS_SUBCOLLECTION),
         where('UserID', '==', contentCreatorUid),
@@ -712,7 +719,7 @@ export async function deleteUserContentFromActivities(activityOwnerUid, contentC
         hasChanges = true
       })
 
-      // Actualizar contadores en la actividad
+      //Actualizo contadores en la actividad.
       if (likesToDelete > 0 || commentsToDelete > 0) {
         const updates = {}
         
@@ -728,12 +735,12 @@ export async function deleteUserContentFromActivities(activityOwnerUid, contentC
       }
     }
 
-    // Ejecutar todas las operaciones en lote
+
     if (hasChanges) {
       await batch.commit()
     }
   } catch (error) {
-    console.error('Error deleting user content from activities:', error)
+    console.error('Error al eliminar contenido de usuario en actividades:', error)
     throw error
   }
 }

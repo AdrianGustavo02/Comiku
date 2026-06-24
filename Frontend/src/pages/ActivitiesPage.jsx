@@ -40,7 +40,7 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, on
           setCursor(page.last)
           setError('')
 
-          // Si hay un selectedActivityId, búscalo y abrelo
+          // Si se selecciona una actividad, la busca y la carga en el modal
           if (selectedActivityId) {
             const activity = await getActivityById(selectedActivityId)
             if (activity && !cancelled) {
@@ -86,7 +86,8 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, on
         .filter((friendUid) => !blockedUids.has(friendUid))
 
       const page = await getActivitiesPage({ friendUids, pageSize: 10, cursor, includeOwnUid: authUser.uid })
-      // Evitar duplicados si la actividad propia ya estaba en la lista
+      // Hago una lista con actividades existentes, luego hago otra lista con las nuevas actividades 
+      // que no esten en la lista existente y las junto para evitar duplicados
       setActivities((s) => {
         const existingIds = new Set(s.map((it) => it.id))
         const newItems = page.items.filter((it) => !existingIds.has(it.id))
@@ -100,6 +101,8 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, on
     }
   }
 
+  //Si se actualizan los likes o comentarios de la actividad, se refleja en la lista 
+  // y en el modal si es que la actividad abierta es la misma
   const handleActivityStatsChange = ({ activityId, cantidadLikes, cantidadComentarios }) => {
     setActivities((currentActivities) =>
       currentActivities.map((activityItem) => {

@@ -24,7 +24,7 @@ export async function addPendingCreation(payload) {
 
   const now = Timestamp.now()
 
-  // Ensure we store the sender as `UserID` for consistency with user collection
+  //Normalizo el payload para asegurar que tenga los campos necesarios y un formato consistente.
   const normalized = {
     ...payload,
     estado: 'pendiente',
@@ -35,7 +35,7 @@ export async function addPendingCreation(payload) {
     normalized.UserID = payload.remitenteUid
   }
 
-  // remove transient fields like remitenteNick if present
+
   delete normalized.remitenteUid
   delete normalized.remitenteNick
 
@@ -91,13 +91,13 @@ export async function approvePendingCreation(id) {
 
   if (!pending) throw new Error('Creación pendiente no encontrada')
 
-  // pending.tipo: 'tomos' | 'comic_y_tomos'
-  // pending.metadata: metadata object
-  // pending.tomos: array of volume objects
+  //pending.tipo = Tipo de creación (ej: 'comic_y_tomos').
+  //pending.metadata: Objeto con los datos para crear el comic.
+  //pending.tomos: Array de objetos con los datos de cada tomo a agregar al comic.
   let targetComicId = pending.comicId || null
 
   if (pending.tipo === 'comic_y_tomos') {
-    // create comic using metadata
+    //Creo un comic usando la metadata.
     const comicDraft = pending.metadata || {}
     targetComicId = await createComic({
       nombre: comicDraft.nombre,
@@ -115,12 +115,12 @@ export async function approvePendingCreation(id) {
     throw new Error('No se pudo determinar el comic destino para los tomos')
   }
 
-  // Add volumes
+  //Agrego los tomos al comic.
   const tomos = Array.isArray(pending.tomos) ? pending.tomos : []
 
-  // Validate ISBN uniqueness:
-  // - Detect duplicates dentro del mismo envío
-  // - Detectar ISBNs que ya existen en la base de datos
+  //Valido los ISBNs antes de agregar cualquier tomo.
+  //-Detecto ISBNs duplicados dentro del mismo envío
+  //-Detecto ISBNs que ya existen en la base de datos
   const isbnIndexMap = {}
   const internalConflicts = {}
   const existingConflicts = {}
@@ -132,7 +132,7 @@ export async function approvePendingCreation(id) {
     if (!isbnNum) continue
 
     if (!isbnIndexMap[isbnNum]) isbnIndexMap[isbnNum] = []
-    isbnIndexMap[isbnNum].push(i + 1) // 1-based index for user-friendly messages
+    isbnIndexMap[isbnNum].push(i + 1)
   }
 
   for (const [isbn, indices] of Object.entries(isbnIndexMap)) {
@@ -141,14 +141,13 @@ export async function approvePendingCreation(id) {
     }
   }
 
-  // Check against existing DB entries
+
   for (const isbnStr of Object.keys(isbnIndexMap)) {
     const isbnValue = Number.parseInt(isbnStr, 10)
     try {
       const exists = await isbnExists(isbnValue)
       if (exists) existingConflicts[isbnValue] = isbnIndexMap[isbnStr]
     } catch {
-      // ignore check failures, continue
     }
   }
 
@@ -188,7 +187,7 @@ export async function approvePendingCreation(id) {
     })
   }
 
-  // delete pending
+
   await deletePendingCreation(id)
 
   return { comicId: targetComicId, addedVolumes: tomos.length }

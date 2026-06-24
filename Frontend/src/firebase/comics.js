@@ -134,6 +134,7 @@ function mapVolumeSnapshot(snapshot) {
   }
 }
 
+//Obtengo todos los comics ordenados por nombre.
 export async function getAllComics() {
   ensureFirestoreReady()
 
@@ -143,6 +144,7 @@ export async function getAllComics() {
   return comics.sort((a, b) => toSortableText(a.nombre).localeCompare(toSortableText(b.nombre), 'es'))
 }
 
+//Obtengo un comic por su ID.
 export async function getComicById(comicId) {
   ensureFirestoreReady()
 
@@ -159,6 +161,7 @@ export async function getComicById(comicId) {
   return mapComicSnapshot(snapshot)
 }
 
+//Obtengo los tomos de un comic.
 export async function getComicVolumes(comicId) {
   ensureFirestoreReady()
 
@@ -189,6 +192,7 @@ export async function getComicVolumes(comicId) {
   })
 }
 
+//Obtengo un tomo de un comic.
 export async function getComicVolumeById({ comicId, volumeId }) {
   ensureFirestoreReady()
 
@@ -219,6 +223,7 @@ function mapReviewSnapshot(snapshot) {
   }
 }
 
+//Obtengo la reseña de un usuario para un comic.
 export async function getUserReview(comicId, usuarioId) {
   ensureFirestoreReady()
 
@@ -294,7 +299,7 @@ export async function addReview({ comicId, usuarioId, descripcion, calificacion 
     payload,
   )
 
-  // actualizar agregados en el documento del comic
+  //Actualizo el promedio de un comic al agregar una nueva reseña.
   const comicRef = doc(db, COMICS_COLLECTION, comicId)
   const comicSnap = await getDoc(comicRef)
   const data = comicSnap.exists() ? comicSnap.data() : {}
@@ -338,7 +343,7 @@ export async function updateReview({ comicId, reviewId, descripcion, calificacio
     Fecha: serverTimestamp(),
   })
 
-  // actualizar promedio en comic
+  //Actualizo el promedio de un comic al actualizar una reseña.
   const comicRef = doc(db, COMICS_COLLECTION, comicId)
   const comicSnap = await getDoc(comicRef)
   const comicData = comicSnap.exists() ? comicSnap.data() : {}
@@ -370,7 +375,7 @@ export async function deleteReview({ comicId, reviewId }) {
 
   await deleteDoc(reviewRef)
 
-  // actualizar promedio en comic
+  //Actualizo el promedio de un comic al eliminar una reseña.
   const comicRef = doc(db, COMICS_COLLECTION, comicId)
   const comicSnap = await getDoc(comicRef)
   const comicData = comicSnap.exists() ? comicSnap.data() : {}
@@ -419,6 +424,8 @@ export async function isbnExists(isbn) {
   return false
 }
 
+//Verifico si el ISBN existe, pero excluyendo un comic y tomo específico.
+//Usado al editar para no chocar con el mismo tomo.
 export async function isbnExistsExcluding(isbn, excludeComicId = null, excludeVolumeId = null) {
   ensureFirestoreReady()
 
@@ -456,6 +463,7 @@ export async function isbnExistsExcluding(isbn, excludeComicId = null, excludeVo
   return false
 }
 
+//Actualizo los datos de un comic.
 export async function updateComic({
   comicId,
   nombre,
@@ -489,6 +497,7 @@ export async function updateComic({
   await updateDoc(comicRef, payload)
 }
 
+//Actualizo datos de un tomo.
 export async function updateComicVolume({
   comicId,
   volumeId,
@@ -520,6 +529,7 @@ export async function updateComicVolume({
   await updateDoc(volumeRef, payload)
 }
 
+//Elimino el comic completo.
 export async function deleteComicByAdmin({ idToken, comicId }) {
   ensureFirestoreReady()
 
@@ -544,6 +554,7 @@ export async function deleteComicByAdmin({ idToken, comicId }) {
   return payload
 }
 
+//Elimino un tomo específico de un comic, no el comic completo.
 export async function deleteVolumeByAdmin({ idToken, comicId, volumeId }) {
   ensureFirestoreReady()
 

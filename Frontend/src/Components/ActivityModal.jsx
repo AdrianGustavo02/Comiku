@@ -100,6 +100,7 @@ function ActivityModal({
     }
   }
 
+  //Agrego un comentario a la actividad.
   const handleAddComment = async () => {
     const cleanCommentText = sanitizeForbiddenInputChars(commentText).trim()
 
@@ -131,6 +132,7 @@ function ActivityModal({
     }
   }
 
+  //Elimino un comentario.
   const handleDeleteComment = async (commentId) => {
     if (deletingCommentId) return
 
@@ -151,6 +153,7 @@ function ActivityModal({
     }
   }
 
+  //Cargo mas comentarios.
   const loadMoreComments = async () => {
     if (!commentsCursor) return
     setLoadingComments(true)

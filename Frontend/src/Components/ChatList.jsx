@@ -67,6 +67,8 @@ function getUnreadCount(channel) {
   return typeof channel?.state?.unreadCount === 'number' ? channel.state.unreadCount : 0
 }
 
+//Obtengo el título del canal, ya sea por nombre, nombre de grupo o 
+// por el nombre del otro miembro en caso de ser un chat directo.
 function getChannelTitle(channel, currentUserId) {
   if (channel.data?.name) {
     return channel.data.name
@@ -221,6 +223,7 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
   useEffect(() => {
     let cancelled = false
 
+    //Agrego el canal seleccionado a la lista de canales si no está presente.
     async function addSelectedChannel() {
       if (!selectedChannel?.id) {
         return

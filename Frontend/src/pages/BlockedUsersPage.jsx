@@ -39,6 +39,8 @@ function BlockedUsersPage({ authUser, onBack, onPageReady }) {
     }
   }, [authUser.uid])
 
+  //Desbloqueo a un usuario, con el processingUid deshabilito los botones. Ejecuto unblockUser 
+  // y luego actualizo la vista.
   const handleUnblock = async (blockedUid) => {
     try {
       setProcessingUid(blockedUid)
@@ -80,28 +82,17 @@ function BlockedUsersPage({ authUser, onBack, onPageReady }) {
               {blockedUsers.map((user) => (
                 <li
                   key={user.uid}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 12,
-                    borderBottom: '1px solid #e5e5e5',
-                    gap: 12,
-                  }}
+                  className="blocked-user-item"
                 >
                   <img
                     src={user.fotoPerfil}
                     alt={`Foto de ${user.nick}`}
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                    }}
+                    className="blocked-user-avatar"
                   />
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontWeight: 500 }}>{user.nick}</p>
+                    <p className="blocked-user-nick">{user.nick}</p>
                     {user.fechaBloqueo && (
-                      <p style={{ margin: 0, fontSize: 12, color: '#999' }}>
+                      <p className="blocked-user-date">
                         Bloqueado el {user.fechaBloqueo.toLocaleDateString('es-AR')}
                       </p>
                     )}

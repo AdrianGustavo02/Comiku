@@ -8,7 +8,7 @@ import CoverPreview from './CoverPreview'
 import Button from './Button'
 import ConfirmModal from './ConfirmModal'
 import '../styles/Modal.css'
-import './GroupSettings.css'
+import '../styles/GroupSettings.css'
 
 export default function GroupSettings({ channel, authUser, onClose = () => {}, onUpdated = () => {}, onOpenProfile = () => {} }) {
   const members = channel?.data?.members || []
@@ -35,7 +35,6 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   const [deleteError, setDeleteError] = useState('')
   const [deletingGroup, setDeletingGroup] = useState(false)
   const [leaveModalOpen, setLeaveModalOpen] = useState(false)
-  // report group state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS_FOR_GROUP[0])
   const [reportDescription, setReportDescription] = useState('')
@@ -46,6 +45,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
   const reportDialogRef = useRef(null)
   const deleteDialogRef = useRef(null)
 
+  //Actualizo los nicks de los miembros y la información del grupo cuando cambia el canal.
   useEffect(() => {
     let cancelled = false
 
@@ -82,6 +82,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
   }, [channel?.id, channel?.data?.groupName, channel?.data?.name, channel?.data?.groupDescription, channel?.data?.image, channel?.data?.groupImageUrl, channel?.data?.members])
 
+  //Cargo la lista de amigos disponibles para agregar cuando se abre el panel de agregar miembros.
   useEffect(() => {
     if (activeTab !== 'members' || !isAdmin || !authUser?.uid || !showAddMembersPanel) {
       return
@@ -104,6 +105,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     handleLoadFriends()
   }, [activeTab, isAdmin, authUser?.uid, channel?.data?.members, showAddMembersPanel])
 
+  //Cuando se abre el modal de reporte, hago foco en el y lo centro en la pantalla.
   useEffect(() => {
     if (!isReportModalOpen) {
       return
@@ -122,6 +124,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     deleteDialogRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [deleteModalOpen])
 
+  //Cuando se selecciona una imagen, la leo y la comprimo antes de mostrarla.
   async function handleImageSelect(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -155,6 +158,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     setErrors((currentErrors) => ({ ...currentErrors, image: null }))
   }
 
+  //Guardo cambios de informacion del grupo.
   async function handleSaveGroupInfo() {
     const newErrors = {}
 
@@ -202,6 +206,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
   }
 
+  //Agrego miembros al grupo.
   async function handleAddMembers() {
     if (selectedFriendsToAdd.length === 0) {
       setErrors({ members: 'Selecciona al menos un amigo.' })
@@ -229,6 +234,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
   }
 
+  //Promuevo a un miembro a admin.
   async function handleMakeAdmin(userUid) {
     try {
       setLoading(true)
@@ -248,6 +254,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
   }
 
+  //Elimino a un miembro del grupo.
   async function handleRemoveMember(memberUid) {
     if (!window.confirm('¿Estás seguro de que quieres eliminar a este miembro del grupo?')) {
       return
@@ -280,6 +287,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     setOpenMemberMenuId('')
   }
 
+  //Abandono el grupo.
   async function handleLeaveGroup() {
     if (!channel?.id) {
       setErrors({ leave: 'Grupo inválido.' })
@@ -314,6 +322,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     setDeleteModalOpen(false)
   }
 
+  //Elimino el grupo.
   async function handleDeleteGroup() {
     if (!channel?.id) {
       setDeleteError('Grupo inválido.')
@@ -334,6 +343,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     }
   }
 
+  //Proceso la captura de pantalla del reporte y genero una vista previa.
   function handleReportScreenshotChange(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -355,6 +365,7 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
     setReportError('')
   }
 
+  //Envio el reporte del grupo.
   async function handleSubmitGroupReport(e) {
     e.preventDefault()
     setReportError('')
@@ -523,7 +534,6 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
                       const hasPending = await hasPendingObjectReport({ usuarioIdReporta: authUser?.uid, objetoReportadoId: channel.id, nombreObjetoReportado: 'grupo de chat' })
                       if (hasPending) setReportError('Ya tienes un reporte pendiente para este grupo. Podrás volver a reportarlo cuando se resuelva.')
                     } catch {
-                      // ignore
                     }
                     setIsReportModalOpen(true)
                   }}

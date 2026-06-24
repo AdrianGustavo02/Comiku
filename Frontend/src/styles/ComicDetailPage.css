@@ -292,7 +292,7 @@
   }
 }
 
-/* Reseñas */
+
 .comic-detail-reviews {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -342,7 +342,7 @@
   color: #ffb05c;
 }
 
-/* Hover / focus effect para botones de estrella */
+
 .star-button:hover,
 .star-button:focus-visible {
   background: rgba(255, 138, 31, 0.12);
@@ -438,7 +438,7 @@
   }
 }
 
-/* Botón de enlace a perfil en reseñas (antes inline styles) */
+
 .profile-link-button {
   background: none;
   border: none;

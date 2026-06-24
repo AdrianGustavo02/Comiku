@@ -1,7 +1,5 @@
 # React + Vite
 
-This template now includes a ready-to-use Firebase and Firestore connection layer for Comiku.
-
 ## Firestore Setup
 
 1. Copy [.env.example](.env.example) to `.env`.

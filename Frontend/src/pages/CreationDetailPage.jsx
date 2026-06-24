@@ -84,7 +84,7 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
 
         if (cancelled) return
 
-        // intentar resolver nick del remitente
+        //Cargo el nick del remitente para mostrarlo.
         if (data?.UserID) {
           try {
             const profile = await getUserProfile(data.UserID)
@@ -94,7 +94,8 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
           }
         }
 
-        // preparar localData y si es tipo 'tomos' intentar rellenar metadata desde comicId
+        //Copio la metadata del comic para mostrarla y editarla aunque no venga en la creación pendiente, 
+        // en caso de que sea una creación de tomos.
         const copy = JSON.parse(JSON.stringify(data || {}))
         if (!copy.metadata && copy.tipo === 'tomos' && copy.comicId) {
           try {
@@ -112,7 +113,6 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
               }
             }
           } catch {
-            // ignore
           }
         }
 
@@ -133,12 +133,12 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
     return () => { cancelled = true }
   }, [creationId])
 
+  //Deshabilito los botones y llamo a approvePendingCreation. Si se aprueba, onApproved actualiza la lista.
   const handleApprove = async () => {
     try {
       setLoading(true)
       await approvePendingCreation(creationId)
       if (onApproved) onApproved()
-      // Confirmation handled by parent via `onApproved`
     } catch (err) {
       const message = err && err.message ? err.message : 'No fue posible aprobar la creación.'
       setError(message)
@@ -147,6 +147,7 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
     }
   }
 
+  //Deshabilito los botones y llamo a deletePendingCreation. Si se elimina, onBack actualiza la lista.
   const handleDismiss = async () => {
     try {
       await deletePendingCreation(creationId)
@@ -157,18 +158,17 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
     }
   }
 
+  // Abro el modal de edición de tomo y precargo los datos del tomo seleccionado.
   const handleVolumeEditOpen = (index) => {
     const tomo = localData?.tomos?.[index]
 
     if (!tomo) return
-
     setVolumeEditForm({
       mode: tomo.tomoUnico ? 'unico' : 'numero',
       numeroTomo: tomo.numeroTomo !== null && tomo.numeroTomo !== undefined ? String(tomo.numeroTomo) : '',
       isbn: tomo.isbn !== null && tomo.isbn !== undefined ? String(tomo.isbn) : '',
       fechaPublicacion: tomo.fechaPublicacion || '',
     })
-    // portada: mostrar preview si existe
     if (tomo.portada && tomo.portada.dataUrl) {
       setVolumeCoverPreview(tomo.portada.dataUrl)
       setVolumeCoverFileName(tomo.portada.fileName || '')
@@ -185,7 +185,6 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
   const closeVolumeEditModal = () => {
     if (savingVolumeMetadata) return
     setVolumeEditError('')
-    // limpiar preview temporal
     if (volumeCoverPreview && volumeCoverFile) {
       try { URL.revokeObjectURL(volumeCoverPreview) } catch (e) { void e }
     }
@@ -225,6 +224,7 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
     return ''
   }
 
+  //Validaciones del formulario.
   const handleSaveVolumeMetadata = async () => {
     const validationMessage = validateVolumeForm(volumeEditForm)
 
@@ -256,7 +256,6 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
       fechaPublicacion: volumeEditForm.fechaPublicacion,
     }
 
-    // manejar portada: si se seleccionó un archivo, convertir a dataUrl e incluirlo
     try {
       if (volumeCoverFile) {
         if (!ALLOWED_IMAGE_TYPES.includes(volumeCoverFile.type)) {
@@ -278,7 +277,6 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
           source: 'firestore-inline',
         }
       } else {
-        // si no se seleccionó nuevo archivo, mantener la portada existente (si la hay)
         updatedVolume.portada = currentVolume.portada || null
       }
     } catch (err) {
@@ -357,6 +355,7 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
     return ''
   }
 
+  //Abro el modal de edición de comic y precargo los datos del comic seleccionado.
   const openComicEditModal = () => {
     const metadata = localData?.metadata || {}
     setComicEditForm({

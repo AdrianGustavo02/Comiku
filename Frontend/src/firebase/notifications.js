@@ -17,7 +17,7 @@ import { getUserProfile } from './user'
 
 const NOTIFICATIONS_COLLECTION = 'notificaciones'
 
-// Tipos de notificaciones escalables
+//Tipos de notificaciones.
 export const NOTIFICATION_TYPES = {
   ACTIVITY_LIKE: 'activity_like',
   ACTIVITY_COMMENT: 'activity_comment',
@@ -70,13 +70,11 @@ function toMillis(value) {
   return 0
 }
 
-/**
- * Crea una notificación
- * @param {string} userId - UID del usuario que recibe la notificación
- * @param {string} type - Tipo de notificación (NOTIFICATION_TYPES)
- * @param {string} actorUid - UID del usuario que realiza la acción
- * @param {object} metadata - Datos específicos de la notificación (activityId, listId, etc.)
- */
+//Creo una notificacion.
+// @param {string} userId - UID del usuario que recibe la notificación.
+// @param {string} type - Tipo de notificacion.
+// @param {string} actorUid - UID del usuario que realiza la accion.
+// @param {object} metadata - Datos de la notificacion.
 export async function createNotification({ userId, type, actorUid, metadata = {} }) {
   ensureFirestoreReady()
 
@@ -106,9 +104,7 @@ export async function createNotification({ userId, type, actorUid, metadata = {}
   }
 }
 
-/**
- * Obtiene una página de notificaciones del usuario
- */
+//Obtengo las notificaciones del usuario.
 export async function getNotificationsPage({ userId, pageSize = 15, cursor = null }) {
   ensureFirestoreReady()
 
@@ -139,7 +135,6 @@ export async function getNotificationsPage({ userId, pageSize = 15, cursor = nul
     const snapshots = await getDocs(notificationQuery)
     notifications = snapshots.docs.map(mapNotificationSnapshot)
   } catch (error) {
-    // Fallback sin orderBy para entornos sin indice compuesto userId+fecha.
     const fallbackQuery = query(
       collection(db, NOTIFICATIONS_COLLECTION),
       where('UserID', '==', userId),
@@ -183,7 +178,7 @@ export async function getNotificationsPage({ userId, pageSize = 15, cursor = nul
     ? notifications[notifications.length - 1]
     : null
 
-  // Hidratar perfiles de actores
+  //Hidrato perfiles de actores.
   const uniqueActorUids = Array.from(
     new Set(notifications.map((n) => n.actorUid).filter(Boolean)),
   )
@@ -222,9 +217,7 @@ export async function getNotificationsPage({ userId, pageSize = 15, cursor = nul
   }
 }
 
-/**
- * Marca una notificación como leída
- */
+//Marco una notificación como leida.
 export async function markNotificationAsRead(notificationId) {
   ensureFirestoreReady()
 
@@ -241,9 +234,7 @@ export async function markNotificationAsRead(notificationId) {
   }
 }
 
-/**
- * Marca todas las notificaciones no leídas del usuario como leídas
- */
+//Marco todas las notificaciones no leidas del usuario como leidas.
 export async function markAllNotificationsAsRead(userId) {
   ensureFirestoreReady()
 
@@ -272,9 +263,8 @@ export async function markAllNotificationsAsRead(userId) {
   await batch.commit()
 }
 
-/**
- * Cuenta notificaciones no leídas
- */
+
+//Cuenta notificaciones no leidas.
 export async function getUnreadNotificationsCount(userId) {
   ensureFirestoreReady()
 
@@ -293,10 +283,8 @@ export async function getUnreadNotificationsCount(userId) {
   return snapshots.size
 }
 
-/**
- * Elimina notificaciones relacionadas a un usuario específico
- * Usado cuando: se elimina amistad, se bloquea usuario, se elimina cuenta
- */
+//Elimino notificaciones relacionadas a un usuario específico.
+//Usado cuando se elimina una amistad, se bloquea un usuario o se elimina una cuenta.
 export async function deleteNotificationsByActorUid(userId, actorUid) {
   ensureFirestoreReady()
 
@@ -323,6 +311,8 @@ export async function deleteNotificationsByActorUid(userId, actorUid) {
   }
 }
 
+//Elimino notificaciones de solicitud de amistad entre dos usuarios. 
+//Usado cuando se acepta o rechaza una solicitud de amistad.
 export async function deleteFriendRequestNotification({ userId, actorUid }) {
   ensureFirestoreReady()
 
@@ -359,10 +349,8 @@ export async function deleteFriendRequestNotification({ userId, actorUid }) {
   await batch.commit()
 }
 
-/**
- * Elimina notificaciones relacionadas a un tipo específico y objeto
- * Usado cuando se elimina una actividad, lista temática, etc.
- */
+//Elimino notificaciones relacionadas a un tipo específico y objeto.
+//Usado cuando se elimina una actividad, lista temática, etc.
 export async function deleteNotificationsByMetadata({
   userId,
   type,
@@ -406,9 +394,7 @@ export async function deleteNotificationsByMetadata({
   await batch.commit()
 }
 
-/**
- * Elimina todas las notificaciones de un usuario cuando elimina su cuenta
- */
+//Elimino todas las notificaciones de un usuario cuando se elimina su cuenta.
 export async function deleteAllNotificationsForUser(userId) {
   ensureFirestoreReady()
 
@@ -436,10 +422,9 @@ export async function deleteAllNotificationsForUser(userId) {
   await batch.commit()
 }
 
-/**
- * Elimina todas las notificaciones donde el usuario es el actor
- * Usado cuando se elimina la cuenta del usuario
- */
+
+//Elimino todas las notificaciones donde el usuario es el actor.
+//Usado cuando se elimina la cuenta del usuario
 export async function deleteAllNotificationsFromActor(actorUid) {
   ensureFirestoreReady()
 

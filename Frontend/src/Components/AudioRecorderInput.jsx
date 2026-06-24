@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { STREAM_MAX_UPLOAD_SIZE_BYTES, STREAM_SUPPORTED_IMAGE_MIME_TYPES, sendMessageWithFiles } from '../firebase/stream'
 import { canSendMessageTo } from '../firebase/user'
+import '../styles/AudioRecorderInput.css'
 
 const STREAM_IMAGE_ACCEPT = [
   '.bmp',
@@ -38,12 +39,14 @@ function getSupportedAudioMimeType() {
   return PREFERRED_AUDIO_MIME_TYPES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || 'audio/webm'
 }
 
+//Formateo de tamaño de archivo en B, KB o MB.
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+//Iconos SVG para los botones de enviar, grabar, detener y adjuntar imagen.
 function SendIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -98,6 +101,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
   const selectedImagesRef = useRef([])
   const audioMimeTypeRef = useRef('audio/webm')
 
+  //Auto ajusto la altura del textarea segun el contenido.
   useEffect(() => {
     const textarea = messageInputRef.current
 
@@ -119,6 +123,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
   }, [text])
 
+  //Limpio recursos cuando el componente se desmonta.
   useEffect(() => {
     return () => {
       if (audioUrl) URL.revokeObjectURL(audioUrl)
@@ -138,8 +143,8 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     selectedImagesRef.current = selectedImages
   }, [selectedImages])
 
+  //Verifico si el usuario tiene permiso para enviar mensajes al destinatario.
   useEffect(() => {
-    // Check if messaging is allowed for 1:1 chats
     if (isGroupChat || !authUser || !channel) {
       setSendingDisabled(false)
       setDisabledReason('')
@@ -157,7 +162,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
           setDisabledReason('')
         }
       } catch (err) {
-        console.error('Error checking messaging permission:', err)
+        console.error('Error al verificar el permiso de mensajería:', err)
         setSendingDisabled(false)
         setDisabledReason('')
       }
@@ -166,6 +171,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     checkPermission()
   }, [authUser, channel, isGroupChat])
 
+  //Limpio las imágenes seleccionadas y sus URLs de vista previa.
   function clearSelectedImages() {
     selectedImagesRef.current.forEach((image) => {
       URL.revokeObjectURL(image.previewUrl)
@@ -177,6 +183,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     }
   }
 
+  //Elimino una imagen seleccionada y libero su URL de vista previa.
   function removeSelectedImage(imageId) {
     setSelectedImages((currentImages) => {
       const imageToRemove = currentImages.find((image) => image.id === imageId)
@@ -191,6 +198,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     })
   }
 
+  //Manejo la selección de imágenes, validando el tipo y tamaño de archivo, y generando URLs de vista previa.
   function handleImageSelection(event) {
     const files = Array.from(event.target.files || [])
 
@@ -234,6 +242,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     event.target.value = ''
   }
 
+  //Limpio el audio.
   function clearAudioSelection() {
     setAudioBlob(null)
 
@@ -246,6 +255,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     setUploadProgress(0)
   }
 
+  //Inicio la grabacion de audio.
   async function startRecording() {
     try {
       pendingAutoSendRef.current = false
@@ -307,6 +317,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     }
   }
 
+  //Detengo la grabacion de audio.
   function stopRecording() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
@@ -314,6 +325,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     }
   }
 
+  //Subo el audio o imagenes y los envio. Pueden ser ambos a la vez.
   async function uploadAudioAndSend(blobToSend = audioBlob) {
     if (!channel) return
 
@@ -359,10 +371,12 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     }
   }
 
+  //Elimino el audio grabado.
   function removeAudio() {
     clearAudioSelection()
   }
 
+  //Envio el mensaje de texto, audio o imagenes. Si estoy grabando, detengo la grabación y envio el audio.
   async function handleSend() {
     if (sendingDisabled) {
       alert(disabledReason)
@@ -387,7 +401,8 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
     }
   }
 
-  // Draw waveform on canvas from audio blob
+
+  //Dibujo la forma de onda del audio en un canvas a partir del blob de audio.
   async function drawWaveformFromBlob(blob) {
     try {
       const arrayBuffer = await blob.arrayBuffer()
@@ -425,7 +440,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
 
       ctx.stroke()
     } catch (err) {
-      console.error('Error dibujando waveform:', err)
+      console.error('Error dibujando ondas de audio:', err)
     }
   }
 
@@ -536,7 +551,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
 
       {uploadProgress > 0 && (
         <div className="upload-progress">
-          <div className="bar" style={{ width: `${uploadProgress}%`, height: 6, background: '#4a90e2' }} />
+          <div className="bar upload-progress-bar" style={{ width: `${uploadProgress}%` }} />
           <div className="percent">{uploadProgress}%</div>
         </div>
       )}

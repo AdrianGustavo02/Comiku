@@ -7,16 +7,20 @@ import MessageTimestampInjector from './MessageTimestampInjector'
 import { enrichChannelWithFirestoreData, getStreamClient } from '../firebase/stream'
 import { db } from '../firebase/firebase'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
+import '../styles/ChatView.css'
 
+//Verifico si el canal es una instancia de StreamChat.
 function isStreamChannelInstance(channel) {
   return Boolean(channel && typeof channel.getConfig === 'function')
 }
 
+//Obtengo el ID del otro miembro en un chat individual.
 function getOtherMemberId(channel, currentUserId) {
   const members = Object.values(channel?.state?.members || {})
   return members.find((member) => member?.user?.id && member.user.id !== currentUserId)?.user?.id || null
 }
 
+//Aplico los datos de Firestore al canal, sobrescribiendo los datos existentes si es necesario.
 function applyFirestoreDataToChannel(channel, firestoreData) {
   if (!channel) return channel
 
@@ -49,47 +53,34 @@ function applyFirestoreDataToChannel(channel, firestoreData) {
   }
 }
 
+//Determino si un canal es un chat grupal basado en los datos del canal.
 function isGroupChannel(channel) {
   return Boolean(channel?.data?.type === 'group' || channel?.data?.groupName || channel?.data?.groupImageUrl)
 }
 
+//Renderizo el encabezado de un chat grupal con la imagen del grupo, el nombre y la cantidad de miembros.
 function GroupHeader({ groupImage, groupTitle, membersCount }) {
   const groupInitial = (groupTitle.trim()[0] || 'G').toUpperCase()
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 12,
-          overflow: 'hidden',
-          background: '#e2e8f0',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#0f172a',
-          fontWeight: 700,
-          fontSize: 18,
-        }}
-      >
+    <div className="chat-view-user-summary">
+      <div className="chat-view-group-avatar">
         {groupImage ? (
           <img
             src={groupImage}
             alt={groupTitle}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            className="chat-view-avatar-image"
           />
         ) : (
           groupInitial
         )}
       </div>
 
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div className="chat-view-user-info">
+        <div className="chat-view-user-title">
           {groupTitle}
         </div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>
+        <div className="chat-view-user-subtitle">
           {membersCount || 0} miembros
         </div>
       </div>
@@ -115,6 +106,7 @@ function PersonalHeader({ channel, currentUserId }) {
 
     const userRef = doc(db, 'usuario', otherMemberId)
 
+    //Sincronizo cambios en el perfil del otro miembro en tiempo real.
     return onSnapshot(userRef, (snapshot) => {
       if (!snapshot.exists()) {
         setProfile(null)
@@ -138,25 +130,16 @@ function PersonalHeader({ channel, currentUserId }) {
   const avatar = profile?.fotoPerfil || defaultProfilePicture
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: '50%',
-          overflow: 'hidden',
-          background: '#e2e8f0',
-          flexShrink: 0,
-        }}
-      >
-        <img src={avatar} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    <div className="chat-view-user-summary">
+      <div className="chat-view-person-avatar">
+        <img src={avatar} alt={title} className="chat-view-avatar-image" />
       </div>
 
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div className="chat-view-user-info">
+        <div className="chat-view-user-title">
           {title}
         </div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>Chat individual</div>
+        <div className="chat-view-user-subtitle">Chat individual</div>
       </div>
     </div>
   )
@@ -190,6 +173,7 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
     setShowGroupSettings(false)
     setActiveChannel(null)
 
+    //Convierto el canal a una instancia de StreamChat para poder usarlo.
     async function resolveChannelInstance() {
       if (isStreamChannelInstance(channel)) {
         if (!cancelled) {
@@ -217,7 +201,6 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
 
     void resolveChannelInstance()
 
-    // Enrich channel with Firestore data (deferred)
     const t = setTimeout(() => void refreshChannelData(channel), 0)
     return () => {
       cancelled = true
@@ -225,6 +208,7 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
     }
   }, [channel, refreshChannelData])
 
+  //Sincronizo cambios en el canal seleccionado en tiempo real.
   useEffect(() => {
     if (!activeChannel?.id || !db) {
       return undefined
@@ -257,9 +241,9 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
   const groupImage = enrichedChannel?.data?.groupImageUrl || enrichedChannel?.data?.image || null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="chat-view-container">
           {showGroupSettings && isGroupChat ? (
-        <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid #e6e6e6' }}>
+        <div className="chat-view-group-settings-panel">
           <GroupSettings
             channel={enrichedChannel}
             authUser={authUser}
@@ -271,8 +255,8 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
       ) : (
         <Channel key={activeChannel?.id || activeChannel?.cid} channel={activeChannel} doConnect={false}>
           <Window>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e6e6e6' }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="chat-view-topbar">
+              <div className="chat-view-topbar-main">
                 {isGroupChat ? <GroupHeader groupImage={groupImage} groupTitle={groupTitle} membersCount={activeChannel?.data?.members?.length} /> : <PersonalHeader channel={activeChannel} currentUserId={authUser?.uid} />}
               </div>
 

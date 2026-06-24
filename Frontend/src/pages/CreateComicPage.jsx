@@ -128,7 +128,7 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
       }
 
       if (comicId) {
-        // editar comic existente
+        //Si existe comicId, se esta editando un comic existente, sino se esta creando uno nuevo.
         void (async () => {
           try {
             await updateComic({ comicId, ...comicDraft })
@@ -172,7 +172,6 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
         setDescripcion(data.descripcion || '')
         setFormato(data.formato || '')
       } catch {
-        // ignore
       } finally {
         if (!cancelled) null
       }

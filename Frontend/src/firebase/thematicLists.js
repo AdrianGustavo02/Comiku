@@ -148,6 +148,7 @@ export async function deleteThematicList({ listId }) {
   await deleteDoc(listReference)
 }
 
+//Obtengo una lista tematica por su ID.
 export async function getThematicListById({ listId }) {
   ensureFirestoreReady()
 
@@ -164,6 +165,7 @@ export async function getThematicListById({ listId }) {
   return mapThematicListSnapshot(snapshot)
 }
 
+//Obtengo las listas tematicas de un usuario.
 export async function getUserThematicLists({ userId }) {
   ensureFirestoreReady()
 
@@ -210,7 +212,6 @@ export async function addVolumeToList({ listId, comicId, tomoId, orden }) {
   }
   const listReference = doc(db, THEMATIC_LISTS_COLLECTION, listId)
 
-  // Evitar duplicados: buscar si ya existe un documento con ese VolumeId
   const existingQ = query(
     collection(listReference, VOLUMES_SUBCOLLECTION),
     where('TomoId', '==', tomoId),
@@ -229,18 +230,17 @@ export async function addVolumeToList({ listId, comicId, tomoId, orden }) {
 
   const addedRef = await addDoc(collection(listReference, VOLUMES_SUBCOLLECTION), volumePayload)
 
-  // Mantener un índice de tomos en el documento raíz para accesos rápidos
   try {
     await updateDoc(listReference, {
       tomosDeLista: arrayUnion(tomoId),
     })
   } catch {
-    // ignorar errores de actualización de índice
   }
 
   return addedRef.id
 }
 
+//Elimino un tomo de una lista tematica.
 export async function removeVolumeFromList({ listId, tomoId }) {
   ensureFirestoreReady()
 
@@ -250,8 +250,7 @@ export async function removeVolumeFromList({ listId, tomoId }) {
 
   const listReference = doc(db, THEMATIC_LISTS_COLLECTION, listId)
 
-  // tomoId puede ser el id del documento subcolección o el TomoId almacenado
-  // Intentamos borrar por id de documento primero
+
   try {
     const candidateRef = doc(listReference, VOLUMES_SUBCOLLECTION, tomoId)
     const candidateSnap = await getDoc(candidateRef)
@@ -274,7 +273,7 @@ export async function removeVolumeFromList({ listId, tomoId }) {
     void error
   }
 
-  // Si no existe, buscamos documentos donde TomoId == tomoId
+
   const q = query(
     collection(listReference, VOLUMES_SUBCOLLECTION),
     where('TomoId', '==', tomoId),
@@ -296,6 +295,7 @@ export async function removeVolumeFromList({ listId, tomoId }) {
   }
 }
 
+//Obtengo los tomos de una lista tematica.
 export async function getListVolumes({ listId }) {
   ensureFirestoreReady()
 
@@ -367,6 +367,7 @@ export async function addCommentToList({ listId, userId, comentario }) {
   }
 }
 
+//Obtengo los comentarios de una lista tematica.
 export async function getListComments({ listId }) {
   ensureFirestoreReady()
 
@@ -380,6 +381,7 @@ export async function getListComments({ listId }) {
   return snapshots.docs.map(mapCommentSnapshot)
 }
 
+//Elimino un comentario de una lista tematica.
 export async function deleteCommentFromList({ listId, commentId, userId }) {
   ensureFirestoreReady()
 
@@ -441,7 +443,7 @@ export async function toggleLikeForList({ listId, userId }) {
   const likeSnap = await getDoc(likeDocRef)
 
   if (likeSnap.exists()) {
-    // quitar like
+    //Quito el like.
     await deleteDoc(likeDocRef)
     try {
       await updateDoc(listReference, {
@@ -474,7 +476,7 @@ export async function toggleLikeForList({ listId, userId }) {
     return { liked: false }
   }
 
-  // agregar like
+  //Agrego el like.
   await setDoc(likeDocRef, {
       UserID: userId,
     FechaLike: Timestamp.now(),
@@ -508,6 +510,7 @@ export async function toggleLikeForList({ listId, userId }) {
   return { liked: true }
 }
 
+//Verifico si un usuario le dio like a una lista tematica.
 export async function getUserLikeStatus({ listId, userId }) {
   ensureFirestoreReady()
 
@@ -521,6 +524,7 @@ export async function getUserLikeStatus({ listId, userId }) {
   return snap.exists()
 }
 
+//Guardo o quito una lista tematica para un usuario.
 export async function toggleSaveListForUser({ listId, userId }) {
   ensureFirestoreReady()
 
@@ -543,6 +547,7 @@ export async function toggleSaveListForUser({ listId, userId }) {
   return { saved: true }
 }
 
+//Verifico si un usuario guardo una lista tematica.
 export async function getUserSavedListStatus({ listId, userId }) {
   ensureFirestoreReady()
 
@@ -592,6 +597,7 @@ export async function getUserSavedThematicLists({ userId }) {
     })
 }
 
+//Elimino una lista tematica.
 export async function deleteThematicListByAdmin({ idToken, listId }) {
   ensureFirestoreReady()
 

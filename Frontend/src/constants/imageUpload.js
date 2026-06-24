@@ -1,4 +1,4 @@
-// Constantes para validación de carga de imágenes
+//Validación de carga de imágenes
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 

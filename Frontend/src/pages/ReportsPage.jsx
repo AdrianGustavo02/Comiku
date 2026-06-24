@@ -74,6 +74,7 @@ function isPersonalChatResult(channel) {
 async function getReportObjectDetails(report) {
   const objectType = String(report.nombreObjetoReportado || '').toLowerCase()
 
+  //Si el objeto reportado es un comic, cargo los detalles del comic.
   if (objectType === 'comic') {
     const comic = await getComicById(report.comicId || report.objetoReportadoId)
 
@@ -88,6 +89,7 @@ async function getReportObjectDetails(report) {
     }
   }
 
+  //Si el objeto reportado es un tomo, cargo los detalles del comic y del tomo.
   if (objectType === 'tomo') {
     const comicId = report.comicId || ''
     const [comic, volume] = await Promise.all([
@@ -108,6 +110,8 @@ async function getReportObjectDetails(report) {
     }
   }
 
+  //Si el objeto reportado es un grupo de chat, 
+  // cargo los detalles del grupo para mostrar el nombre y la cantidad de miembros.
   if (objectType === 'grupo de chat') {
     try {
       const payload = await adminGetChannelDetails({ channelId: report.objetoReportadoId })
@@ -148,9 +152,9 @@ async function getReportObjectDetails(report) {
 async function enrichReports(reports) {
   return Promise.all(
     reports.map(async (report) => {
+      //Intento cargar los detalles del objeto reportado.
       try {
         const details = await getReportObjectDetails(report)
-        // Resolver nick del usuario que reportó mediante su UserID
         try {
           const reporterProfile = await getUserProfile(report.usuarioIdReporta)
           const reporterNick = reporterProfile?.nick || reporterProfile?.nombre || report.usuarioIdReporta
@@ -193,7 +197,6 @@ function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss
         const nick = profile?.nick || profile?.nombre || ''
         if (nick) setResolvedReporterNick(nick)
       } catch {
-        // ignore
       }
     }
 
@@ -409,6 +412,7 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
       const channels = await adminSearchChats({ id: searchValue })
       setSearchResults(channels || [])
 
+      //Si el resultado es un chat personal, obtengo el nick del usuario para mostrarlo.
       if (Array.isArray(channels) && channels.some((channel) => isPersonalChatResult(channel))) {
         try {
           const profile = await getUserProfile(searchValue)
@@ -424,6 +428,7 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
     }
   }
 
+  //Carga los detalles de un chat, los mensajes y los miembros.
   const handleLoadChannelDetails = async (channelId) => {
     setAdminProcessing(true)
     setSelectedChannel(null)
@@ -436,32 +441,31 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
         const channel = payload.channel || null
         setSelectedChannel(channel)
         
-        // Resolve member nicks
+        //Cargo los nicks de los miembros del canal.
         const memberIds = channel?.data?.members || []
         if (memberIds.length > 0) {
           try {
             const nicks = await getUsersNicksByUids(memberIds)
             setMemberNicks(nicks)
           } catch (err) {
-            console.error('[admin][debug] Error cargando nicks de miembros:', err)
+            console.error('Error cargando nicks de los miembros:', err)
           }
         }
         const messages = payload.messages || []
 
-        // Enrich message authors with nicks from user DB when possible
+        //Cargo los nicks de los usuarios que enviaron mensajes, para mostrar el nombre en vez del ID.
         const userIds = Array.from(new Set(messages.map((m) => m.user?.id || m.user_id).filter(Boolean)))
         let nicksMap = {}
         if (userIds.length > 0) {
           try {
             nicksMap = await getUsersNicksByUids(userIds)
           } catch (err) {
-            console.error('Error cargando nicks para mensajes:', err)
+            console.error('Error cargando nicks para los mensajes:', err)
           }
         }
 
         const mapped = messages.map((m) => {
           const uid = m.user?.id || m.user_id || ''
-          // Prefer nicksMap (Firestore nick) over m.user.name (which may be uid)
           const displayName = nicksMap[uid] || m.user?.name || uid || 'Usuario'
           return { ...m, displayName }
         })
@@ -481,6 +485,8 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
     setDeleteConfirm({ open: true, channelId })
   }
 
+  //Elimino un chat o grupo de chat. Si el chat eliminado es el que se está viendo, 
+  // limpio la informacion para evitar mostrar un chat eliminado.
   const handleDeleteChannel = async () => {
     if (!deleteConfirm.channelId) return
     setAdminProcessing(true)
@@ -533,6 +539,7 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
       error: '',
     }))
 
+    //Hace la carga de los reportes, los enriquezco con su informacion.
     try {
       const currentSection = sections[sectionKey]
       const { reports, lastId, hasMore } = await loader(SECTION_SIZE, append ? currentSection.lastId : null)
@@ -555,6 +562,7 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
     }
   }
 
+  //Al cargar la página, si el usuario es admin, carga la sección seleccionada.
   useEffect(() => {
     if (!isAdmin) {
       return
@@ -573,25 +581,24 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser?.uid, currentUserRole, selectedSection])
 
-  // If user is not admin but adminReady is true, signal ready so Navbar can be shown
+
   useEffect(() => {
     if (adminReady && !isAdmin && typeof onPageReady === 'function') {
       onPageReady()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminReady, isAdmin])
 
-  // Si el usuario cambia la pestaña a una sección no cargada, cargarla
+  //Cada vez que se cambia de sección, si la sección no tiene items y no está cargando, carga los items. 
+  // Esto es para evitar cargar las 3 secciones al mismo tiempo al entrar a la página, 
+  // y solo cargar la sección que el admin quiera ver.
   useEffect(() => {
     if (!isAdmin) return
     const sec = sections[selectedSection]
     if (sec && sec.items.length === 0 && !sec.loading) {
       void loadSection(selectedSection, false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSection])
 
   const openConfirmationModal = (report, action) => {
@@ -717,16 +724,16 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
           {searchResults.length > 0 ? (
             <div style={{ marginTop: 12 }}>
               <h4>Resultados</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
+              <ul className="channel-results-list">
                 {searchResults.map((c) => (
-                  <li key={c.id} style={{ padding: 10, border: '1px solid #e6e6e6', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <li className="channel-results" key={c.id}>
                     <div>
                       <strong>{isPersonalChatResult(c) ? (searchTargetNick || c.groupName || c.name || c.id) : (c.groupName || c.name || c.id)}</strong>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                      <div className="channel-results-info">
                         {(c.members || []).length} miembros — {isPersonalChatResult(c) ? 'Chat individual' : 'Grupo de chat'}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="channel-results-actions">
                       <button type="button" className="profile-back-button" onClick={() => handleLoadChannelDetails(c.id)} disabled={adminProcessing}>Ver</button>
                       <button type="button" className="delete-account-button" onClick={() => handleConfirmDeleteChannel(c.id)} disabled={adminProcessing}>{isPersonalChatResult(c) ? 'Eliminar chat' : 'Eliminar grupo'}</button>
                     </div>
@@ -737,7 +744,7 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
           ) : null}
 
           {selectedChannel ? (
-            <div style={{ marginTop: 12, padding: 12, border: '1px solid #e6e6e6', borderRadius: 8 }}>
+            <div className='selected-channel-report'>
               <h4>Canal: {selectedChannel.id}</h4>
               {isSelectedChannelGroup ? (
                 <p><strong>Nombre:</strong> {selectedChannel.data?.groupName || selectedChannel.data?.name || 'Sin nombre'}</p>
@@ -746,24 +753,30 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
               <div style={{ marginTop: 8 }}>
                 <h5>Mensajes recientes</h5>
                 {selectedChannelMessages.length === 0 ? <p className="helper-text">No hay mensajes disponibles.</p> : (
-                  <ul style={{ listStyle: 'none', padding: 0, maxHeight: 240, overflowY: 'auto' }}>
+                  <ul className="selected-channel-report-messages">
                     {selectedChannelMessages.map((m, idx) => (
-                      <li key={idx} style={{ padding: 8, borderBottom: '1px solid #f1f1f1' }}>
-                        <div style={{ fontSize: 13 }}><strong>{m.displayName || m.user?.name || m.user?.id || m.user_id || 'Usuario'}</strong> — <span style={{ fontSize: 12, color: '#64748b' }}>{new Date(m.created_at).toLocaleString()}</span></div>
+                      <li className="selected-channel-report-message" key={idx}>
+                        <div style={{ fontSize: 13 }}>
+                          <strong>{m.displayName || m.user?.name || m.user?.id || m.user_id || 'Usuario'}</strong> 
+                          — 
+                          <span className='selected-channel-report-message-timestamp'>{new Date(m.created_at).toLocaleString()}</span>
+                          </div>
                         {m.text || m.message ? <div style={{ marginTop: 6 }}>{m.text || m.message}</div> : null}
                         {Array.isArray(m.attachments) && m.attachments.length > 0 ? (
-                          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div className='selected-channel-report-message-attachments'>
                             {m.attachments.map((att, attIdx) => {
                               const type = att.type || ''
                               const url = att.image_url || att.asset_url || ''
                               if (type === 'image' && url) {
-                                return <img key={attIdx} src={url} alt="attachment" style={{ maxWidth: '250px', maxHeight: 180, borderRadius: 6, objectFit: 'contain' }} />
+                                return <img className='selected-channel-report-message-attachment-image' key={attIdx} src={url} alt="attachment"/>
                               }
                               if (type === 'audio' && url) {
-                                return <div key={attIdx} style={{ maxWidth: '280px' }}><audio controls style={{ width: '100%' }} src={url} /></div>
+                                return <div className='selected-channel-report-message-attachment-audio' key={attIdx}>
+                                          <audio controls style={{ width: '100%' }} src={url} />
+                                        </div>
                               }
                               if (url) {
-                                return <a key={attIdx} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1d4ed8', textDecoration: 'underline' }}>{att.title || 'Descargar archivo'}</a>
+                                return <a className='selected-channel-report-message-attachment-link' key={attIdx} href={url} target="_blank" rel="noopener noreferrer">{att.title || 'Descargar archivo'}</a>
                               }
                               return null
                             })}

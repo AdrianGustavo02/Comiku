@@ -50,6 +50,7 @@ function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
     }
   }, [authUser.uid])
 
+  //Marco la solicitud en curso para deshabilitar los botones. Luego llamo a la funcion acceptFriendRequest.
   const handleAcceptRequest = async (senderUid) => {
     try {
       setProcessingRequest(senderUid)
@@ -69,6 +70,7 @@ function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
     }
   }
 
+  //Nuevamente deshabilito los botones y llamo a declineFriendRequest.
   const handleDeclineRequest = async (senderUid) => {
     try {
       setProcessingRequest(senderUid)
@@ -83,6 +85,7 @@ function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
     }
   }
 
+  // Para eliminar un amigo, seteo la solicitud en curso para deshabilitar los botones y llamo a removeFriend.
   const handleRemoveFriend = async (friendUid) => {
     try {
       setProcessingRequest(friendUid)
@@ -111,7 +114,6 @@ function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
           <p className="status-message">Cargando datos...</p>
         ) : (
           <>
-            {/* Solicitudes de amistad */}
             {requests.length > 0 && (
               <section className="friends-requests-section">
                 <h2>Solicitudes de amistad ({requests.length})</h2>
@@ -151,8 +153,7 @@ function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
                 </ul>
               </section>
             )}
-
-            {/* Lista de amigos */}
+            
             <section>
               <h2>Amigos ({friends.length})</h2>
               {friends.length === 0 ? (

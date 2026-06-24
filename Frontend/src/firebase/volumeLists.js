@@ -119,6 +119,7 @@ async function getVolumeStatus({ uid, listCollection, comicId, volumeId }) {
   return snapshot.exists()
 }
 
+//Verifico si un tomo esta en la biblioteca o en la lista de deseados de un usuario.
 export async function getVolumeMembership({ uid, comicId, volumeId }) {
   ensureFirestoreReady()
 
@@ -221,7 +222,7 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
     getDoc(sourceVolumeReference),
   ])
 
-  // Obtener conteo de tomos por cómic en cada lista (antes de la operación)
+  //Obtengo conteo de tomos por cómic en cada lista.
   const [targetVolumesSnapshot, sourceVolumesSnapshot] = await Promise.all([
     getDocs(collection(targetComicReference, VOLUMES_SUBCOLLECTION)),
     getDocs(collection(sourceComicReference, VOLUMES_SUBCOLLECTION)),
@@ -232,7 +233,7 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
 
   const batch = writeBatch(db)
 
-  // Preparar actualización denormalizada de conteos en el documento de usuario
+
   const userRef = doc(db, USER_COLLECTION, uid)
   let userTotalComicsDelta = 0
   let userTotalTomosDelta = 0
@@ -245,7 +246,7 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
     (targetList !== LIBRARY_COLLECTION && sourceVolumeSnapshot.exists())
 
   if (willAddToLibrary) {
-    // volumesBefore en la lista de destino
+    //Ajusto de conteos si se agrega un tomo a la biblioteca del usuario.
     const volumesBefore = targetVolumesSnapshot.size
     userTotalTomosDelta += 1
     if (volumesBefore === 0) {
@@ -254,7 +255,7 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
   }
 
   if (willRemoveFromLibrary) {
-    // si se remueve del destino library (borrado directo) o se mueve desde library a wishlist
+    //Ajusto de conteos si se elimina un tomo de la biblioteca del usuario.
     const volumesBefore = targetList === LIBRARY_COLLECTION ? targetVolumesSnapshot.size : sourceVolumesSnapshot.size
     userTotalTomosDelta -= 1
     if (volumesBefore === 1) {
@@ -301,7 +302,7 @@ async function toggleVolumeInList({ uid, comicId, volumeId, targetList }) {
     batch.delete(sourceVolumeReference)
   }
 
-  // Aplicar delta al documento del usuario si corresponde
+
   if (userTotalComicsDelta !== 0 || userTotalTomosDelta !== 0) {
     const updatePayload = {}
     if (userTotalTomosDelta !== 0) updatePayload.totalTomos = increment(userTotalTomosDelta)
@@ -396,6 +397,7 @@ export async function toggleVolumeInWishlist({ uid, comicId, volumeId }) {
   })
 }
 
+//Agrego una lectura de un tomo en la biblioteca del usuario.
 export async function addVolumeReading({ uid, comicId, volumeId, readingDate }) {
   ensureFirestoreReady()
 
@@ -453,6 +455,7 @@ export async function addVolumeReading({ uid, comicId, volumeId, readingDate }) 
   return getLibraryVolumeData({ uid, comicId, volumeId })
 }
 
+//Elimino una lectura de un tomo en la biblioteca del usuario.
 export async function deleteVolumeReading({ uid, comicId, volumeId, storageIndex }) {
   ensureFirestoreReady()
 
@@ -500,6 +503,8 @@ export async function deleteVolumeReading({ uid, comicId, volumeId, storageIndex
   return getLibraryVolumeData({ uid, comicId, volumeId })
 }
 
+//Obtengo los tomos de una lista de un usuario, agrupados por comic.
+//Se usa para la biblioteca y la lista de deseados.
 async function getUserListItems({ uid, listCollection }) {
   ensureFirestoreReady()
 
@@ -573,6 +578,7 @@ async function getUserListItems({ uid, listCollection }) {
     .sort((a, b) => toSortableText(a.comic.nombre).localeCompare(toSortableText(b.comic.nombre), 'es'))
 }
 
+//Atajo para obtener los tomos de la biblioteca de un usuario.
 export async function getUserLibraryItems({ uid }) {
   return getUserListItems({
     uid,
@@ -580,6 +586,7 @@ export async function getUserLibraryItems({ uid }) {
   })
 }
 
+//Atajo para obtener los tomos de la lista de deseados de un usuario.
 export async function getUserWishlistItems({ uid }) {
   return getUserListItems({
     uid,

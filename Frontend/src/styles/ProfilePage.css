@@ -513,46 +513,10 @@
   font-weight: 700;
 }
 
-@media (max-width: 900px) {
-  .profile-header { flex-direction: column; align-items: center; text-align: center }
-  .profile-header-media {
-    width: min(180px, 100%);
-    align-items: center;
-  }
-  .profile-header-image {
-    width: 140px;
-    height: 140px;
-    margin-inline: auto;
-  }
-  .profile-header-placeholder {
-    margin-inline: auto;
-  }
-  .profile-nick { font-size: 1.6rem }
 
-  .featured-comics-header {
-    flex-direction: column;
-  }
-}
 
-@media (max-width: 900px) {
-  .profile-grid {
-    grid-template-columns: 1fr;
-  }
 
-  .confirm-modal {
-    padding: 18px;
-  }
 
-  .confirm-modal h2 {
-    font-size: 1.22rem;
-  }
-
-  .confirm-modal-text {
-    font-size: 1rem;
-  }
-}
-
-/* Estilos para el formulario de edición del perfil */
 .profile-edit-form label {
   display: block;
   margin-top: 12px;
@@ -600,7 +564,8 @@
   font-size: 0.95rem;
 }
 
-/* Dropdown "Otras opciones" */
+
+
 .profile-page-shell .other-options-wrapper {
   position: relative;
   display: inline-block;
@@ -690,6 +655,78 @@
   padding: 18px 0 8px;
 }
 
+.profile-edit-actions{
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.profile-nick-input{
+  width: 100%;
+  padding: 8px;
+  margin-top: 12px;
+}
+
+.confirm-modal-backdrop{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.confirm-modal {
+  background-color: white;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+}
+
 @media (max-width: 640px) {
   .profile-page-shell .dropdown-menu { right: 8px; left: 8px; }
+}
+
+@media (max-width: 900px) {
+  .profile-header { flex-direction: column; align-items: center; text-align: center }
+  .profile-header-media {
+    width: min(180px, 100%);
+    align-items: center;
+  }
+  .profile-header-image {
+    width: 140px;
+    height: 140px;
+    margin-inline: auto;
+  }
+  .profile-header-placeholder {
+    margin-inline: auto;
+  }
+  .profile-nick { font-size: 1.6rem }
+
+  .featured-comics-header {
+    flex-direction: column;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-modal {
+    padding: 18px;
+  }
+
+  .confirm-modal h2 {
+    font-size: 1.22rem;
+  }
+
+  .confirm-modal-text {
+    font-size: 1rem;
+  }
 }

@@ -122,6 +122,7 @@ function mapEmailOperationError(error, operation = 'validate') {
   return `No fue posible validar el correo. Intenta nuevamente. (${code || 'sin-codigo'})`
 }
 
+
 export async function registerWithEmail({ email, password }) {
   ensureAuthReady()
 
@@ -137,7 +138,6 @@ export async function registerWithEmail({ email, password }) {
     try {
       await sendEmailVerification(credentials.user)
     } catch {
-      // El registro no debe fallar si no se pudo enviar el email de verificación.
     }
 
     return credentials.user

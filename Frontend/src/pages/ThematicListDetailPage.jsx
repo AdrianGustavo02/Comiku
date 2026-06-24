@@ -16,6 +16,7 @@ import {
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import { getUserProfile, isUserBlocked } from '../firebase/user'
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
+import '../styles/Modal.css'
 import '../styles/ThematicListsShared.css'
 import '../styles/ThematicListDetailPage.css'
 
@@ -241,7 +242,6 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
       const result = await toggleLikeForList({ listId, userId: authUser.uid })
       setLiked(result.liked)
 
-      // actualizar contador en UI
       setList((prev) => ({
         ...prev,
         cantidadLikes: prev ? (prev.cantidadLikes + (result.liked ? 1 : -1)) : 0,
@@ -515,63 +515,52 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
           )}
         </div>
 
-        {deleteModalOpen ? (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.55)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999,
-            }}
-            role="presentation"
-            onClick={closeDeleteListModal}
-          >
-            <section
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 24,
-                maxWidth: 520,
-                width: 'calc(100% - 32px)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.24)',
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="delete-list-modal-title"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="eyebrow">ATENCION</p>
-              <h2 id="delete-list-modal-title">Eliminar lista temática</h2>
-              <p className="confirm-modal-text">
-                Esta acción eliminará la lista y todas sus referencias asociadas.
-              </p>
-              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
-
-              <div className="confirm-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={closeDeleteListModal}
-                  disabled={deletingList}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={handleDeleteList}
-                  disabled={deletingList}
-                >
-                  {deletingList ? 'Eliminando...' : 'Eliminar lista'}
-                </button>
-              </div>
-            </section>
-          </div>
-        ) : null}
       </section>
+
+      {deleteModalOpen ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={closeDeleteListModal}
+        >
+          <section
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-list-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <p className="attention">ATENCION</p>
+              <h3 id="delete-list-modal-title">Eliminar lista temática</h3>
+            </div>
+
+            <div className="modal-body">
+              <p>Esta acción eliminará la lista y todas sus referencias asociadas.</p>
+              {deleteError ? <p className="form-message error">{deleteError}</p> : null}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeDeleteListModal}
+                disabled={deletingList}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={handleDeleteList}
+                disabled={deletingList}
+              >
+                {deletingList ? 'Eliminando...' : 'Eliminar lista'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

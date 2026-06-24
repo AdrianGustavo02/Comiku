@@ -526,9 +526,9 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
     const [year, month, day] = readingDate.split('-').map(Number)
     const readingDateValue = new Date(year, month - 1, day)
 
-    // Validar que la fecha no sea futura
+    //Valido que la fecha no sea futura.
     const today = new Date()
-    today.setHours(0, 0, 0, 0) // Comparar solo fechas, sin horas
+    today.setHours(0, 0, 0, 0) //Comparo solo fechas, sin horas.
 
     if (readingDateValue > today) {
       setListError('No puedes guardar una lectura con una fecha futura.')

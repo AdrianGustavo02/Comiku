@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Chat } from 'stream-chat-react'
 import 'stream-chat-react/dist/css/v2/index.css'
-import './Chat.css'
+import '../styles/ChatPanel.css'
 import { getStreamToken, initStreamClient, getStreamClient } from '../firebase/stream'
 import ChatList from './ChatList'
 import ChatView from './ChatView'
@@ -30,6 +30,7 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
     async function init() {
       if (!authUser?.uid) return
 
+      //Conexion con StreamChat.
       try {
         if (onClientReady) {
           onClientReady(false)
@@ -52,7 +53,6 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
           onClientReady(false)
         }
         if (onClientError) {
-          // Try to stringify full error object for better diagnostics when possible
           const errMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error))
           onClientError(errMsg)
         }
@@ -71,7 +71,6 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
         try {
           c.disconnectUser()
         } catch {
-          // ignore
         }
       }
     }
@@ -80,6 +79,8 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
   useEffect(() => {
     let mounted = true
 
+    //Chequeo si el usuario tiene canales de chats, 
+    // para mostrar un mensaje si no tiene ninguno o cargar el listado si tiene.
     async function checkChannels() {
       const c = getStreamClient()
       if (!c || !c.userID) {

@@ -75,7 +75,6 @@
   color: #f8f3ff;
 }
 
-/* Botones de filtro en ReportsPage */
 .reports-page .profile-back-button {
   border: 1px solid rgba(255, 255, 255, 0.3);
   background: rgb(25, 14, 42);
@@ -340,6 +339,79 @@ background: rgb(114, 60, 8);
 .report-link-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.selected-channel-report{
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+}
+
+.selected-channel-report-messages{
+  list-style: none; 
+  padding: 0; 
+  max-height: 240px; 
+  overflow-y: auto; 
+}
+
+.selected-channel-report-message{
+  padding: 8px; 
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.selected-channel-report-message-timestamp{
+  font-size: 12px; 
+  color: #64748b;
+}
+
+.selected-channel-report-message-attachments{
+  margin-top: 8px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px;
+}
+
+.selected-channel-report-message-attachment-image{
+  max-width: 250px; 
+  max-height: 180px; 
+  border-radius: 6px; 
+  object-fit: contain;
+}
+
+.selected-channel-report-message-attachment-audio{
+  max-width: 280px;
+}
+
+.selected-channel-report-message-attachment-link{
+  font-size: 12px; 
+  color: #1d4ed8; 
+  text-decoration: underline;
+}
+
+.channel-results-list {
+  list-style: none; 
+  padding: 0;
+}
+
+.channel-results {
+  padding: 10px; 
+  border: 1px solid #e6e6e6; 
+  border-radius: 8px; 
+  margin-bottom: 8px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+}
+
+.channel-results-info {
+  font-size: 12px; 
+  color: #64748b;
+}
+
+.channel-results-actions {
+  display: flex; 
+  gap: 8px;
 }
 
 @media (max-width: 900px) {

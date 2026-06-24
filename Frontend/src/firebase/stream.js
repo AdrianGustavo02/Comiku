@@ -60,7 +60,7 @@ async function parseJsonResponse(response) {
 }
 
 export async function getStreamToken() {
-  const idToken = await getIdTokenFromFirebase() // implemented by consumer (auth module)
+  const idToken = await getIdTokenFromFirebase()
   const resp = await fetch(`${BACKEND_BASE}/api/stream/token`, {
     method: 'POST',
     headers: {
@@ -72,7 +72,7 @@ export async function getStreamToken() {
   const payload = await resp.json()
 
   if (!resp.ok) {
-    throw new Error(payload?.message || 'No se obtuvo token de Stream')
+    throw new Error(payload?.message || 'No se obtuvo token de StreamChat')
   }
 
   return payload
@@ -82,26 +82,23 @@ export async function initStreamClient({ apiKey, token, user }) {
   if (!apiKey || !token) {
     throw new Error('apiKey y token son requeridos para inicializar Stream')
   }
-  // Reuse existing client if already connected as the same user
   try {
     if (client && client.userID === user.id) {
       return client
     }
   } catch {
-    // ignore
   }
 
-  // If there's an existing client for a different user, disconnect it first
   if (client) {
     try {
       await client.disconnectUser()
     } catch {
-      // ignore disconnect errors
     }
     client = null
   }
 
-  // Attempt connect with exponential backoff to handle transient rate limits
+  //Intento conectar el cliente de StreamChat 
+  // con un maximo de 3 reintentos en caso de errores como rate limits.
   const maxAttempts = 3
   let attempt = 0
   let lastErr = null
@@ -116,45 +113,41 @@ export async function initStreamClient({ apiKey, token, user }) {
     } catch (err) {
       lastErr = err
 
-      // Ensure client is cleaned up before retrying
       try {
         await client.disconnectUser()
       } catch {
-        // ignore
       }
       client = null
 
       const statusCode = err?.StatusCode || err?.statusCode || err?.code
-      const isRateLimit = statusCode === 429 || String(err?.message || '').toLowerCase().includes('too many requests')
+      const isRateLimit = statusCode === 429 || String(err?.message || '').toLowerCase().includes('demasiadas solicitudes')
 
       if (attempt >= maxAttempts) {
         if (isRateLimit) {
-          const wrapped = new Error('Rate limit al conectar WS a Stream (429). Espera unos segundos antes de reintentar.')
+          const wrapped = new Error('Rate limit al conectar WebSocket a StreamChat (429). Espera unos segundos antes de reintentar.')
           wrapped.original = err
           throw wrapped
         }
         throw err
       }
 
-      // Backoff: 500ms, 1000ms, 2000ms (cap 2000ms)
       const delay = Math.min(2000, 500 * Math.pow(2, attempt - 1))
-      // If rate-limited, give a slightly longer wait
+      //Si es un error de rate limit, aseguro un mínimo de 1 segundo de espera 
+      // para dar tiempo a que se liberen los recursos en StreamChat.
       const wait = isRateLimit ? Math.max(delay, 1000) : delay
 
-      // eslint-disable-next-line no-await-in-loop
       await new Promise((res) => setTimeout(res, wait))
-      // retry
     }
   }
 
-  // fallback
-  throw lastErr || new Error('No fue posible inicializar Stream')
+  throw lastErr || new Error('No fue posible inicializar StreamChat')
 }
 
 export function getStreamClient() {
   return client
 }
 
+//Creo un chat entre dos usuarios.
 export async function createOrGet1to1Channel({ members }) {
   if (!client || !client.userID) throw new Error('Stream client no inicializado o no conectado')
 
@@ -189,6 +182,7 @@ export async function createOrGet1to1Channel({ members }) {
   return channel
 }
 
+//Creo un nuevo chat grupal con sus datos.
 export async function createGroupChannel({ name, members, metadata = {}, description = null, imageUrl = null }) {
   if (!client || !client.userID) throw new Error('Stream client no inicializado o no conectado')
 
@@ -231,7 +225,7 @@ export async function createGroupChannel({ name, members, metadata = {}, descrip
   return channel
 }
 
-// Upload files (images/videos/audio) and send message with attachments
+//Manejo el envio de imagenes y audios.
 export async function sendMessageWithFiles({ channel, text = '', files = [] }) {
   if (!client) throw new Error('Stream client no inicializado')
   if (!channel) throw new Error('Channel es requerido')
@@ -271,7 +265,8 @@ export async function sendMessageWithFiles({ channel, text = '', files = [] }) {
   }
 }
 
-// Placeholder - get current firebase id token using existing auth module
+//Obtengo el token de autenticación del usuario en Firebase 
+// para autorizar las peticiones al backend relacionadas con StreamChat.
 async function getIdTokenFromFirebase() {
   if (!auth) {
     throw new Error('Firebase auth no configurado')
@@ -298,7 +293,6 @@ export async function enrichChannelWithFirestoreData(channel) {
     if (channelDoc.exists()) {
       const firestoreData = channelDoc.data()
 
-      // Enrich channel.data with Firestore data
       if (!channel.data) {
         channel.data = {}
       }
@@ -317,6 +311,7 @@ export async function enrichChannelWithFirestoreData(channel) {
   return channel
 }
 
+//Permite actualizar los datos de un grupo de chat.
 export async function updateGroupChannel({ channelId, groupName = null, groupDescription = null, groupImageUrl = null }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/channels/${channelId}/update`, {
@@ -341,6 +336,7 @@ export async function updateGroupChannel({ channelId, groupName = null, groupDes
   return payload
 }
 
+//Permite agregar nuevos miembros a un grupo de chat existente.
 export async function addGroupMembers({ channelId, newMemberUids = [] }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/channels/${channelId}/add-members`, {
@@ -363,6 +359,7 @@ export async function addGroupMembers({ channelId, newMemberUids = [] }) {
   return payload
 }
 
+//Permite promover a un miembro del grupo de chat a admin.
 export async function makeGroupAdmin({ channelId, userUid }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/channels/${channelId}/make-admin`, {
@@ -385,6 +382,7 @@ export async function makeGroupAdmin({ channelId, userUid }) {
   return payload
 }
 
+//Permite eliminar a un miembro del grupo de chat.
 export async function removeGroupMember({ channelId, memberUid }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/channels/${channelId}/remove-member`, {
@@ -405,6 +403,7 @@ export async function removeGroupMember({ channelId, memberUid }) {
   return payload
 }
 
+//Permite a un miembro abandonar el grupo de chat.
 export async function leaveGroupChannel({ channelId }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/channels/${channelId}/leave`, {
@@ -424,7 +423,7 @@ export async function leaveGroupChannel({ channelId }) {
   return payload
 }
 
-// Admin helpers: search chats and get channel details for observation
+//Busco canales de chat por su ID.
 export async function adminSearchChats({ id }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/admin/search-chats`, {
@@ -444,6 +443,7 @@ export async function adminSearchChats({ id }) {
   return payload.channels || []
 }
 
+//Obtengo los detalles de un canal de chat, solo para administradores.
 export async function adminGetChannelDetails({ channelId }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/stream/admin/channel/${encodeURIComponent(channelId)}`, {
@@ -462,6 +462,7 @@ export async function adminGetChannelDetails({ channelId }) {
   return payload
 }
 
+//Elimino un grupo de chat, solo para administradores de este.
 export async function adminDeleteChannel({ channelId }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/admin/channels/${encodeURIComponent(channelId)}`, {
