@@ -1,11 +1,13 @@
 import '../styles/Footer.css'
 
+const appIconUrl = `${import.meta.env.BASE_URL}icon.png`
+
 function Footer({ onOpenContacto }) {
   return (
     <footer className="app-footer">
       <div className="app-footer-content">
         <div className="app-footer-brand">
-          <img className="app-footer-logo" src="/icon.png" alt="Comiku" />
+          <img className="app-footer-logo" src={appIconUrl} alt="Comiku" />
           <h1 className="app-footer-title">Comiku</h1>
         </div>
 

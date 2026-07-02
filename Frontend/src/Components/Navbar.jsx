@@ -3,6 +3,8 @@ import { sanitizeForbiddenInputChars } from '../constants/forbiddenInputCharacte
 import defaultProfilePicture from '../assets/defaultProfilePicture.png'
 import '../styles/Navbar.css'
 
+const appIconUrl = `${import.meta.env.BASE_URL}icon.png`
+
 function normalizeText(value) {
   return String(value ?? '').toLowerCase().trim()
 }
@@ -167,7 +169,7 @@ function Navbar({
           aria-label="Ir a inicio"
           title="Ir a inicio"
         >
-          <img className="navbar-logo-image" src="/icon.png" alt="Comiku" />
+          <img className="navbar-logo-image" src={appIconUrl} alt="Comiku" />
         </button>
 
         <div className="navbar-mobile-row">
@@ -189,7 +191,7 @@ function Navbar({
             aria-label="Ir a inicio"
             title="Ir a inicio"
           >
-            <img className="navbar-logo-image" src="/icon.png" alt="Comiku" />
+            <img className="navbar-logo-image" src={appIconUrl} alt="Comiku" />
           </button>
 
           <div className="navbar-search-area navbar-search-area-mobile">

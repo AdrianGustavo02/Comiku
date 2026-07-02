@@ -3,6 +3,8 @@ import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
 import '../styles/AuthPage.css'
 
+const appIconUrl = `${import.meta.env.BASE_URL}icon.png`
+
 function AuthPage({
   onAuthenticated,
   authError,
@@ -16,7 +18,7 @@ function AuthPage({
     <main className="app-shell">
       <section className="auth-page-card">
         <div className="auth-form-brand auth-form-brand-floating" aria-label="Presentacion de Comiku">
-          <img className="auth-form-brand-logo" src="/icon.png" alt="Comiku" />
+          <img className="auth-form-brand-logo" src={appIconUrl} alt="Comiku" />
         </div>
 
         <div className="app-hero auth-hero">

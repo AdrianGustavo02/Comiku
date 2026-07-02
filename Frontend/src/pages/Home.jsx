@@ -32,6 +32,8 @@ import '../styles/ComicDetailPage.css'
 import '../styles/Home.css'
 import '../styles/VolumeCoverCard.css'
 
+const homeCarouselBaseUrl = `${import.meta.env.BASE_URL}home-carousel/`
+
 //Parseo la ruta para determinar que pagina mostrar y que parametros cargar.
 function parseRoute(pathname) {
   const volumeMatch = pathname.match(/^\/comic\/([^/]+)\/tomo\/([^/]+)$/)
@@ -503,7 +505,7 @@ function Home() {
 
   const homeHeroSlides = [
     {
-      image: '/home-carousel/bienvenida-comiku.jpg',
+      image: `${homeCarouselBaseUrl}bienvenida-comiku.jpg`,
       eyebrow: 'Bienvenido a Comiku',
       title: 'Descubre, organiza y comparte comics y tomos',
       description:
@@ -512,7 +514,7 @@ function Home() {
       actionHandler: null,
     },
     {
-      image: '/home-carousel/crear-comic.jpg',
+      image: `${homeCarouselBaseUrl}crear-comic.jpg`,
       eyebrow: 'Ayuda a crecer la plataforma',
       title: 'Si no encuentras un comic, puedes crearlo',
       description:
