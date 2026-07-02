@@ -7,6 +7,23 @@
 3. Run `npm install` if you have not installed dependencies yet.
 4. Start the app with `npm run dev` and verify the connection status on screen.
 
+## Deploy on GitHub Pages
+
+1. Keep local development as-is: `npm run dev` still serves from `/`.
+2. Push to `main` to trigger the workflow in [.github/workflows/deploy-frontend-pages.yml](../.github/workflows/deploy-frontend-pages.yml).
+3. In your repository, set these GitHub repository Variables (Settings > Secrets and variables > Actions > Variables):
+	- `VITE_BACKEND_URL`
+	- `VITE_FIREBASE_API_KEY`
+	- `VITE_FIREBASE_AUTH_DOMAIN`
+	- `VITE_FIREBASE_PROJECT_ID`
+	- `VITE_FIREBASE_STORAGE_BUCKET`
+	- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+	- `VITE_FIREBASE_APP_ID`
+	- `VITE_FIREBASE_MEASUREMENT_ID`
+4. Enable GitHub Pages source as GitHub Actions.
+
+The workflow sets `VITE_BASE_PATH` automatically to `/<repo-name>/` for Pages. No manual change is needed for local runs.
+
 The frontend only needs the public Firebase config values. If you later want server-side access to Firestore, the backend can use `firebase-admin` with a service account.
 
 Currently, two official plugins are available:
