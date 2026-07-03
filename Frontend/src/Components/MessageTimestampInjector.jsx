@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase/firebase'
 
 function formatTime(date) {
   if (!date) return ''
@@ -8,8 +10,122 @@ function formatTime(date) {
   return `${hours}:${minutes}`
 }
 
+function isLikelyUid(value) {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{20,}$/.test(value.trim())
+}
+
 export default function MessageTimestampInjector() {
   useEffect(() => {
+    const profileCache = new Map()
+    const profileUnsubscribers = new Map()
+
+    const getInitial = (value) => {
+      const normalized = typeof value === 'string' ? value.trim() : ''
+      return (normalized[0] || '?').toUpperCase()
+    }
+
+    const renderSenderAvatar = (messageContainer, profile) => {
+      const avatarContainer = messageContainer.querySelector('.str-chat__avatar')
+      if (!avatarContainer) {
+        return
+      }
+
+      if (profile?.photoUrl) {
+        let imageElement = avatarContainer.querySelector('img')
+
+        if (!imageElement) {
+          avatarContainer.innerHTML = ''
+          imageElement = document.createElement('img')
+          imageElement.setAttribute('data-comiku-avatar', 'true')
+          avatarContainer.appendChild(imageElement)
+        }
+
+        imageElement.src = profile.photoUrl
+        imageElement.alt = profile.nick || 'Avatar'
+        imageElement.style.width = '100%'
+        imageElement.style.height = '100%'
+        imageElement.style.objectFit = 'cover'
+        imageElement.style.borderRadius = '50%'
+        imageElement.style.display = 'block'
+        avatarContainer.style.overflow = 'hidden'
+        avatarContainer.style.borderRadius = '50%'
+      } else {
+        const injectedImage = avatarContainer.querySelector('img[data-comiku-avatar="true"]')
+
+        if (injectedImage) {
+          avatarContainer.innerHTML = ''
+          const fallback = document.createElement('div')
+          fallback.className = 'str-chat__avatar-fallback'
+          fallback.textContent = getInitial(profile?.nick)
+          avatarContainer.appendChild(fallback)
+          return
+        }
+
+        const existingFallback = avatarContainer.querySelector('.str-chat__avatar-fallback')
+        if (existingFallback) {
+          existingFallback.textContent = getInitial(profile?.nick || existingFallback.textContent)
+        }
+      }
+    }
+
+    const injectSenderProfiles = () => {
+      const messageContainers = document.querySelectorAll('.str-chat__message')
+
+      messageContainers.forEach((messageContainer) => {
+        const senderNameElement = messageContainer.querySelector('.str-chat__message-simple-name')
+        if (!senderNameElement) {
+          return
+        }
+
+        const currentLabel = senderNameElement.textContent?.trim() || ''
+        let senderUid = messageContainer.getAttribute('data-comiku-sender-uid') || senderNameElement.getAttribute('data-comiku-sender-uid') || ''
+
+        if (!senderUid && isLikelyUid(currentLabel)) {
+          senderUid = currentLabel
+        }
+
+        if (!senderUid) {
+          return
+        }
+
+        messageContainer.setAttribute('data-comiku-sender-uid', senderUid)
+        senderNameElement.setAttribute('data-comiku-sender-uid', senderUid)
+
+        if (!profileUnsubscribers.has(senderUid)) {
+          const userRef = doc(db, 'usuario', senderUid)
+          const unsubscribe = onSnapshot(userRef, (snapshot) => {
+            if (!snapshot.exists()) {
+              profileCache.set(senderUid, { nick: senderUid, photoUrl: null })
+              injectSenderProfiles()
+              return
+            }
+
+            const data = snapshot.data()
+            const nick = typeof data?.Nick === 'string' && data.Nick.trim() ? data.Nick.trim() : senderUid
+            const photoUrl = data?.FotoPerfil && typeof data.FotoPerfil === 'object' && data.FotoPerfil.dataUrl
+              ? data.FotoPerfil.dataUrl
+              : null
+
+            profileCache.set(senderUid, { nick, photoUrl })
+            injectSenderProfiles()
+          })
+
+          profileUnsubscribers.set(senderUid, unsubscribe)
+        }
+
+        const profile = profileCache.get(senderUid)
+        if (!profile) {
+          return
+        }
+
+        if (profile.nick) {
+          senderNameElement.textContent = profile.nick
+        }
+
+        renderSenderAvatar(messageContainer, profile)
+      })
+    }
+
     const injectTimestamps = () => {
       const messages = document.querySelectorAll('.str-chat__message')
       
@@ -80,6 +196,8 @@ export default function MessageTimestampInjector() {
           messageInner.appendChild(flexWrapper)
         }
       })
+
+      injectSenderProfiles()
     }
 
     const timeoutId = setTimeout(injectTimestamps, 100)
@@ -100,6 +218,14 @@ export default function MessageTimestampInjector() {
     return () => {
       clearTimeout(timeoutId)
       observer.disconnect()
+      profileUnsubscribers.forEach((unsubscribe) => {
+        try {
+          unsubscribe()
+        } catch {
+        }
+      })
+      profileUnsubscribers.clear()
+      profileCache.clear()
     }
   }, [])
 

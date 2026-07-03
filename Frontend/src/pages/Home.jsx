@@ -33,6 +33,16 @@ import '../styles/Home.css'
 import '../styles/VolumeCoverCard.css'
 
 const homeCarouselBaseUrl = `${import.meta.env.BASE_URL}home-carousel/`
+const ADMIN_ONLY_PAGES = new Set([
+  'reports',
+  'creations-review',
+  'creation-detail',
+  'mensajes-usuarios',
+  'create-comic',
+  'create-comic-volumes',
+  'edit-comic',
+  'edit-volume',
+])
 
 //Parseo la ruta para determinar que pagina mostrar y que parametros cargar.
 function parseRoute(pathname) {
@@ -339,6 +349,7 @@ function Home() {
   const [currentUserProfile, setCurrentUserProfile] = useState(null)
   const [activeHeroSlide, setActiveHeroSlide] = useState(0)
   const [isNavHidden, setIsNavHidden] = useState(false)
+  const isAdminUser = String(currentUserRole || '').toLowerCase().includes('admin')
 
   const handlePageReady = () => {
     setIsNavHidden(false)
@@ -403,6 +414,11 @@ function Home() {
 
   //Voy a los reportes.
   const goToReports = () => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState({}, '', '/reportes')
     setActivePage('reports')
@@ -412,6 +428,11 @@ function Home() {
 
   //Voy a revisar las creaciones de usuarios.
   const goToCreationsReview = () => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState({}, '', '/admin/creations')
     setActivePage('creations-review')
@@ -430,6 +451,11 @@ function Home() {
 
   //Voy a los mensajes de usuarios.
   const goToMensajesUsuarios = () => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState({}, '', '/mensajes-usuarios')
     setActivePage('mensajes-usuarios')
@@ -457,6 +483,11 @@ function Home() {
 
   //Voy a crear un comic.
   const goToCreateComic = () => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState({}, '', '/crear-comic')
     setActivePage('create-comic')
@@ -464,6 +495,11 @@ function Home() {
 
   //Voy a crear los tomos de un comic.
   const goToCreateComicVolumes = () => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState({}, '', '/crear-comic/tomos')
     setActivePage('create-comic-volumes')
@@ -588,6 +624,11 @@ function Home() {
 
   //Voy a editar un comic.
   const goToEditComic = (comicId) => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState({}, '', `/comic/editar/${encodeURIComponent(comicId)}`)
     setActivePage('edit-comic')
@@ -597,6 +638,11 @@ function Home() {
 
   //Voy a editar un tomo.
   const goToEditVolume = ({ comicId, volumeId }) => {
+    if (!isAdminUser) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      return
+    }
+
     setIsNavHidden(true)
     window.history.pushState(
       {},
@@ -710,6 +756,18 @@ function Home() {
       cancelled = true
     }
   }, [authUser?.uid])
+
+  //Si un usuario no admin intenta entrar por URL a páginas restringidas, lo regreso al inicio.
+  useEffect(() => {
+    if (!authUser || currentUserRole === null) {
+      return
+    }
+
+    if (!isAdminUser && ADMIN_ONLY_PAGES.has(activePage)) {
+      setAuthError('No tienes permisos para acceder a esta sección.')
+      goToHome()
+    }
+  }, [activePage, authUser, currentUserRole, isAdminUser])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -1036,6 +1094,16 @@ function Home() {
         onAuthError={setAuthError}
         onAuthNotice={setAuthNotice}
       />
+    )
+  }
+
+  if (authUser && currentUserRole === null && ADMIN_ONLY_PAGES.has(activePage)) {
+    return (
+      <main className="app-shell">
+        <section className="app-card loading-card">
+          <p className="status-message">Cargando permisos de usuario...</p>
+        </section>
+      </main>
     )
   }
 

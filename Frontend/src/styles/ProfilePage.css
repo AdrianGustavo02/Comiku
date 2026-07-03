@@ -266,9 +266,9 @@
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(35,35,35);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(255, 255, 255);
   color: rgb(35, 35, 35);
-  font-size: 2rem;
+  font-size: 1.2rem;
   font-weight: bold;
 }
 
