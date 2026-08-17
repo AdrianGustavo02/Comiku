@@ -8,7 +8,7 @@ import {
 } from '../firebase/user'
 import '../styles/FriendsPage.css'
 
-function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
+function FriendsPage({ authUser, onOpenProfile, onPageReady }) {
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -48,7 +48,7 @@ function FriendsPage({ authUser, onOpenProfile, onBack, onPageReady }) {
     return () => {
       cancelled = true
     }
-  }, [authUser.uid])
+  }, [authUser.uid, onPageReady])
 
   //Marco la solicitud en curso para deshabilitar los botones. Luego llamo a la funcion acceptFriendRequest.
   const handleAcceptRequest = async (senderUid) => {

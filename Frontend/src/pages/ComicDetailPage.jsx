@@ -51,6 +51,7 @@ function ComicDetailPage({
   const [reviewsError, setReviewsError] = useState('')
   const [reviewsLastId, setReviewsLastId] = useState(null)
   const [reviewsHasMore, setReviewsHasMore] = useState(false)
+  const [userProfiles, setUserProfiles] = useState({})
 
   const [userReview, setUserReview] = useState(null)
   const [userRating, setUserRating] = useState(0)
@@ -211,7 +212,7 @@ function ComicDetailPage({
     return () => {
       cancelled = true
     }
-  }, [comicId, authUser?.uid])
+  }, [authUser?.uid, comicId, onPageReady])
 
   useEffect(() => {
     const missing = Array.from(new Set(reviews.map((r) => r.usuarioId))).filter(
@@ -221,9 +222,15 @@ function ComicDetailPage({
     if (missing.length === 0) return
 
     missing.forEach((uid) => {
-      ensureUserProfile(uid)
+      void getUserProfile(uid)
+        .then((profile) => {
+          setUserProfiles((currentProfiles) => ({ ...currentProfiles, [uid]: profile }))
+        })
+        .catch((error) => {
+          console.error(`No se pudo cargar el perfil ${uid}:`, error)
+        })
     })
-  }, [reviews])
+  }, [reviews, userProfiles])
 
   const scrollVolumes = (direction, ref) => {
     if (!ref?.current) return
@@ -280,22 +287,8 @@ function ComicDetailPage({
   }
 
 
-  const [userProfiles, setUserProfiles] = useState({})
-
   function sanitizeInput(text) {
     return sanitizeForbiddenInputChars(text)
-  }
-
-  async function ensureUserProfile(uid) {
-    if (!uid) return null
-    if (userProfiles[uid]) return userProfiles[uid]
-    try {
-      const profile = await getUserProfile(uid)
-      setUserProfiles((s) => ({ ...s, [uid]: profile }))
-      return profile
-    } catch {
-      return null
-    }
   }
 
   function formatDate(date) {
@@ -345,7 +338,8 @@ function ComicDetailPage({
       if (updatedComicData) {
         setComic(updatedComicData)
       }
-    } catch {
+    } catch (error) {
+      setReviewsError(error instanceof Error ? error.message : 'No se pudieron cargar las reseñas.')
     } finally {
       setReviewsLoading(false)
     }

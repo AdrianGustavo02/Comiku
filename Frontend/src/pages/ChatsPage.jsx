@@ -71,7 +71,7 @@ function ChatsPage({ authUser, onOpenProfile, onOpenFriends, onPageReady }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [onPageReady])
 
   const normalizedQuery = normalizeText(query)
 

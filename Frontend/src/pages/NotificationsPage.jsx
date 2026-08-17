@@ -79,7 +79,7 @@ export default function NotificationsPage({ authUser, onPageReady }) {
     }
 
     loadNotifications()
-  }, [authUser?.uid])
+  }, [authUser?.uid, onPageReady])
 
   const handleLoadMore = async () => {
     if (!cursor || !authUser?.uid) return

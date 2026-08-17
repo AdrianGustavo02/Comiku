@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { getComicById, getComicVolumeById } from '../firebase/comics'
 import {
   dismissReport,
@@ -13,6 +13,7 @@ import { getUsersNicksByUids } from '../firebase/user'
 import '../styles/ReportsPage.css'
 
 const SECTION_SIZE = 10
+const FEEDBACK_MESSAGE_DURATION_MS = 10_000
 
 const INITIAL_SECTION_STATE = {
   items: [],
@@ -196,7 +197,8 @@ function ReportCard({ report, isExpanded, onToggleExpanded, onResolve, onDismiss
         if (cancelled) return
         const nick = profile?.nick || profile?.nombre || ''
         if (nick) setResolvedReporterNick(nick)
-      } catch {
+      } catch (error) {
+        console.error('No se pudo cargar el perfil del usuario que reportó:', error)
       }
     }
 
@@ -382,6 +384,24 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
   const [processing, setProcessing] = useState(false)
   const [selectedSection, setSelectedSection] = useState('pending')
 
+  useEffect(() => {
+    if (!notice) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => setNotice(''), FEEDBACK_MESSAGE_DURATION_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [notice])
+
+  useEffect(() => {
+    if (!pageError) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => setPageError(''), FEEDBACK_MESSAGE_DURATION_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [pageError])
+
   const adminReady = currentUserRole !== null
   const isAdmin = isAdminRole(currentUserRole)
   const isSelectedChannelGroup = Boolean(
@@ -562,6 +582,8 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
     }
   }
 
+  const loadSectionFromEffect = useEffectEvent(loadSection)
+
   //Al cargar la página, si el usuario es admin, carga la sección seleccionada.
   useEffect(() => {
     if (!isAdmin) {
@@ -571,35 +593,23 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
 
     async function loadSelected() {
       if (cancelled) return
-      await loadSection(selectedSection, false)
+      await loadSectionFromEffect(selectedSection, false)
+      if (!cancelled) onPageReady?.()
     }
 
-    loadSelected().then(() => {
-      if (typeof onPageReady === 'function') onPageReady()
-    }).catch(() => {})
+    void loadSelected()
 
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid, currentUserRole, selectedSection])
+  }, [authUser?.uid, currentUserRole, isAdmin, onPageReady, selectedSection])
 
 
   useEffect(() => {
     if (adminReady && !isAdmin && typeof onPageReady === 'function') {
       onPageReady()
     }
-  }, [adminReady, isAdmin])
-
-  //Cada vez que se cambia de sección, si la sección no tiene items y no está cargando, carga los items. 
-  // Esto es para evitar cargar las 3 secciones al mismo tiempo al entrar a la página, 
-  // y solo cargar la sección que el admin quiera ver.
-  useEffect(() => {
-    if (!isAdmin) return
-    const sec = sections[selectedSection]
-    if (sec && sec.items.length === 0 && !sec.loading) {
-      void loadSection(selectedSection, false)
-    }
-  }, [selectedSection])
+  }, [adminReady, isAdmin, onPageReady])
 
   const openConfirmationModal = (report, action) => {
     setConfirmation({ open: true, action, report })
@@ -735,7 +745,7 @@ function ReportsPage({ authUser, currentUserRole, onPageReady }) {
                     </div>
                     <div className="channel-results-actions">
                       <button type="button" className="profile-back-button" onClick={() => handleLoadChannelDetails(c.id)} disabled={adminProcessing}>Ver</button>
-                      <button type="button" className="delete-account-button" onClick={() => handleConfirmDeleteChannel(c.id)} disabled={adminProcessing}>{isPersonalChatResult(c) ? 'Eliminar chat' : 'Eliminar grupo'}</button>
+                      <button type="button" className="report-action-button dismiss" onClick={() => handleConfirmDeleteChannel(c.id)} disabled={adminProcessing}>{isPersonalChatResult(c) ? 'Eliminar chat' : 'Eliminar grupo'}</button>
                     </div>
                   </li>
                 ))}

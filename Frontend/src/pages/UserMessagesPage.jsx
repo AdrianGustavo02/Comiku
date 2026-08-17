@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getFirstMessagesPage, getMessagesPage, markMessageAsRead, getMaxDescriptionLength } from '../firebase/userMessages';
 import '../styles/UserMessagesPage.css';
 
-export default function UserMessagesPage({ onBack, onPageReady }) {
+export default function UserMessagesPage({ onPageReady }) {
   const [messages, setMessages] = useState([]);
   const [expandedMessageId, setExpandedMessageId] = useState(null);
   const [error, setError] = useState('');

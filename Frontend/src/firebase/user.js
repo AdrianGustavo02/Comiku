@@ -597,13 +597,6 @@ export async function removeFriend(uid1, uid2) {
   } catch (error) {
     console.error('Error al eliminar notificaciones en removeFriend:', error)
   }
-
-  try {
-    await deleteUserContentFromActivities(uid1, uid2)
-    await deleteUserContentFromActivities(uid2, uid1)
-  } catch (error) {
-    console.error('Error al eliminar contenido de usuario en removeFriend:', error)
-  }
 }
 
 export async function blockUser(uid, userToBlockUid) {
@@ -831,44 +824,43 @@ export async function getUsersNicksByUids(uids) {
   return nickMap
 }
 
-export async function canSendMessageTo(senderId, channel) {
+export async function getMessageRestrictionReason(senderId, channel) {
   ensureFirestoreReady()
 
-  // Solo aplico restricciones a los chats 1:1.
   if (!channel?.data?.members || channel.data.members.length !== 2) {
-    return true
+    return ''
   }
 
-  // Obtengo el ID del otro usuario.
   const members = channel.data.members
   const recipientId = members.find((uid) => uid !== senderId)
 
   if (!recipientId) {
-    return true
+    return ''
   }
 
   try {
-    //Verifico si el remitente bloqueo al destinatario.
     const senderBlockedRecipient = await isUserBlocked(recipientId, senderId)
     if (senderBlockedRecipient) {
-      return false
+      return 'No puedes enviar mensajes por bloqueo de usuario.'
     }
 
-    //Verifico si el destinatario bloqueo al remitente.
     const recipientBlockedSender = await isUserBlocked(senderId, recipientId)
     if (recipientBlockedSender) {
-      return false
+      return 'No puedes enviar mensajes por bloqueo de usuario.'
     }
 
-    //Verifico si son amigos, si no lo son, no pueden enviarse mensajes.
     const areFriendsValue = await areFriends(senderId, recipientId)
     if (!areFriendsValue) {
-      return false
+      return 'No puedes enviar mensajes a este usuario porque ya no son amigos.'
     }
 
-    return true
+    return ''
   } catch (error) {
     console.error('Error al verificar el permiso para enviar mensajes:', error)
-    return true
+    return ''
   }
+}
+
+export async function canSendMessageTo(senderId, channel) {
+  return !(await getMessageRestrictionReason(senderId, channel))
 }

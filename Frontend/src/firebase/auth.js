@@ -137,7 +137,8 @@ export async function registerWithEmail({ email, password }) {
 
     try {
       await sendEmailVerification(credentials.user)
-    } catch {
+    } catch (error) {
+      console.error('No se pudo enviar el correo de verificación:', error)
     }
 
     return credentials.user

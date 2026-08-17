@@ -135,7 +135,8 @@ function CreateComicVolumesPage({
           setCoverFileName(data.portada.fileName || '')
           setCoverFile(null)
         }
-      } catch {
+      } catch (error) {
+        if (!cancelled) setFormError(error instanceof Error ? error.message : 'No se pudo cargar el tomo.')
       } finally {
         if (!cancelled) null
       }
@@ -343,7 +344,8 @@ function CreateComicVolumesPage({
           const profile = await getUserProfile(currentUser.uid)
           userRole = profile?.rol || 'usuario'
         }
-      } catch {
+      } catch (error) {
+        console.error('No se pudo obtener el rol del usuario:', error)
       }
 
       if (userRole && String(userRole).toLowerCase() === 'usuario') {

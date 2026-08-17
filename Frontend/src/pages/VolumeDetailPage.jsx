@@ -25,6 +25,7 @@ import '../styles/VolumeDetailPage.css'
 import '../styles/Modal.css'
 import FileInput from '../Components/FileInput'
 import Button from '../Components/Button'
+import NearbyBookstores from '../Components/NearbyBookstores'
 
 function formatPublicationDate(publicationDate) {
   if (!publicationDate || !/^\d{4}-\d{2}$/.test(publicationDate)) {
@@ -779,6 +780,17 @@ function VolumeDetailPage({ comicId, volumeId, authUser, onEditVolume, onDeleteV
             </section>
           </div>
         )}
+
+        {volume && comic ? (
+          <NearbyBookstores
+            authUser={authUser}
+            volumeTitle={
+              volume.numeroTomo !== null
+                ? `${comic.nombre}, tomo ${volume.numeroTomo}`
+                : `${comic.nombre}, tomo único`
+            }
+          />
+        ) : null}
 
         {deleteModalOpen ? (
           <div className="modal-backdrop" role="presentation" onClick={closeDeleteVolumeModal}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { STREAM_MAX_UPLOAD_SIZE_BYTES, STREAM_SUPPORTED_IMAGE_MIME_TYPES, sendMessageWithFiles } from '../firebase/stream'
-import { canSendMessageTo } from '../firebase/user'
+import { getMessageRestrictionReason } from '../firebase/user'
 import '../styles/AudioRecorderInput.css'
 
 const STREAM_IMAGE_ACCEPT = [
@@ -145,22 +145,17 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
 
   //Verifico si el usuario tiene permiso para enviar mensajes al destinatario.
   useEffect(() => {
-    if (isGroupChat || !authUser || !channel) {
-      setSendingDisabled(false)
-      setDisabledReason('')
-      return
-    }
-
     const checkPermission = async () => {
+      if (isGroupChat || !authUser || !channel) {
+        setSendingDisabled(false)
+        setDisabledReason('')
+        return
+      }
+
       try {
-        const allowed = await canSendMessageTo(authUser.uid, channel)
-        if (!allowed) {
-          setSendingDisabled(true)
-          setDisabledReason('No puedes enviar mensajes a este usuario')
-        } else {
-          setSendingDisabled(false)
-          setDisabledReason('')
-        }
+        const restrictionReason = await getMessageRestrictionReason(authUser.uid, channel)
+        setSendingDisabled(Boolean(restrictionReason))
+        setDisabledReason(restrictionReason)
       } catch (err) {
         console.error('Error al verificar el permiso de mensajería:', err)
         setSendingDisabled(false)
@@ -446,6 +441,10 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
 
   return (
     <div className="audio-input">
+      {sendingDisabled && disabledReason ? (
+        <p className="form-message error" role="alert">{disabledReason}</p>
+      ) : null}
+
       <div className="composer-row">
         <div className="text-send text-send-inline">
           <textarea
@@ -489,7 +488,7 @@ export default function AudioRecorderInput({ channel, authUser, isGroupChat }) {
             type="button"
             onClick={() => imageInputRef.current?.click()}
             className="btn-round-icon btn-attach"
-            disabled={isUploading || recording}
+            disabled={isUploading || recording || sendingDisabled}
             aria-label="Adjuntar imagen"
             title="Adjuntar imagen"
           >

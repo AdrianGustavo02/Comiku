@@ -171,7 +171,8 @@ function CreateComicPage({ onBack, onComicCreated, comicId, onComicUpdated }) {
         setGeneros(data.generos && data.generos.length > 0 ? data.generos : [''])
         setDescripcion(data.descripcion || '')
         setFormato(data.formato || '')
-      } catch {
+      } catch (error) {
+        if (!cancelled) setFormError(error instanceof Error ? error.message : 'No se pudo cargar el comic.')
       } finally {
         if (!cancelled) null
       }

@@ -533,7 +533,8 @@ export default function GroupSettings({ channel, authUser, onClose = () => {}, o
                     try {
                       const hasPending = await hasPendingObjectReport({ usuarioIdReporta: authUser?.uid, objetoReportadoId: channel.id, nombreObjetoReportado: 'grupo de chat' })
                       if (hasPending) setReportError('Ya tienes un reporte pendiente para este grupo. Podrás volver a reportarlo cuando se resuelva.')
-                    } catch {
+                    } catch (error) {
+                      console.error('Error al comprobar reportes pendientes del grupo:', error)
                     }
                     setIsReportModalOpen(true)
                   }}

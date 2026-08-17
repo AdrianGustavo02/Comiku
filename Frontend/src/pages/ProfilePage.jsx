@@ -9,7 +9,6 @@ import {
   removeFriend,
   getFriendRequests,
   blockUser,
-  unblockUser,
   isUserBlocked,
   setUserRole,
   deleteUserAccountByAdmin,
@@ -121,6 +120,7 @@ function ProfilePage({
   const [editFeaturedComicIds, setEditFeaturedComicIds] = useState([])
   const [featuredComicSearch, setFeaturedComicSearch] = useState('')
   const [visibleFeaturedComicCount, setVisibleFeaturedComicCount] = useState(12)
+  const isOwnProfile = !profileUid || profileUid === authUser?.uid
 
   useEffect(() => {
     let cancelled = false
@@ -176,7 +176,7 @@ function ProfilePage({
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid, profileUid])
+  }, [authUser?.uid, onPageReady, profileUid])
 
   //Cargar el estado de amistad cuando se ve otro perfil.
   useEffect(() => {
@@ -219,7 +219,7 @@ function ProfilePage({
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid, profileUid])
+  }, [authUser?.uid, isOwnProfile, profileUid])
 
   //Envio de solicitud de amistad.
   const handleSendFriendRequest = async () => {
@@ -290,24 +290,6 @@ function ProfilePage({
     } catch (error) {
       setProfileError(
         error instanceof Error ? error.message : 'No fue posible bloquear el usuario.'
-      )
-    } finally {
-      setProcessingBlock(false)
-    }
-  }
-
-  //Desbloqueo de usuario.
-  const handleUnblockUser = async () => {
-    if (!profileUid) return
-
-    try {
-      setProcessingBlock(true)
-      await unblockUser(authUser.uid, profileUid)
-      setIsBlockingProfileUser(false)
-      setProfileError('Usuario desbloqueado exitosamente.')
-    } catch (error) {
-      setProfileError(
-        error instanceof Error ? error.message : 'No fue posible desbloquear el usuario.'
       )
     } finally {
       setProcessingBlock(false)
@@ -415,7 +397,6 @@ function ProfilePage({
   const [reportScreenshotPreview, setReportScreenshotPreview] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [reportError, setReportError] = useState('')
-  const isOwnProfile = !profileUid || profileUid === authUser?.uid
 
   //Cuando se carga el perfil o se actualiza la información, actualizo los campos 
   // del formulario de edición para que reflejen los datos actuales del perfil.

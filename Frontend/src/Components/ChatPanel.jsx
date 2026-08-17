@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { Chat } from 'stream-chat-react'
 import 'stream-chat-react/dist/css/v2/index.css'
 import '../styles/ChatPanel.css'
@@ -14,6 +14,14 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
   const selectedChannel = typeof externalSelectedChannel === 'undefined'
     ? internalSelectedChannel
     : externalSelectedChannel
+
+  const notifyClientReady = useEffectEvent((ready) => {
+    onClientReady?.(ready)
+  })
+
+  const notifyClientError = useEffectEvent((message) => {
+    onClientError?.(message)
+  })
 
   const handleSelectChannel = (channel) => {
     if (onSelectChannel) {
@@ -32,9 +40,7 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
 
       //Conexion con StreamChat.
       try {
-        if (onClientReady) {
-          onClientReady(false)
-        }
+        notifyClientReady(false)
 
         const payload = await getStreamToken()
         const { apiKey, token } = payload
@@ -45,17 +51,11 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
         if (!mounted) return
         void c
         setClientReady(true)
-        if (onClientReady) {
-          onClientReady(true)
-        }
+        notifyClientReady(true)
       } catch (error) {
-        if (onClientReady) {
-          onClientReady(false)
-        }
-        if (onClientError) {
-          const errMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error))
-          onClientError(errMsg)
-        }
+        notifyClientReady(false)
+        const errMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error))
+        notifyClientError(errMsg)
       }
     }
 
@@ -63,14 +63,13 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
 
     return () => {
       mounted = false
-      if (onClientReady) {
-        onClientReady(false)
-      }
+      notifyClientReady(false)
       const c = getStreamClient()
       if (c) {
         try {
           c.disconnectUser()
-        } catch {
+        } catch (error) {
+          console.error('Error al desconectar StreamChat:', error)
         }
       }
     }
@@ -94,7 +93,7 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
         const results = await c.queryChannels(filters, sort, { limit: 1 })
         if (!mounted) return
         setChannelsExist((results || []).length > 0)
-      } catch (err) {
+      } catch {
         if (mounted) setChannelsExist(false)
       }
     }
@@ -104,21 +103,17 @@ export default function ChatPanel({ authUser, selectedChannel: externalSelectedC
     return () => { mounted = false }
   }, [clientReady])
 
-  useEffect(() => {
-    if (selectedChannel?.id) {
-      setChannelsExist(true)
-    }
-  }, [selectedChannel?.id])
+  const hasChannels = Boolean(selectedChannel?.id) || channelsExist
 
   if (!clientReady) {
     return <div className="chat-panel-loading">Cargando chat...</div>
   }
 
-  if (channelsExist === null) {
+  if (hasChannels === null) {
     return <div className="chat-panel-loading">Cargando chat...</div>
   }
 
-  if (channelsExist === false) {
+  if (hasChannels === false) {
     return (
       <div>
         <p className="chat-panel-loading">No tienes chats creados</p>

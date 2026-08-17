@@ -3,7 +3,7 @@ import { getBlockedUsers, unblockUser } from '../firebase/user'
 import '../styles/BlockedUsersPage.css'
 import Button from '../Components/Button'
 
-function BlockedUsersPage({ authUser, onBack, onPageReady }) {
+function BlockedUsersPage({ authUser, onPageReady }) {
   const [blockedUsers, setBlockedUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -37,7 +37,7 @@ function BlockedUsersPage({ authUser, onBack, onPageReady }) {
     return () => {
       cancelled = true
     }
-  }, [authUser.uid])
+  }, [authUser.uid, onPageReady])
 
   //Desbloqueo a un usuario, con el processingUid deshabilito los botones. Ejecuto unblockUser 
   // y luego actualizo la vista.

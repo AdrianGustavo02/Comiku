@@ -67,7 +67,7 @@ function WishlistPage({ authUser, onOpenVolume, onPageReady }) {
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid])
+  }, [authUser?.uid, onPageReady])
 
   //Filtrado y ordenamiento de los tomos segun la busqueda y el criterio seleccionado.
   const filteredAndSortedVolumes = useMemo(() => {

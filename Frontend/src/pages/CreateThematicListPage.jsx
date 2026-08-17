@@ -224,7 +224,7 @@ function CreateThematicListPage({
     return () => {
       cancelled = true
     }
-  }, [listId, authUser?.uid])
+  }, [authUser?.uid, listId, onPageReady])
 
 
   //Cargar comics y tomos para mostrar en las sugerencias de búsqueda.

@@ -5,7 +5,7 @@ import { getUserProfile } from '../firebase/user'
 import ConfirmModal from '../Components/ConfirmModal'
 import '../styles/CreationsReview.css'
 
-function CreationsReviewPage({ onBack, onPageReady }) {
+function CreationsReviewPage({ onPageReady }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,7 +42,8 @@ function CreationsReviewPage({ onBack, onPageReady }) {
           try {
             const comicData = await getComicById(cid)
             if (comicData) comicMap[cid] = comicData
-          } catch {
+          } catch (error) {
+            console.error(`No se pudo cargar el comic ${cid}:`, error)
           }
         }))
 
@@ -77,7 +78,7 @@ function CreationsReviewPage({ onBack, onPageReady }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [onPageReady])
 
   //Desestimo una creacion pendiente.
   const handleDismiss = async (id) => {

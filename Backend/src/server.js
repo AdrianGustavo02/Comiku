@@ -46,6 +46,24 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+function calculateDistanceInMeters(origin, destination) {
+  const earthRadiusInMeters = 6371000;
+  const toRadians = (degrees) => degrees * (Math.PI / 180);
+  const latitudeDelta = toRadians(destination.latitude - origin.latitude);
+  const longitudeDelta = toRadians(destination.longitude - origin.longitude);
+  const originLatitude = toRadians(origin.latitude);
+  const destinationLatitude = toRadians(destination.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(originLatitude) *
+      Math.cos(destinationLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return Math.round(
+    earthRadiusInMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine)),
+  );
+}
+
 function getBlockedEmailDocId(email) {
   return encodeURIComponent(normalizeEmail(email));
 }
@@ -501,12 +519,7 @@ async function pruneActivityMentionsByList(adminDb, matchesList) {
   return deletedOrPruned;
 }
 
-//Elimino un canal de StreamChat y su documento en Firestore.
-async function deleteStreamChannelAndMapping(adminDb, channelId) {
-  if (!channelId) {
-    return false;
-  }
-
+function createStreamServerClient() {
   const apiKey = process.env.STREAM_API_KEY;
   const apiSecret = process.env.STREAM_API_SECRET;
 
@@ -514,8 +527,17 @@ async function deleteStreamChannelAndMapping(adminDb, channelId) {
     throw new Error('Stream API key/secret no configurados.');
   }
 
-  const serverClient = new StreamChat(apiKey, apiSecret);
-  const channel = serverClient.channel('messaging', channelId);
+  return new StreamChat(apiKey, apiSecret);
+}
+
+//Elimino un canal de StreamChat y su documento en Firestore.
+async function deleteStreamChannelAndMapping(adminDb, channelId, serverClient = null) {
+  if (!channelId) {
+    return false;
+  }
+
+  const streamClient = serverClient || createStreamServerClient();
+  const channel = streamClient.channel('messaging', channelId);
 
   try {
     await channel.delete();
@@ -532,31 +554,101 @@ async function deleteStreamChannelAndMapping(adminDb, channelId) {
   return true;
 }
 
-//Elimino los canales de StreamChat relacionados a un usuario por ser creador, miembro o admin,
+async function pruneUserFromGroupChannel({ adminDb, channelSnapshot, uid, serverClient }) {
+  const channelId = channelSnapshot.id;
+  const data = channelSnapshot.data() || {};
+  const rawMembers = Array.isArray(data.members) ? data.members : [];
+  const rawAdmins = Array.isArray(data.admins) ? data.admins : [];
+
+  const members = Array.from(new Set(rawMembers.filter(Boolean)));
+  const admins = Array.from(new Set(rawAdmins.filter(Boolean)));
+
+  const isUserInChannel =
+    data.createdBy === uid ||
+    members.includes(uid) ||
+    admins.includes(uid);
+
+  if (!isUserInChannel) {
+    return false;
+  }
+
+  const updatedMembers = members.filter((memberUid) => memberUid !== uid);
+  const updatedAdmins = admins
+    .filter((adminUid) => adminUid !== uid)
+    .filter((adminUid) => updatedMembers.includes(adminUid));
+
+  //Un grupo necesita al menos dos miembros y un administrador para seguir existiendo.
+  if (updatedMembers.length <= 1 || updatedAdmins.length === 0) {
+    await deleteStreamChannelAndMapping(adminDb, channelId, serverClient);
+    return true;
+  }
+
+  const channel = serverClient.channel('messaging', channelId);
+
+  if (members.includes(uid)) {
+    try {
+      await channel.removeMembers([uid]);
+    } catch (error) {
+      console.error('Advertencia: No se pudo quitar al usuario del grupo en StreamChat:', error?.message || error);
+    }
+  }
+
+  try {
+    await channel.update({ admins: updatedAdmins });
+  } catch (error) {
+    console.error('Advertencia: No se pudo actualizar admins del grupo en StreamChat:', error?.message || error);
+  }
+
+  const updatePayload = {
+    members: updatedMembers,
+    admins: updatedAdmins,
+  };
+
+  if (data.createdBy === uid) {
+    updatePayload.createdBy = updatedAdmins[0] || updatedMembers[0] || null;
+  }
+
+  await adminDb.collection('streamChannels').doc(channelId).update(updatePayload);
+  return true;
+}
+
+//Elimino o ajusto los canales de StreamChat relacionados a un usuario.
 async function deleteUserStreamChannels(adminDb, uid) {
   const channelsRef = adminDb.collection('streamChannels');
   const snapshots = await channelsRef.get();
-  const channelIds = new Set();
+  let affectedChannels = 0;
+  const serverClient = createStreamServerClient();
 
   for (const channelSnapshot of snapshots.docs) {
     const data = channelSnapshot.data() || {};
     const members = Array.isArray(data.members) ? data.members : [];
     const admins = Array.isArray(data.admins) ? data.admins : [];
+    const isGroup = data.type === 'group' || members.length > 2 || Boolean(data.groupName);
+    const isRelated = data.createdBy === uid || members.includes(uid) || admins.includes(uid);
 
-    if (
-      data.createdBy === uid ||
-      members.includes(uid) ||
-      admins.includes(uid)
-    ) {
-      channelIds.add(channelSnapshot.id);
+    if (!isRelated) {
+      continue;
+    }
+
+    if (!isGroup) {
+      await deleteStreamChannelAndMapping(adminDb, channelSnapshot.id, serverClient);
+      affectedChannels += 1;
+      continue;
+    }
+
+    const wasHandled = await pruneUserFromGroupChannel({
+      adminDb,
+      channelSnapshot,
+      uid,
+      serverClient,
+    });
+
+    if (wasHandled) {
+      affectedChannels += 1;
     }
   }
 
-  for (const channelId of channelIds) {
-    await deleteStreamChannelAndMapping(adminDb, channelId);
-  }
-
-  return channelIds.size;
+  return affectedChannels;
 }
 
 //Elimino las listas temáticas creadas por un usuario y todo su contenido relacionado.
@@ -1222,7 +1314,7 @@ app.delete('/api/admin/thematic-lists/:listId', async (req, res) => {
   }
 });
 
-//Endpoint: Elimino un grupo de chat y todo su contenido relacionado.
+//Endpoint: Elimino un chat o grupo y todo su contenido relacionado.
 app.delete('/api/admin/channels/:channelId', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -1234,24 +1326,18 @@ app.delete('/api/admin/channels/:channelId', async (req, res) => {
     const idToken = authHeader.slice('Bearer '.length).trim();
     const { adminAuth, adminDb } = getAdminServices();
     const decodedToken = await adminAuth.verifyIdToken(idToken);
+    await assertAdminRequest(adminDb, decodedToken.uid);
 
     const channelDoc = await adminDb.collection('streamChannels').doc(req.params.channelId).get();
     if (!channelDoc.exists) {
-      return res.status(404).json({ ok: false, message: 'Grupo no encontrado.' });
-    }
-
-    const channelData = channelDoc.data() || {};
-    const isGroupAdmin = Array.isArray(channelData.admins) && channelData.admins.includes(decodedToken.uid);
-
-    if (!isGroupAdmin) {
-      return res.status(403).json({ ok: false, message: 'Solo los administradores del grupo pueden eliminarlo.' });
+      return res.status(404).json({ ok: false, message: 'Chat no encontrado.' });
     }
 
     await deleteGroupCascade(adminDb, req.params.channelId);
 
-    return res.json({ ok: true, message: 'Grupo eliminado correctamente.' });
+    return res.json({ ok: true, message: 'Chat eliminado correctamente.' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'No fue posible eliminar el grupo.';
+    const message = error instanceof Error ? error.message : 'No fue posible eliminar el chat.';
     return res.status(500).json({ ok: false, message });
   }
 });
@@ -1748,17 +1834,21 @@ app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
       return res.status(403).json({ ok: false, message: 'Solo los administradores del grupo pueden remover miembros.' });
     }
 
-    const memberIsAdmin = Array.isArray(channelData.admins) && channelData.admins.includes(memberUid);
-    const remainingAdmins = Array.isArray(channelData.admins)
-      ? channelData.admins.filter((uid) => uid !== memberUid)
-      : [];
-
-    if (memberIsAdmin && remainingAdmins.length === 0) {
-      return res.status(400).json({ ok: false, message: 'Debes dejar al menos un administrador en el grupo.' });
-    }
-
     if (!channelData.members.includes(memberUid)) {
       return res.status(400).json({ ok: false, message: 'El usuario no es miembro de este grupo.' });
+    }
+
+    const updatedMembers = channelData.members.filter((uid) => uid !== memberUid);
+    const updatedAdmins = (channelData.admins || []).filter((uid) => uid !== memberUid);
+    const memberIsAdmin = Array.isArray(channelData.admins) && channelData.admins.includes(memberUid);
+
+    if (updatedMembers.length <= 1) {
+      await deleteStreamChannelAndMapping(adminDb, channelId);
+      return res.json({ ok: true, message: 'El grupo se eliminó automáticamente porque quedó con un solo miembro.' });
+    }
+
+    if (memberIsAdmin && updatedAdmins.length === 0) {
+      return res.status(400).json({ ok: false, message: 'Debes dejar al menos un administrador en el grupo.' });
     }
 
     const apiKey = process.env.STREAM_API_KEY;
@@ -1771,9 +1861,6 @@ app.post('/api/stream/channels/:channelId/remove-member', async (req, res) => {
     const channel = serverClient.channel('messaging', channelId);
 
     await channel.removeMembers([memberUid]);
-
-    const updatedMembers = channelData.members.filter((uid) => uid !== memberUid);
-    const updatedAdmins = (channelData.admins || []).filter((uid) => uid !== memberUid);
 
     await adminDb.collection('streamChannels').doc(channelId).update({
       members: updatedMembers,
@@ -1927,6 +2014,133 @@ app.post('/api/stream/admin/channel/:channelId/delete', async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No fue posible eliminar el canal.';
     return res.status(500).json({ ok: false, message });
+  }
+});
+
+//Endpoint: Busco librerias cercanas para las aplicaciones web y Android.
+app.post('/api/places/nearby-bookstores', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, message: 'Falta token de autorización.' });
+    }
+
+    const idToken = authHeader.slice('Bearer '.length).trim();
+    const latitude = Number(req.body?.latitude);
+    const longitude = Number(req.body?.longitude);
+    const requestedRadius = Number(req.body?.radius || 20000);
+
+    if (
+      !Number.isFinite(latitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      !Number.isFinite(longitude) ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return res.status(400).json({ ok: false, message: 'La ubicación enviada no es válida.' });
+    }
+
+    const radius = Math.min(50000, Math.max(1000, requestedRadius));
+    const apiKey = process.env.GOOGLE_MAPS_DEMO_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        ok: false,
+        message: 'La búsqueda de comercios todavía no está configurada.',
+      });
+    }
+
+    const { adminAuth } = getAdminServices();
+    await adminAuth.verifyIdToken(idToken);
+
+    const searchQueries = ['comiquería', 'tienda de cómics', 'tienda de manga', 'librería'];
+    const fieldMask = [
+      'places.id',
+      'places.displayName',
+      'places.formattedAddress',
+      'places.location',
+      'places.businessStatus',
+      'places.googleMapsUri',
+      'places.primaryTypeDisplayName',
+    ].join(',');
+    const searchResults = await Promise.allSettled(
+      searchQueries.map(async (textQuery) => {
+        const placesResponse = await fetch('https://places.googleapis.com/v1/places:searchText', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': apiKey,
+            'X-Goog-FieldMask': fieldMask,
+          },
+          body: JSON.stringify({
+            textQuery,
+            languageCode: 'es',
+            maxResultCount: 20,
+            locationBias: {
+              circle: {
+                center: { latitude, longitude },
+                radius,
+              },
+            },
+          }),
+        });
+        const placesPayload = await placesResponse.json().catch(() => ({}));
+
+        if (!placesResponse.ok) {
+          throw new Error(placesPayload?.error?.message || `Error ${placesResponse.status}`);
+        }
+
+        return Array.isArray(placesPayload.places) ? placesPayload.places : [];
+      }),
+    );
+    const successfulSearches = searchResults.filter((result) => result.status === 'fulfilled');
+
+    searchResults
+      .filter((result) => result.status === 'rejected')
+      .forEach((result) => console.error('Places API respondió con error:', result.reason?.message || result.reason));
+
+    if (successfulSearches.length === 0) {
+      return res.status(502).json({
+        ok: false,
+        message: 'No fue posible consultar los comercios cercanos.',
+      });
+    }
+
+    const origin = { latitude, longitude };
+    const uniquePlaces = new Map(
+      successfulSearches
+        .flatMap((result) => result.value)
+        .filter((place) => place.id)
+        .map((place) => [place.id, place]),
+    );
+    const places = [...uniquePlaces.values()]
+      .filter((place) => place.location)
+      .map((place) => ({
+        id: place.id,
+        name: place.displayName?.text || 'Comercio sin nombre',
+        address: place.formattedAddress || 'Dirección no disponible',
+        latitude: place.location.latitude,
+        longitude: place.location.longitude,
+        businessStatus: place.businessStatus || '',
+        type: place.primaryTypeDisplayName?.text || 'Librería',
+        googleMapsUrl:
+          place.googleMapsUri ||
+          `https://www.google.com/maps/search/?api=1&query=${place.location.latitude},${place.location.longitude}`,
+        distanceMeters: calculateDistanceInMeters(origin, place.location),
+      }))
+      .filter((place) => place.distanceMeters <= radius)
+      .sort((firstPlace, secondPlace) => firstPlace.distanceMeters - secondPlace.distanceMeters);
+
+    return res.json({ ok: true, radius, places });
+  } catch (error) {
+    const isAuthenticationError = String(error?.code || '').startsWith('auth/');
+    const message = isAuthenticationError
+      ? 'La sesión no es válida o venció.'
+      : 'No fue posible buscar comercios cercanos.';
+
+    return res.status(isAuthenticationError ? 401 : 500).json({ ok: false, message });
   }
 });
 

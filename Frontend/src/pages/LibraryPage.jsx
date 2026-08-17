@@ -116,7 +116,7 @@ function LibraryPage({ authUser, onOpenComic, libraryUid, onPageReady }) {
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid])
+  }, [authUser?.uid, libraryUid, onPageReady])
 
   useEffect(() => {
     let cancelled = false

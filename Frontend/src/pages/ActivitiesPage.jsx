@@ -6,7 +6,7 @@ import { getActivitiesPage, getActivityById } from '../firebase/activities'
 import { getBlockedUsers, getUserFriends, getUsersWhoBlockedUser } from '../firebase/user'
 import '../styles/ActivitiesPage.css'
 
-function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, onOpenProfile, selectedActivityId, onPageReady }) {
+function ActivitiesPage({ authUser, onOpenVolume, onOpenThematicList, onOpenProfile, selectedActivityId, onPageReady }) {
   const [activities, setActivities] = useState([])
   const [cursor, setCursor] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -64,7 +64,7 @@ function ActivitiesPage({ authUser, onBack, onOpenVolume, onOpenThematicList, on
     load()
 
     return () => { cancelled = true }
-  }, [authUser.uid, selectedActivityId])
+  }, [authUser.uid, onPageReady, selectedActivityId])
 
   const loadMore = async () => {
     if (!cursor) return

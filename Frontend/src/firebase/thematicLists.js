@@ -234,7 +234,8 @@ export async function addVolumeToList({ listId, comicId, tomoId, orden }) {
     await updateDoc(listReference, {
       tomosDeLista: arrayUnion(tomoId),
     })
-  } catch {
+  } catch (error) {
+    console.error('No se pudo sincronizar la lista auxiliar de tomos:', error)
   }
 
   return addedRef.id

@@ -131,7 +131,7 @@ function ThematicListsPage({
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid, activeFilter])
+  }, [activeFilter, authUser?.uid, onPageReady])
 
   const visibleLists = useMemo(() => {
     if (!blockedByUsers.length) {

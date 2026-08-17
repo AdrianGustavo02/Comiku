@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { collection, onSnapshot, query, where } from 'firebase/firestore'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { collection, collectionGroup, onSnapshot, query, where } from 'firebase/firestore'
 import { useChatContext } from 'stream-chat-react'
 import { db } from '../firebase/firebase'
 import { enrichChannelWithFirestoreData } from '../firebase/stream'
@@ -209,8 +209,11 @@ function ChannelRow({ channel, onClick, currentUserId, isSelected }) {
 export default function ChatList({ onSelectChannel, selectedChannel }) {
   const { client } = useChatContext()
   const [channels, setChannels] = useState([])
+  const [blockedUserIds, setBlockedUserIds] = useState(() => new Set())
+  const [blockedByUserIds, setBlockedByUserIds] = useState(() => new Set())
   const onSelectChannelRef = useRef(onSelectChannel)
   const selectedChannelIdRef = useRef(selectedChannel?.id || '')
+  const selectedChannelRef = useRef(selectedChannel)
 
   useEffect(() => {
     onSelectChannelRef.current = onSelectChannel
@@ -218,7 +221,8 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
 
   useEffect(() => {
     selectedChannelIdRef.current = selectedChannel?.id || ''
-  }, [selectedChannel?.id])
+    selectedChannelRef.current = selectedChannel
+  }, [selectedChannel])
 
   useEffect(() => {
     let cancelled = false
@@ -248,7 +252,8 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
 
           return [enrichedSelected, ...currentChannels]
         })
-      } catch {
+      } catch (error) {
+        console.error('Error al enriquecer el canal seleccionado:', error)
       }
     }
 
@@ -257,7 +262,7 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
     return () => {
       cancelled = true
     }
-  }, [selectedChannel?.id])
+  }, [selectedChannel])
 
   useEffect(() => {
     let mounted = true
@@ -283,8 +288,9 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
             mergedById.set(channel.id, channel)
           })
 
-          if (selectedChannel?.id && !mergedById.has(selectedChannel.id)) {
-            mergedById.set(selectedChannel.id, selectedChannel)
+          const currentSelectedChannel = selectedChannelRef.current
+          if (currentSelectedChannel?.id && !mergedById.has(currentSelectedChannel.id)) {
+            mergedById.set(currentSelectedChannel.id, currentSelectedChannel)
           }
 
           return Array.from(mergedById.values())
@@ -332,20 +338,62 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
   }, [client?.userID])
 
   useEffect(() => {
+    if (!client?.userID || !db) {
+      return undefined
+    }
+
+    const ownBlocksRef = collection(db, 'usuario', client.userID, 'UsuariosBloqueados')
+    const incomingBlocksQuery = query(
+      collectionGroup(db, 'UsuariosBloqueados'),
+      where('UserID', '==', client.userID),
+    )
+
+    const unsubscribeOwnBlocks = onSnapshot(ownBlocksRef, (snapshot) => {
+      setBlockedUserIds(new Set(snapshot.docs.map((blockedDocument) => blockedDocument.id)))
+    })
+
+    const unsubscribeIncomingBlocks = onSnapshot(incomingBlocksQuery, (snapshot) => {
+      setBlockedByUserIds(new Set(
+        snapshot.docs
+          .map((blockedDocument) => blockedDocument.ref.parent.parent?.id || '')
+          .filter(Boolean),
+      ))
+    })
+
+    return () => {
+      unsubscribeOwnBlocks()
+      unsubscribeIncomingBlocks()
+    }
+  }, [client?.userID])
+
+  const visibleChannels = useMemo(() => channels.filter((channel) => {
+      if (isGroupChannel(channel)) {
+        return true
+      }
+
+      const otherMemberId = getOtherMemberId(channel, client?.userID)
+
+      return !otherMemberId || (
+        !blockedUserIds.has(otherMemberId) &&
+        !blockedByUserIds.has(otherMemberId)
+      )
+    }), [blockedByUserIds, blockedUserIds, channels, client?.userID])
+
+  useEffect(() => {
     const selectedChannelId = selectedChannelIdRef.current
 
     if (!selectedChannelId) {
       return
     }
 
-    const channelStillVisible = channels.some((channel) => channel.id === selectedChannelId)
+    const channelStillVisible = visibleChannels.some((channel) => channel.id === selectedChannelId)
 
     if (!channelStillVisible) {
       onSelectChannelRef.current?.(null)
     }
-  }, [channels])
+  }, [visibleChannels])
 
-  if (channels.length === 0) {
+  if (visibleChannels.length === 0) {
     return (
       <div>
         <p className="status-message">No tienes chats creados</p>
@@ -355,7 +403,7 @@ export default function ChatList({ onSelectChannel, selectedChannel }) {
 
   return (
     <div>
-      {channels.map((channel) => (
+      {visibleChannels.map((channel) => (
         <ChannelRow
           key={channel.id}
           channel={channel}

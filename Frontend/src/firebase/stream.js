@@ -86,13 +86,15 @@ export async function initStreamClient({ apiKey, token, user }) {
     if (client && client.userID === user.id) {
       return client
     }
-  } catch {
+  } catch (error) {
+    console.error('No se pudo reutilizar el cliente de StreamChat:', error)
   }
 
   if (client) {
     try {
       await client.disconnectUser()
-    } catch {
+    } catch (error) {
+      console.error('Error al desconectar el usuario anterior de StreamChat:', error)
     }
     client = null
   }
@@ -115,7 +117,8 @@ export async function initStreamClient({ apiKey, token, user }) {
 
       try {
         await client.disconnectUser()
-      } catch {
+      } catch (disconnectError) {
+        console.error('Error al limpiar una conexión fallida de StreamChat:', disconnectError)
       }
       client = null
 
@@ -306,6 +309,7 @@ export async function enrichChannelWithFirestoreData(channel) {
       channel.data.createdBy = firestoreData.createdBy
     }
   } catch (error) {
+    console.error('No se pudo enriquecer el canal con datos de Firestore:', error)
   }
 
   return channel
@@ -462,7 +466,7 @@ export async function adminGetChannelDetails({ channelId }) {
   return payload
 }
 
-//Elimino un grupo de chat, solo para administradores de este.
+//Elimino un chat o grupo como administrador global de Comiku.
 export async function adminDeleteChannel({ channelId }) {
   const idToken = await getIdTokenFromFirebase()
   const response = await fetch(`${BACKEND_BASE}/api/admin/channels/${encodeURIComponent(channelId)}`, {

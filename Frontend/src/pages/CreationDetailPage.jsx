@@ -112,7 +112,8 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
                 formato: comic.formato || '',
               }
             }
-          } catch {
+          } catch (error) {
+            console.error('No se pudo cargar el comic de la creación:', error)
           }
         }
 
@@ -131,7 +132,7 @@ function CreationDetailPage({ creationId, onBack, onApproved, onPageReady }) {
     load()
 
     return () => { cancelled = true }
-  }, [creationId])
+  }, [creationId, onPageReady])
 
   //Deshabilito los botones y llamo a approvePendingCreation. Si se aprueba, onApproved actualiza la lista.
   const handleApprove = async () => {

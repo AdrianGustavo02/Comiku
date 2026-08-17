@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import { logout, subscribeToAuthChanges } from '../firebase/auth'
@@ -351,9 +351,9 @@ function Home() {
   const [isNavHidden, setIsNavHidden] = useState(false)
   const isAdminUser = String(currentUserRole || '').toLowerCase().includes('admin')
 
-  const handlePageReady = () => {
+  const handlePageReady = useCallback(() => {
     setIsNavHidden(false)
-  }
+  }, [])
 
 
   useEffect(() => {

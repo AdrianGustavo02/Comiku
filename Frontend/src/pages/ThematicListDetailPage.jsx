@@ -43,7 +43,6 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [list, setList] = useState(null)
-  const [volumes, setVolumes] = useState([])
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
   const [liked, setLiked] = useState(false)
@@ -165,7 +164,6 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
         )
 
         if (!cancelled) {
-          setVolumes(vols)
           setVolumeCards(nextVolumeCards)
         }
 
@@ -199,7 +197,7 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
     return () => {
       cancelled = true
     }
-  }, [listId, authUser?.uid])
+  }, [authUser?.uid, listId, onPageReady])
 
   useEffect(() => {
     let cancelled = false
@@ -352,7 +350,6 @@ function ThematicListDetailPage({ authUser, listId, onBack, onOpenVolume, onDele
 
       setError('Lista temática eliminada correctamente.')
       setList(null)
-      setVolumes([])
       setComments([])
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'No fue posible eliminar la lista temática.')

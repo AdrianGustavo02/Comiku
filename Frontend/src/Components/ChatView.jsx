@@ -90,17 +90,10 @@ function GroupHeader({ groupImage, groupTitle, membersCount }) {
 
 function PersonalHeader({ channel, currentUserId }) {
   const [profile, setProfile] = useState(null)
+  const otherMemberId = getOtherMemberId(channel, currentUserId)
 
   useEffect(() => {
-    if (!channel?.id || !currentUserId || !db) {
-      setProfile(null)
-      return undefined
-    }
-
-    const otherMemberId = getOtherMemberId(channel, currentUserId)
-
-    if (!otherMemberId) {
-      setProfile(null)
+    if (!otherMemberId || !db) {
       return undefined
     }
 
@@ -124,7 +117,7 @@ function PersonalHeader({ channel, currentUserId }) {
         fotoPerfil,
       })
     })
-  }, [channel?.id, currentUserId])
+  }, [otherMemberId])
 
   const title = profile?.nick || 'Chat'
   const avatar = profile?.fotoPerfil || defaultProfilePicture
@@ -146,7 +139,7 @@ function PersonalHeader({ channel, currentUserId }) {
 }
 
 export default function ChatView({ channel, authUser, onOpenProfile }) {
-  const [activeChannel, setActiveChannel] = useState(null)
+  const [activeChannel, setActiveChannel] = useState(() => isStreamChannelInstance(channel) ? channel : null)
   const [enrichedChannel, setEnrichedChannel] = useState(channel)
   const [showGroupSettings, setShowGroupSettings] = useState(false)
 
@@ -161,17 +154,10 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
 
   useEffect(() => {
     if (!channel) {
-      setActiveChannel(null)
-      setEnrichedChannel(null)
-      setShowGroupSettings(false)
       return undefined
     }
 
     let cancelled = false
-
-    setEnrichedChannel(channel)
-    setShowGroupSettings(false)
-    setActiveChannel(null)
 
     //Convierto el canal a una instancia de StreamChat para poder usarlo.
     async function resolveChannelInstance() {
@@ -191,7 +177,8 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
 
       try {
         await rebuiltChannel.watch()
-      } catch {
+      } catch (error) {
+        console.error('Error al observar el canal de StreamChat:', error)
       }
 
       if (!cancelled) {
@@ -226,7 +213,7 @@ export default function ChatView({ channel, authUser, onOpenProfile }) {
 
       setEnrichedChannel(updatedChannel)
     })
-  }, [activeChannel?.id, db])
+  }, [activeChannel])
 
   if (!activeChannel) {
     return <div className="chat-view-empty">Selecciona un chat para empezar</div>

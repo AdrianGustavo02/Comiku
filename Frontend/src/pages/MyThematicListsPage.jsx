@@ -53,7 +53,7 @@ function MyThematicListsPage({ authUser, onEditList, onBack, onOpenList, onPageR
     return () => {
       cancelled = true
     }
-  }, [authUser?.uid])
+  }, [authUser?.uid, onPageReady])
 
   const handleDeleteList = async (listId) => {
     if (!listId) return

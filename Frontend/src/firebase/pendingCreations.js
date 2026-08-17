@@ -147,7 +147,8 @@ export async function approvePendingCreation(id) {
     try {
       const exists = await isbnExists(isbnValue)
       if (exists) existingConflicts[isbnValue] = isbnIndexMap[isbnStr]
-    } catch {
+    } catch (error) {
+      console.error(`No se pudo comprobar el ISBN ${isbnValue}:`, error)
     }
   }
 

@@ -221,7 +221,8 @@ export default function MessageTimestampInjector() {
       profileUnsubscribers.forEach((unsubscribe) => {
         try {
           unsubscribe()
-        } catch {
+        } catch (error) {
+          console.error('Error al cancelar la suscripción del perfil:', error)
         }
       })
       profileUnsubscribers.clear()
