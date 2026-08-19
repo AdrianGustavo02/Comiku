@@ -2045,7 +2045,11 @@ app.post('/api/places/nearby-bookstores', async (req, res) => {
     const radius = Math.min(50000, Math.max(1000, requestedRadius));
     const apiKey = process.env.GOOGLE_MAPS_DEMO_API_KEY;
 
+    console.log(`[places] Búsqueda de comercios cercanos con radio ${radius} m.`);
+
     if (!apiKey) {
+      console.error('[places] Falta la variable de entorno GOOGLE_MAPS_DEMO_API_KEY.');
+
       return res.status(500).json({
         ok: false,
         message: 'La búsqueda de comercios todavía no está configurada.',
@@ -2133,8 +2137,12 @@ app.post('/api/places/nearby-bookstores', async (req, res) => {
       .filter((place) => place.distanceMeters <= radius)
       .sort((firstPlace, secondPlace) => firstPlace.distanceMeters - secondPlace.distanceMeters);
 
+    console.log(`[places] Comercios encontrados: ${places.length}.`);
+
     return res.json({ ok: true, radius, places });
   } catch (error) {
+    console.error('[places] Error inesperado:', error?.code || '', error?.message || error);
+
     const isAuthenticationError = String(error?.code || '').startsWith('auth/');
     const message = isAuthenticationError
       ? 'La sesión no es válida o venció.'
