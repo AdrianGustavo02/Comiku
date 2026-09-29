@@ -242,6 +242,7 @@ function Navbar({
 
         {isMobileMenuOpen ? (
           <div className="navbar-mobile-menu" role="menu" aria-label="Navegacion movil">
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'home' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenHome)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -252,22 +253,27 @@ function Navbar({
               </span>
               <span>Inicio</span>
             </button>
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'library' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenLibrary)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true"><LibraryIcon /></span>
               <span>Biblioteca</span>
             </button>
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'wishlist' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenWishlist)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true"><WishlistIcon /></span>
               <span>Wishlist</span>
             </button>
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'thematic-lists' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenThematicLists)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true"><ThematicListsIcon /></span>
               <span>Listas tematicas</span>
             </button>
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'activities' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenActivities)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true"><ActivityIcon /></span>
               <span>Actividades</span>
             </button>
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'chats' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenChats)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -277,6 +283,7 @@ function Navbar({
               </span>
               <span>Chats</span>
             </button>
+
             <button type="button" className={`navbar-mobile-menu-item ${activePage === 'notifications' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenNotifications)}>
               <span className="navbar-mobile-menu-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -287,6 +294,7 @@ function Navbar({
               </span>
               <span>Notificaciones</span>
             </button>
+            
             {onOpenMyProfile ? (
               <button type="button" className={`navbar-mobile-menu-item navbar-mobile-profile-item ${activePage === 'profile' ? 'active' : ''}`} onClick={() => handleMobileNavigate(onOpenMyProfile)}>
                 <img

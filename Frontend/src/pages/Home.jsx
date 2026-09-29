@@ -483,7 +483,9 @@ function Home() {
 
   //Voy a crear un comic.
   const goToCreateComic = () => {
-    if (!isAdminUser) {
+    const canAccessCreateComic = authUser && (isAdminUser || currentUserRole === 'usuario')
+
+    if (!canAccessCreateComic) {
       setAuthError('No tienes permisos para acceder a esta sección.')
       return
     }
@@ -495,7 +497,9 @@ function Home() {
 
   //Voy a crear los tomos de un comic.
   const goToCreateComicVolumes = () => {
-    if (!isAdminUser) {
+    const canAccessCreateComicVolumes = authUser && (isAdminUser || currentUserRole === 'usuario')
+
+    if (!canAccessCreateComicVolumes) {
       setAuthError('No tienes permisos para acceder a esta sección.')
       return
     }

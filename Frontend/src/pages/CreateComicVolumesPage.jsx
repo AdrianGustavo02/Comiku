@@ -685,20 +685,30 @@ function CreateComicVolumesPage({
             {volumesAdded.length === 0 ? (
               <p className="helper-text">Aún no cargaste tomos en esta sesión.</p>
             ) : (
-              <ul>
-                {volumesAdded.map((volume, index) => (
-                  <li key={volume.id}>
-                    <strong>Tomo {index + 1}</strong>
-                    <span>
-                      {volume.numeroTomo !== null
-                        ? `Número: ${volume.numeroTomo}`
-                        : 'Tomo único: true'}
-                    </span>
-                    <span>ISBN: {volume.isbn}</span>
-                    <span>
-                      Publicación: {formatPublicationDate(volume.fechaPublicacion)}
-                    </span>
-                    <span>Portada: {volume.portadaNombre}</span>
+              <ul className="loaded-volumes-list">
+                {volumesAdded.map((volume) => (
+                  <li className="loaded-volume-item" key={volume.id}>
+                    {volume.portada?.dataUrl ? (
+                      <img
+                        className="loaded-volume-thumb"
+                        src={volume.portada.dataUrl}
+                        alt={`Portada ${volume.numeroTomo !== null ? `tomo ${volume.numeroTomo}` : 'tomo único'}`}
+                      />
+                    ) : null}
+                    <div className="loaded-volume-info">
+                      <strong className="loaded-volume-title">
+                        {volume.numeroTomo !== null
+                          ? `Tomo ${volume.numeroTomo}`
+                          : 'Tomo único'}
+                      </strong>
+                      <span className="loaded-volume-field">
+                        <strong>ISBN:</strong> {volume.isbn}
+                      </span>
+                      <span className="loaded-volume-field">
+                        <strong>Publicación:</strong>{' '}
+                        {formatPublicationDate(volume.fechaPublicacion)}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>

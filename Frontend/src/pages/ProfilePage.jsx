@@ -1135,11 +1135,11 @@ function ProfilePage({
             <div className="featured-comics-header">
               <div>
                 <h2>Comics destacados</h2>
-                <p className="helper-text">
-                  {isOwnProfile
-                    ? 'Estos son los comics destacados por este usuario.'
-                    : 'Selecciona hasta 10 comics de tu biblioteca para destacarlos en tu perfil.'}
-                </p>
+                {isOwnProfile ? (
+                  <p className="helper-text">
+                    Selecciona hasta 10 comics de tu biblioteca para destacarlos en tu perfil.
+                  </p>
+                ) : null}
               </div>
 
               {isEditing ? (
